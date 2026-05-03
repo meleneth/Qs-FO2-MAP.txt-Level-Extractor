@@ -1,20 +1,66 @@
 {
-  "version": 6,
+  "version": 5,
   "configurePresets": [
     {
-      "name": "windows-msvc-debug",
-      "displayName": "Windows MSVC Debug",
+      "name": "linux-debug",
+      "displayName": "Linux + Ninja (Debug)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/windows-msvc-debug",
+      "binaryDir": "${sourceDir}/build-linux-debug",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux + Ninja (Release)",
+      "inherits": "linux-debug",
+      "binaryDir": "${sourceDir}/build-linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ucrt64-debug",
+      "displayName": "MSYS2 UCRT64 + Ninja (Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-ucrt64-debug",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
         "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "environment": {
+        "PATH": "C:/msys64/ucrt64/bin",
+        "MSYSTEM": "UCRT64"
+      }
+    },
+    {
+      "name": "ucrt64-release",
+      "displayName": "MSYS2 UCRT64 + Ninja (Release)",
+      "inherits": "ucrt64-debug",
+      "binaryDir": "${sourceDir}/build-ucrt64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "windows-msvc-debug",
-      "configurePreset": "windows-msvc-debug"
+      "name": "build-linux-debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "build-linux-release",
+      "configurePreset": "linux-release"
+    },
+    {
+      "name": "build-ucrt64-debug",
+      "configurePreset": "ucrt64-debug"
+    },
+    {
+      "name": "build-ucrt64-release",
+      "configurePreset": "ucrt64-release"
     }
   ]
 }
