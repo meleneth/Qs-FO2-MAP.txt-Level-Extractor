@@ -2,6 +2,9 @@
 imgui.ini
 imgui*.ini
 
+_build
+vendor
+vendor-source-package
 ## General build artifacts
 *.o
 *.obj

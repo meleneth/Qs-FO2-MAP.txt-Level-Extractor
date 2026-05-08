@@ -4,3 +4,5 @@
 *.h text eol=lf
 *.json text eol=lf
 CMakeLists.txt txt eol=lf
+*.sh text eol=lf
+*.cmake text eol=lf

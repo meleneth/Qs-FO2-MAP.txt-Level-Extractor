@@ -12,16 +12,32 @@ include(FetchContent)
 include(cmake/Dependencies.cmake)
 
 option(USE_LOCAL_IO_PLATFORM "Use local IO_Platform checkout" OFF)
+option(USE_VENDORED_DEPS "Use bundled dependency sources" OFF)
+
+
 set(IO_PLATFORM_SOURCE_DIR "../IO_Platform" CACHE PATH "Path to local IO_Platform checkout")
 
 if(USE_LOCAL_IO_PLATFORM)
+  message(STATUS "Using local IO_Platform: ${IO_PLATFORM_SOURCE_DIR}")
+
   add_subdirectory(
     "${IO_PLATFORM_SOURCE_DIR}"
-    "${CMAKE_BINARY_DIR}/IO_Platform-build"
+    "${CMAKE_BINARY_DIR}/IO_platform-build"
   )
+
+elseif(USE_VENDORED_DEPS AND EXISTS "${CMAKE_SOURCE_DIR}/vendor/IO_platform/CMakeLists.txt")
+  message(STATUS "Using vendored IO_platform")
+
+  add_subdirectory(
+    "${CMAKE_SOURCE_DIR}/vendor/IO_platform"
+    "${CMAKE_BINARY_DIR}/vendor/IO_platform-build"
+  )
+
 else()
+  message(STATUS "Fetching IO_platform")
+
   FetchContent_Declare(
-    IO_Platform
+    IO_platform
     GIT_REPOSITORY https://github.com/Meleneth/IO_platform.git
     GIT_TAG        6d7783d6d785752f590dd2ae5ac26845000e099e
     GIT_SHALLOW    FALSE
@@ -71,3 +87,26 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       X11::X11
   )
 endif()
+
+set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${PROJECT_NAME}-source")
+
+set(CPACK_SOURCE_IGNORE_FILES
+  "/\\.git/"
+  "/_build/"
+  "/build/"
+  "/build-.*/"
+  "/out/"
+  "/\\.vs/"
+  "/\\.vscode/"
+  "/vendor-source-package/"
+  "/CMakeFiles/"
+  "/CMakeCache\\.txt$"
+  "/\\.ninja_log$"
+  "/\\.ninja_deps$"
+  "/_CPack_Packages/"
+  "/CPackConfig\\.cmake$"
+  "/CPackSourceConfig\\.cmake$"
+)
+
+include(CPack)
