@@ -39,13 +39,12 @@ else()
   FetchContent_Declare(
     IO_platform
     GIT_REPOSITORY https://github.com/Meleneth/IO_platform.git
-    GIT_TAG        6d7783d6d785752f590dd2ae5ac26845000e099e
+    GIT_TAG        390091fd52fc36c307af75dce4d16618484fe186
     GIT_SHALLOW    FALSE
   )
 
   FetchContent_MakeAvailable(IO_Platform)
 endif()
-
 set(APP_SOURCES
   src/main.cpp
   src/map_txt_parser.cpp

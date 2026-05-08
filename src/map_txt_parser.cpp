@@ -48,7 +48,7 @@ void parse_map_txt(uint8_t *map_data, map_lvls *map) {
   map->data = map_data;
   for (size_t i = 0; i < 3; i++) {
     char buff[24];
-    snprintf(buff, 24, "square_elev: %d\r\n\r\n", i);
+    snprintf(buff, 24, "square_elev: %d\r\n\r\n",(int) i);
     char *tmp = find_str(map_data, buff, strlen(buff));
     if (tmp) {
       map->level[i] = tmp + strlen(buff);
@@ -243,7 +243,7 @@ int script_spatial(char *script_txt, int remainder, int level) {
 //  is in the passed in string of objects
 bool check_object_level(char *id, char *objects) {
   int id_len = 0;
-  while ((id[id_len] >= '0') and id[id_len] <= '9') {
+  while ((id[id_len] >= '0') && id[id_len] <= '9') {
     id_len++;
   }
 
