@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "map_txt_parser.h"
+#include "text_map_parser.h"
 #include "io_Platform.h"
 
 char* find_str(uint8_t* map_txt, char* str, int len)
@@ -52,7 +53,9 @@ char* find_level_marker(uint8_t* map_data, int level, int* marker_len)
     *marker_len = 0;
     return nullptr;
 }
-//QTODO: make map_lvls a return instead of passing in?
+// TEMP_COMPAT: legacy GUI/export adapter. New code should call
+// qmap::parse_text_map(std::string_view) and use ranges instead of map_lvls
+// interior char pointers. Remove after GUI/export migrate to ParsedTextMap.
 void parse_map_txt(uint8_t* map_data, map_lvls* map)
 {
     if (!map_data) {
@@ -63,70 +66,42 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
     }
 
     map->data = map_data;
-    for (size_t i = 0; i < 3; i++)
-    {
-        int marker_len = 0;
-        char* tmp = find_level_marker(map_data, i, &marker_len);
-        if (tmp) {
-            map->level[i] = tmp + marker_len;
+    auto parsed = qmap::parse_text_map(
+        std::string_view{
+            reinterpret_cast<const char*>(map_data),
+            static_cast<std::size_t>(map->file_siz)
         }
+    );
+    if (!parsed) {
+        printf("ERROR: %s\n", parsed.error().message.c_str());
+        return;
     }
 
-    map->scripts = find_str(map_data,(char*)">>>>>>>>>>: SCRIPTS <<<<<<<<<<", sizeof(">>>>>>>>>>: SCRIPTS <<<<<<<<<<")-1);
-    map->objects = find_str(map_data,(char*)">>>>>>>>>>: OBJECTS <<<<<<<<<<", sizeof(">>>>>>>>>>: OBJECTS <<<<<<<<<<")-1);
+    auto* base = reinterpret_cast<char*>(map_data);
+    map->header_size = static_cast<int>(parsed.value().header.size);
+    for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
+        if (!parsed.value().elevations[elevation]) {
+            map->level[elevation] = nullptr;
+            map->lvl_sizes[elevation] = 0;
+            continue;
+        }
+
+        const auto range = *parsed.value().elevations[elevation];
+        map->level[elevation] = base + range.offset;
+        map->lvl_sizes[elevation] = static_cast<int>(range.size);
+    }
+    map->scripts = base + parsed.value().scripts.offset;
+    map->objects = base + parsed.value().objects.offset;
 }
 
 //assigns level string sizes
 //some levels might not exist
 //so we have to check each one in turn
+// TEMP_COMPAT: parse_map_txt now computes these values through ParsedTextMap.
+// Keep this as a no-op until legacy callers stop invoking it.
 void map_level_sizes(map_lvls* map)
 {
-    if (map->level[0]) {
-        if (map->level[1]) {
-            int marker_len = 0;
-        char* end = find_level_marker(map->data, 1, &marker_len);
-            map->lvl_sizes[0] = end - map->level[0];
-        } else
-        if (map->level[2]) {
-            int marker_len = 0;
-        char* end = find_level_marker(map->data, 2, &marker_len);
-            map->lvl_sizes[0] = end - map->level[0];
-        } else {
-            map->lvl_sizes[0] = map->scripts  - map->level[0];
-        }
-    }
-    if (map->level[1]) {
-        if (map->level[2]) {
-            int marker_len = 0;
-        char* end = find_level_marker(map->data, 2, &marker_len);
-            map->lvl_sizes[1] = end - map->level[1];
-        } else {
-            map->lvl_sizes[1] = map->scripts  - map->level[1];
-        }
-    }
-    if (map->level[2]) {
-        map->lvl_sizes[2] = map->scripts - map->level[2];
-    }
-
-    if (map->level[0]) {
-        int marker_len = 0;
-        char* end = find_level_marker(map->data, 0, &marker_len);
-        map->header_size = end - (char*)map->data;
-    } else
-    if (map->level[1]) {
-        int marker_len = 0;
-        char* end = find_level_marker(map->data, 1, &marker_len);
-        map->header_size = end - (char*)map->data;
-        map->header_size = (uint64_t)(map->level[1] - (char*)map->data);
-    } else
-    if (map->level[2]) {
-        int marker_len = 0;
-        char* end = find_level_marker(map->data, 2, &marker_len);
-        map->header_size = end - (char*)map->data;
-        map->header_size = (uint64_t)(map->level[2] - (char*)map->data);
-    } else {
-        map->header_size = map->scripts - (char*)map->data;
-    }
+    (void)map;
 }
 
 // returns a string of all objects located on the level passed in
