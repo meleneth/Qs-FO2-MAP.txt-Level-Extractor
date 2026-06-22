@@ -23,6 +23,9 @@ constexpr std::array<std::int32_t, binary_map_elevation_count> map_elevation_abs
 constexpr std::size_t tile_count_per_elevation = 10000;
 constexpr std::size_t tile_bytes_per_elevation = tile_count_per_elevation * sizeof(std::uint32_t);
 constexpr int serialized_script_block_capacity = 16;
+constexpr std::size_t critter_tail_words = 11;
+constexpr std::size_t scenery_tail_words = 3;
+constexpr std::size_t misc_tail_words = 5;
 
 Result<std::int32_t> read_i32(ByteReader& reader)
 {
@@ -424,11 +427,11 @@ std::size_t known_object_tail_size(BinaryObjectType type)
 {
     switch (type) {
     case BinaryObjectType::critter:
-        return 11 * sizeof(std::int32_t);
+        return critter_tail_words * sizeof(std::int32_t);
     case BinaryObjectType::scenery:
-        return 3 * sizeof(std::int32_t);
+        return scenery_tail_words * sizeof(std::int32_t);
     case BinaryObjectType::misc:
-        return 5 * sizeof(std::int32_t);
+        return misc_tail_words * sizeof(std::int32_t);
     case BinaryObjectType::item:
     case BinaryObjectType::wall:
     case BinaryObjectType::tile:
