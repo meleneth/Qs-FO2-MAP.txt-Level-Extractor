@@ -49,6 +49,21 @@ std::optional<MarkerMatch> find_level_marker(std::string_view text, int elevatio
     return MarkerMatch{lf_offset, lf.size()};
 }
 
+bool has_duplicate_level_marker(std::string_view text, int elevation, MarkerMatch first)
+{
+    std::array offsets = {
+        text.find(level_marker(elevation, true), first.offset + 1),
+        text.find(level_marker(elevation, false), first.offset + 1),
+    };
+
+    for (const auto offset : offsets) {
+        if (offset != std::string_view::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 Result<std::size_t> find_required_marker(std::string_view text, std::string_view marker)
 {
     const auto offset = text.find(marker);
@@ -105,6 +120,12 @@ Result<ParsedTextMap> parse_text_map(std::string_view text)
         if (markers[elevation] && markers[elevation]->offset > scripts_offset.value()) {
             return Result<ParsedTextMap>::fail({
                 "elevation marker appears after SCRIPTS section",
+                markers[elevation]->offset,
+            });
+        }
+        if (markers[elevation] && has_duplicate_level_marker(text, elevation, *markers[elevation])) {
+            return Result<ParsedTextMap>::fail({
+                "duplicate elevation marker",
                 markers[elevation]->offset,
             });
         }

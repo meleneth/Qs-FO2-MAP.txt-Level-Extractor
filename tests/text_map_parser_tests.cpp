@@ -130,3 +130,37 @@ TEST_CASE("parse_text_map fails when elevation markers are out of order", "[txt]
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "elevation markers are out of order");
 }
+
+TEST_CASE("parse_text_map fails when an elevation marker appears twice", "[txt][bounded]")
+{
+    constexpr std::string_view text =
+        "header\n"
+        "square_elev: 0\n\n"
+        "tiles-0-a\n"
+        "square_elev: 0\n\n"
+        "tiles-0-b\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n";
+
+    const auto parsed = qmap::parse_text_map(text);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "duplicate elevation marker");
+}
+
+TEST_CASE("parse_text_map fails when duplicate elevation markers use mixed line endings", "[txt][bounded]")
+{
+    constexpr std::string_view text =
+        "header\r\n"
+        "square_elev: 1\r\n\r\n"
+        "tiles-1-a\r\n"
+        "square_elev: 1\n\n"
+        "tiles-1-b\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n";
+
+    const auto parsed = qmap::parse_text_map(text);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "duplicate elevation marker");
+}
