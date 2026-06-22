@@ -6,6 +6,12 @@
 
 namespace qmap {
 
+enum class MapFileKind {
+    empty,
+    text,
+    binary,
+};
+
 struct Range {
     std::size_t offset = 0;
     std::size_t size = 0;

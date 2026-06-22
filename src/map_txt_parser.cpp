@@ -21,7 +21,7 @@ struct LegacyTextSource {
 
 std::optional<LegacyTextSource> parse_source(const map_lvls* map)
 {
-    if (!map || map->map_type == EMPTY || !map->data || map->file_siz <= 0) {
+    if (!map || map->map_type == qmap::MapFileKind::empty || !map->data || map->file_siz <= 0) {
         auto parsed = qmap::parse_text_map(empty_text_map);
         if (!parsed) {
             return std::nullopt;

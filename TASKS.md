@@ -37,11 +37,11 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Prefer `std::optional<Range>` for absent elevations.
   - [x] Keep CRLF and LF marker support.
 
-- [ ] Replace ad hoc pointer math helpers with named types. Partial: `Range` and `ScriptType` exist; legacy pointer APIs and missing `ElevationIndex`/`MapFileKind` remain.
+- [ ] Replace ad hoc pointer math helpers with named types. Partial: `Range`, `ScriptType`, and `MapFileKind` exist; legacy pointer APIs and missing `ElevationIndex` remain.
   - [x] `Range`
   - [ ] `ElevationIndex`
   - [x] `ScriptType`
-  - [ ] `MapFileKind`
+  - [x] `MapFileKind`
 
 - [ ] Start using RAII containers for owned data. Partial: new parser/CLI paths use RAII; GUI file loading still uses raw pointers, `malloc`, and borrowed interior `char*`.
   - [x] `std::vector<std::byte>` for binary file bytes.

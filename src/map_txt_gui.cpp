@@ -57,27 +57,29 @@ char head_L[NAME_LENGTH] = {"empty##1"};
 char head_M[NAME_LENGTH] = {"empty##2"};
 char head_R[NAME_LENGTH] = {"empty##3"};
 
-const char* map_type_name(int map_type)
+const char* map_type_name(qmap::MapFileKind map_type)
 {
     switch (map_type) {
-    case MAP_TXT:
+    case qmap::MapFileKind::text:
         return ".txt";
-    case MAP_MAP:
+    case qmap::MapFileKind::binary:
         return ".map";
-    default:
+    case qmap::MapFileKind::empty:
         return "empty";
     }
+
+    return "empty";
 }
 
 bool map_parse_succeeded(const map_lvls& map)
 {
-    if (!map.data || map.map_type == EMPTY) {
+    if (!map.data || map.map_type == qmap::MapFileKind::empty) {
         return false;
     }
-    if (map.map_type == MAP_TXT) {
+    if (map.map_type == qmap::MapFileKind::text) {
         return map.scripts != nullptr && map.objects != nullptr;
     }
-    if (map.map_type == MAP_MAP) {
+    if (map.map_type == qmap::MapFileKind::binary) {
         return map.header_size == static_cast<int>(qmap::binary_map_header_size);
     }
 
@@ -97,7 +99,7 @@ void show_map_status(const char* side, const map_lvls& map)
         map_parse_succeeded(map) ? "file parsed" : "parse failed",
         map_type_name(map.map_type)
     );
-    if (map.map_type == MAP_MAP) {
+    if (map.map_type == qmap::MapFileKind::binary) {
         ImGui::SameLine();
         ImGui::TextDisabled("export not implemented");
     }
@@ -135,12 +137,12 @@ void file_drop_callback(const char* full_path)
     // make sure file type is .txt
     char* ext = io_get_file_extension(full_path);
 
-    int map_type = EMPTY;
+    qmap::MapFileKind map_type = qmap::MapFileKind::empty;
     if (io_strncasecmp(ext, "txt", 3) == 0) {
-        map_type = MAP_TXT;
+        map_type = qmap::MapFileKind::text;
     } else
     if (io_strncasecmp(ext, "map", 3) == 0) {
-        map_type = MAP_MAP;
+        map_type = qmap::MapFileKind::binary;
     } else {
         snprintf(error_text, ERR_TXT_LEN,
         "Wrong file type.\n"
@@ -183,10 +185,10 @@ void file_drop_callback(const char* full_path)
     map_ptr->map_type = map_type;
 
 
-    if (map_ptr->map_type == MAP_MAP) {
+    if (map_ptr->map_type == qmap::MapFileKind::binary) {
         parse_binary_map_for_gui(*map_ptr);
     } else
-    if (map_ptr->map_type == MAP_TXT) {
+    if (map_ptr->map_type == qmap::MapFileKind::text) {
         parse_map_txt(map_ptr->data, map_ptr);
     }
     update_labels(map_ptr, list_box);
@@ -248,13 +250,13 @@ void export_map(char** label_ptr_M, int header, char* path_buff)
     if (map_L.data == nullptr && map_R.data == nullptr) {
         return;
     }
-    if (map_L.map_type == EMPTY && map_R.map_type == EMPTY) {
+    if (map_L.map_type == qmap::MapFileKind::empty && map_R.map_type == qmap::MapFileKind::empty) {
         return;
     }
 
     // .map file extension for both maps or one .map and one empty
-    if ((map_L.map_type == MAP_MAP || map_L.map_type == EMPTY)
-    &&  (map_R.map_type == MAP_MAP || map_R.map_type == EMPTY)) {
+    if ((map_L.map_type == qmap::MapFileKind::binary || map_L.map_type == qmap::MapFileKind::empty)
+    &&  (map_R.map_type == qmap::MapFileKind::binary || map_R.map_type == qmap::MapFileKind::empty)) {
         open_err_popup = true;
         snprintf(
             error_text,
@@ -265,8 +267,8 @@ void export_map(char** label_ptr_M, int header, char* path_buff)
         );
     } else
     // .txt file extension for both maps or one .txt and one empty
-    if ((map_L.map_type == MAP_TXT || map_L.map_type == EMPTY)
-    &&  (map_R.map_type == MAP_TXT || map_R.map_type == EMPTY)) {
+    if ((map_L.map_type == qmap::MapFileKind::text || map_L.map_type == qmap::MapFileKind::empty)
+    &&  (map_R.map_type == qmap::MapFileKind::text || map_R.map_type == qmap::MapFileKind::empty)) {
         export_map_txt(label_ptr_M, &map_L, &map_R, header, path_buff);
     } else {
         open_err_popup = true;

@@ -1,17 +1,13 @@
 #pragma once
+#include "qmap_types.h"
+
 #include <cstdint>
 
 inline constexpr int NAME_LENGTH = 16;
 
-enum map_type {
-    EMPTY          = 0,
-    MAP_TXT        = 1,
-    MAP_MAP        = 2
-};
-
 struct map_lvls
 {
-    int   map_type   = 0;
+    qmap::MapFileKind map_type = qmap::MapFileKind::empty;
     char* file_str   = nullptr;
     int   file_siz   = 0;     //should not be more than a couple MBs ever
     char* map_name   = nullptr;
