@@ -807,13 +807,14 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
         }
 
         char* obj_ptr = objects[elevation];
-        int len = strlen(obj_ptr);
-        int obj_elev_len = sizeof("obj_elev: ")-1;  //-1 to account for the auto-appended '\0' character
+        size_t len = strlen(obj_ptr);
+        constexpr size_t obj_elev_len = sizeof("obj_elev: ") - 1;
         for (size_t j = 0; j < len; j++) {
             if (obj_ptr[j] != 'o') {
                 continue;
             }
-            if (io_strncmp(&obj_ptr[j], "obj_elev: ", obj_elev_len) == 0) {
+            if (j + obj_elev_len < len
+                && io_strncmp(&obj_ptr[j], "obj_elev: ", obj_elev_len) == 0) {
                 j += obj_elev_len;
                 obj_ptr[j] = elevation + '0';
             }
