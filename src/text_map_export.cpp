@@ -4,9 +4,11 @@
 #include "map_structs.h"
 
 #include <array>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -83,9 +85,8 @@ std::optional<int> spatial_elevation(int tile)
     return std::nullopt;
 }
 
-std::string serialize_object_with_elevation(std::string_view raw, int destination_elevation)
+std::string replace_line_value(std::string_view raw, std::string_view field, std::string_view value)
 {
-    constexpr std::string_view field = "obj_elev:";
     std::string output;
     const auto offset = raw.find(field);
     if (offset == std::string_view::npos) {
@@ -95,7 +96,7 @@ std::string serialize_object_with_elevation(std::string_view raw, int destinatio
 
     append_crlf_normalized(output, raw.substr(0, offset + field.size()));
     output += ' ';
-    output += static_cast<char>('0' + destination_elevation);
+    output += value;
 
     const auto line_end = raw.find_first_of("\r\n", offset + field.size());
     if (line_end != std::string_view::npos) {
@@ -105,9 +106,70 @@ std::string serialize_object_with_elevation(std::string_view raw, int destinatio
     return output;
 }
 
+std::uint32_t destination_tile(std::uint32_t source_tile, int destination_elevation)
+{
+    auto tile = source_tile & 0x0FFFFFFFu;
+    if (destination_elevation != 0) {
+        tile |= (0x1u << (28 + destination_elevation));
+    }
+    return tile;
+}
+
+std::string serialize_object(
+    std::string_view raw,
+    int destination_elevation,
+    std::optional<std::uint32_t> rewritten_script_id
+)
+{
+    auto serialized = replace_line_value(
+        raw,
+        "obj_elev:",
+        std::string_view{&"012"[destination_elevation], 1}
+    );
+    if (rewritten_script_id) {
+        serialized = replace_line_value(serialized, "obj_sid:", std::to_string(*rewritten_script_id));
+    }
+
+    return serialized;
+}
+
+std::string serialize_script(
+    std::string_view raw,
+    std::optional<std::uint32_t> rewritten_script_id,
+    std::optional<std::uint32_t> rewritten_spatial_tile
+)
+{
+    std::string serialized;
+    append_crlf_normalized(serialized, raw);
+
+    if (rewritten_script_id) {
+        serialized = replace_line_value(serialized, "scr_id:", std::to_string(*rewritten_script_id));
+    }
+    if (rewritten_spatial_tile) {
+        serialized = replace_line_value(
+            serialized,
+            "scr_udata.sp.built_tile:",
+            std::to_string(*rewritten_spatial_tile)
+        );
+    }
+
+    return serialized;
+}
+
 struct ExportRecords {
     std::array<std::vector<std::string>, SCRIPT_TYPE_COUNT> scripts;
     std::vector<std::string> objects;
+    std::unordered_set<std::uint32_t> used_script_ids;
+
+    std::uint32_t reserve_script_id(std::uint32_t preferred)
+    {
+        auto candidate = preferred;
+        while (used_script_ids.contains(candidate)) {
+            ++candidate;
+        }
+        used_script_ids.insert(candidate);
+        return candidate;
+    }
 };
 
 Result<void> append_selected_records(
@@ -132,7 +194,7 @@ Result<void> append_selected_records(
         return Result<void>::fail(scripts.error());
     }
 
-    std::unordered_set<std::uint32_t> copied_object_script_ids;
+    std::unordered_map<std::uint32_t, std::uint32_t> copied_object_script_ids;
     for (const auto& object : objects.value()) {
         if (!object.elevation) {
             continue;
@@ -142,25 +204,42 @@ Result<void> append_selected_records(
             continue;
         }
 
+        std::optional<std::uint32_t> rewritten_script_id;
         if (object.script_id && *object.script_id != 0xFFFFFFFFu) {
-            copied_object_script_ids.insert(*object.script_id);
+            rewritten_script_id = output.reserve_script_id(*object.script_id);
+            copied_object_script_ids[*object.script_id] = *rewritten_script_id;
         }
 
         const auto raw = view_range(*objects_view, object.raw);
         if (!raw) {
             return Result<void>::fail({"invalid object record range", object.raw.offset});
         }
-        output.objects.push_back(serialize_object_with_elevation(*raw, *destination));
+        output.objects.push_back(serialize_object(*raw, *destination, rewritten_script_id));
     }
 
     for (const auto& script : scripts.value()) {
         bool copy = false;
+        std::optional<int> destination;
+        std::optional<std::uint32_t> rewritten_script_id;
+        std::optional<std::uint32_t> rewritten_spatial_tile;
+
         if (script.script_type == SCRIPT_SPATIAL && script.spatial_tile) {
             const auto elevation = spatial_elevation(*script.spatial_tile);
-            copy = elevation && source_destination(plan, side, *elevation).has_value();
+            if (elevation) {
+                destination = source_destination(plan, side, *elevation);
+                copy = destination.has_value();
+            }
+            if (copy) {
+                rewritten_script_id = output.reserve_script_id(script.script_id);
+                rewritten_spatial_tile = destination_tile(
+                    static_cast<std::uint32_t>(*script.spatial_tile),
+                    *destination
+                );
+            }
         } else if ((script.script_type == SCRIPT_OBJECTS || script.script_type == SCRIPT_CRITTER)
             && copied_object_script_ids.contains(script.script_id)) {
             copy = true;
+            rewritten_script_id = copied_object_script_ids.at(script.script_id);
         }
 
         if (!copy) {
@@ -171,9 +250,9 @@ Result<void> append_selected_records(
         if (!raw) {
             return Result<void>::fail({"invalid script record range", script.raw.offset});
         }
-        std::string serialized;
-        append_crlf_normalized(serialized, *raw);
-        output.scripts[script.script_type].push_back(std::move(serialized));
+        output.scripts[script.script_type].push_back(
+            serialize_script(*raw, rewritten_script_id, rewritten_spatial_tile)
+        );
     }
 
     return Result<void>::ok();
