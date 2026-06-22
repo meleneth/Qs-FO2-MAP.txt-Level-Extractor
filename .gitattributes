@@ -12,14 +12,17 @@
 CMakeLists.txt text eol=lf
 CMakePresets.json text eol=lf
 *.json text eol=lf
-*.txt text eol=auto
+*.txt text eol=lf
 *.md text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
 *.gitignore text eol=lf
 *.gitmodules text eol=lf
 
-# Binary fixtures/assets.
+# Files that must stay byte-exact.
+"Q's FO2 MAP.txt Level Extractor  License.txt" -text
+dependencies/SDL3-3.4.2/** -text
+test_maps/*.txt binary
 *.map binary
 *.png binary
 *.jpg binary
