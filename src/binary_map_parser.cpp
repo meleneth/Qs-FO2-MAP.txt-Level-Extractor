@@ -248,6 +248,135 @@ Result<void> read_script_block_footer(ByteReader& reader, int expected_count)
     return Result<void>::ok();
 }
 
+Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
+{
+    const auto start = reader.offset();
+    BinaryObjectPrefix record;
+
+    auto obj_id = read_i32(reader);
+    if (!obj_id) {
+        return Result<BinaryObjectPrefix>::fail(obj_id.error());
+    }
+    record.obj_id = obj_id.value();
+
+    auto tile = read_i32(reader);
+    if (!tile) {
+        return Result<BinaryObjectPrefix>::fail(tile.error());
+    }
+    record.tile = tile.value();
+
+    auto x = read_i32(reader);
+    if (!x) {
+        return Result<BinaryObjectPrefix>::fail(x.error());
+    }
+    record.x = x.value();
+
+    auto y = read_i32(reader);
+    if (!y) {
+        return Result<BinaryObjectPrefix>::fail(y.error());
+    }
+    record.y = y.value();
+
+    auto screen_x = read_i32(reader);
+    if (!screen_x) {
+        return Result<BinaryObjectPrefix>::fail(screen_x.error());
+    }
+    record.screen_x = screen_x.value();
+
+    auto screen_y = read_i32(reader);
+    if (!screen_y) {
+        return Result<BinaryObjectPrefix>::fail(screen_y.error());
+    }
+    record.screen_y = screen_y.value();
+
+    auto frame = read_i32(reader);
+    if (!frame) {
+        return Result<BinaryObjectPrefix>::fail(frame.error());
+    }
+    record.frame = frame.value();
+
+    auto rotation = read_i32(reader);
+    if (!rotation) {
+        return Result<BinaryObjectPrefix>::fail(rotation.error());
+    }
+    record.rotation = rotation.value();
+
+    auto fid = read_i32(reader);
+    if (!fid) {
+        return Result<BinaryObjectPrefix>::fail(fid.error());
+    }
+    record.fid = fid.value();
+
+    auto flags = read_i32(reader);
+    if (!flags) {
+        return Result<BinaryObjectPrefix>::fail(flags.error());
+    }
+    record.flags = flags.value();
+
+    auto elevation = read_i32(reader);
+    if (!elevation) {
+        return Result<BinaryObjectPrefix>::fail(elevation.error());
+    }
+    record.elevation = elevation.value();
+
+    auto pid = read_i32(reader);
+    if (!pid) {
+        return Result<BinaryObjectPrefix>::fail(pid.error());
+    }
+    record.pid = pid.value();
+
+    auto cid = read_i32(reader);
+    if (!cid) {
+        return Result<BinaryObjectPrefix>::fail(cid.error());
+    }
+    record.cid = cid.value();
+
+    auto light_radius = read_i32(reader);
+    if (!light_radius) {
+        return Result<BinaryObjectPrefix>::fail(light_radius.error());
+    }
+    record.light_radius = light_radius.value();
+
+    auto light_intensity = read_i32(reader);
+    if (!light_intensity) {
+        return Result<BinaryObjectPrefix>::fail(light_intensity.error());
+    }
+    record.light_intensity = light_intensity.value();
+
+    auto outline_color = read_i32(reader);
+    if (!outline_color) {
+        return Result<BinaryObjectPrefix>::fail(outline_color.error());
+    }
+    record.outline_color = outline_color.value();
+
+    auto script_id = read_i32(reader);
+    if (!script_id) {
+        return Result<BinaryObjectPrefix>::fail(script_id.error());
+    }
+    record.script_id = script_id.value();
+
+    auto script_index = read_i32(reader);
+    if (!script_index) {
+        return Result<BinaryObjectPrefix>::fail(script_index.error());
+    }
+    record.script_index = script_index.value();
+
+    auto inventory_count = read_i32(reader);
+    if (!inventory_count) {
+        return Result<BinaryObjectPrefix>::fail(inventory_count.error());
+    }
+    record.inventory_count = inventory_count.value();
+
+    auto inventory_size = read_i32(reader);
+    if (!inventory_size) {
+        return Result<BinaryObjectPrefix>::fail(inventory_size.error());
+    }
+    record.inventory_size = inventory_size.value();
+    record.raw = Range{start, reader.offset() - start};
+
+    return Result<BinaryObjectPrefix>::ok(record);
+}
+
 } // namespace
 
 std::string BinaryMapHeader::filename_string() const
@@ -495,6 +624,57 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
 
     scripts.end_offset = reader.offset();
     return Result<BinaryMapScripts>::ok(std::move(scripts));
+}
+
+Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset
+)
+{
+    ByteReader reader(bytes);
+    auto skipped = reader.read_bytes(object_section_offset);
+    if (!skipped) {
+        return Result<BinaryMapObjectPrefixes>::fail(skipped.error());
+    }
+
+    BinaryMapObjectPrefixes objects;
+    auto total_count = read_i32(reader);
+    if (!total_count) {
+        return Result<BinaryMapObjectPrefixes>::fail(total_count.error());
+    }
+    if (total_count.value() < 0) {
+        return Result<BinaryMapObjectPrefixes>::fail({"negative object count", object_section_offset});
+    }
+    objects.total_count = total_count.value();
+
+    std::int32_t summed_counts = 0;
+    for (auto& count : objects.elevation_counts) {
+        auto parsed = read_i32(reader);
+        if (!parsed) {
+            return Result<BinaryMapObjectPrefixes>::fail(parsed.error());
+        }
+        if (parsed.value() < 0) {
+            return Result<BinaryMapObjectPrefixes>::fail({"negative elevation object count", reader.offset() - 4});
+        }
+        count = parsed.value();
+        summed_counts += count;
+    }
+
+    if (summed_counts != objects.total_count) {
+        return Result<BinaryMapObjectPrefixes>::fail({"object count mismatch", object_section_offset});
+    }
+
+    objects.records.reserve(static_cast<std::size_t>(objects.total_count));
+    for (std::int32_t index = 0; index < objects.total_count; ++index) {
+        auto record = parse_object_prefix(reader);
+        if (!record) {
+            return Result<BinaryMapObjectPrefixes>::fail(record.error());
+        }
+        objects.records.push_back(record.value());
+    }
+    objects.end_offset = reader.offset();
+
+    return Result<BinaryMapObjectPrefixes>::ok(std::move(objects));
 }
 
 } // namespace qmap

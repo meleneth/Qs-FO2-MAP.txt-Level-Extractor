@@ -83,6 +83,37 @@ struct BinaryMapScripts {
     std::size_t end_offset = 0;
 };
 
+struct BinaryObjectPrefix {
+    Range raw;
+    std::int32_t obj_id = 0;
+    std::int32_t tile = 0;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+    std::int32_t screen_x = 0;
+    std::int32_t screen_y = 0;
+    std::int32_t frame = 0;
+    std::int32_t rotation = 0;
+    std::int32_t fid = 0;
+    std::int32_t flags = 0;
+    std::int32_t elevation = 0;
+    std::int32_t pid = 0;
+    std::int32_t cid = 0;
+    std::int32_t light_radius = 0;
+    std::int32_t light_intensity = 0;
+    std::int32_t outline_color = 0;
+    std::int32_t script_id = 0;
+    std::int32_t script_index = 0;
+    std::int32_t inventory_count = 0;
+    std::int32_t inventory_size = 0;
+};
+
+struct BinaryMapObjectPrefixes {
+    std::int32_t total_count = 0;
+    std::array<std::int32_t, 3> elevation_counts{};
+    std::vector<BinaryObjectPrefix> records;
+    std::size_t end_offset = 0;
+};
+
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes);
 Result<BinaryMapVariables> parse_binary_map_variables(
     std::span<const std::byte> bytes,
@@ -95,6 +126,10 @@ Result<BinaryMapTiles> parse_binary_map_tiles(
 Result<BinaryMapScripts> parse_binary_map_scripts(
     std::span<const std::byte> bytes,
     const BinaryMapHeader& header
+);
+Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset
 );
 
 } // namespace qmap

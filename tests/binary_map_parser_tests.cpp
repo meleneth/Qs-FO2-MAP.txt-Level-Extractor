@@ -168,6 +168,48 @@ std::vector<std::byte> example_map_with_scripts()
     return bytes;
 }
 
+void append_object_prefix(
+    std::vector<std::byte>& bytes,
+    std::int32_t obj_id,
+    std::int32_t elevation,
+    std::int32_t pid,
+    std::int32_t script_id
+)
+{
+    append_i32(bytes, obj_id);
+    append_i32(bytes, 12345);
+    append_i32(bytes, 1);
+    append_i32(bytes, 2);
+    append_i32(bytes, 3);
+    append_i32(bytes, 4);
+    append_i32(bytes, 5);
+    append_i32(bytes, 1);
+    append_i32(bytes, 0x02000001);
+    append_i32(bytes, 0);
+    append_i32(bytes, elevation);
+    append_i32(bytes, pid);
+    append_i32(bytes, -1);
+    append_i32(bytes, 6);
+    append_i32(bytes, 7);
+    append_i32(bytes, 0);
+    append_i32(bytes, script_id);
+    append_i32(bytes, 800);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+}
+
+std::vector<std::byte> example_map_with_object_prefixes()
+{
+    auto bytes = example_map_with_scripts();
+    append_i32(bytes, 2);
+    append_i32(bytes, 1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x02000001, 50331649);
+    append_object_prefix(bytes, 200, 2, 0x01000002, 67108865);
+    return bytes;
+}
+
 } // namespace
 
 TEST_CASE("parse_binary_map_header reads typed header fields", "[map][binary]")
@@ -340,6 +382,67 @@ TEST_CASE("parse_binary_map_scripts rejects truncated records", "[map][binary]")
     REQUIRE(header);
 
     const auto parsed = qmap::parse_binary_map_scripts(bytes, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "unexpected end of input");
+}
+
+TEST_CASE("parse_binary_map_object_prefixes reads counts and fixed object fields", "[map][binary]")
+{
+    const auto bytes = example_map_with_object_prefixes();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+
+    const auto parsed = qmap::parse_binary_map_object_prefixes(bytes, scripts.value().end_offset);
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().total_count == 2);
+    CHECK(parsed.value().elevation_counts[0] == 1);
+    CHECK(parsed.value().elevation_counts[1] == 0);
+    CHECK(parsed.value().elevation_counts[2] == 1);
+    REQUIRE(parsed.value().records.size() == 2);
+    CHECK(parsed.value().records[0].obj_id == 100);
+    CHECK(parsed.value().records[0].elevation == 0);
+    CHECK(parsed.value().records[0].pid == 0x02000001);
+    CHECK(parsed.value().records[0].script_id == 50331649);
+    CHECK(parsed.value().records[0].raw.size == 20 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].obj_id == 200);
+    CHECK(parsed.value().records[1].elevation == 2);
+    CHECK(parsed.value().records[1].pid == 0x01000002);
+    CHECK(parsed.value().records[1].script_id == 67108865);
+    CHECK(parsed.value().end_offset == bytes.size());
+}
+
+TEST_CASE("parse_binary_map_object_prefixes rejects count mismatches", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 2);
+    append_i32(bytes, 1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    const auto parsed = qmap::parse_binary_map_object_prefixes(bytes, scripts.value().end_offset);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "object count mismatch");
+}
+
+TEST_CASE("parse_binary_map_object_prefixes rejects truncated prefixes", "[map][binary]")
+{
+    auto bytes = example_map_with_object_prefixes();
+    bytes.pop_back();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+
+    const auto parsed = qmap::parse_binary_map_object_prefixes(bytes, scripts.value().end_offset);
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
