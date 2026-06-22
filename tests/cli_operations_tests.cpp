@@ -114,7 +114,8 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
         objects,
         first_object,
         first_record,
-        bytes
+        bytes,
+        7
     );
 
     CHECK(stats.find("kind: binary map\n") != std::string::npos);
@@ -131,10 +132,41 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("  first_counted_elevation: 1\n") != std::string::npos);
     CHECK(stats.find("  first_elevation_count: 3\n") != std::string::npos);
     CHECK(stats.find("  data_offset: 1015\n") != std::string::npos);
+    CHECK(stats.find("  object_records_status: parsed\n") != std::string::npos);
+    CHECK(stats.find("  object_records_parsed: 7\n") != std::string::npos);
     CHECK(stats.find("  first_object:\n") != std::string::npos);
     CHECK(stats.find("    type: scenery\n") != std::string::npos);
     CHECK(stats.find("    elevation: 1\n") != std::string::npos);
     CHECK(stats.find("    script_id: 50331649\n") != std::string::npos);
     CHECK(stats.find("    scenery_flags: 10\n") != std::string::npos);
     CHECK(stats.find("    scenery_destination: 12\n") != std::string::npos);
+}
+
+TEST_CASE("format_binary_map_stats reports incomplete object record parsing", "[cli][stats]")
+{
+    qmap::BinaryMapHeader header;
+    header.version = 20;
+
+    qmap::BinaryMapVariables variables;
+    qmap::BinaryMapTiles tiles;
+    qmap::BinaryMapScripts scripts;
+    qmap::BinaryMapObjectCounts objects;
+    objects.total_count = 3;
+
+    const auto stats = qmap::cli::format_binary_map_stats(
+        header,
+        variables,
+        tiles,
+        scripts,
+        objects,
+        std::nullopt,
+        std::nullopt,
+        {},
+        std::nullopt,
+        qmap::Error{"unsupported object pid type", 1234}
+    );
+
+    CHECK(stats.find("  object_records_status: incomplete\n") != std::string::npos);
+    CHECK(stats.find("  object_records_error: unsupported object pid type\n") != std::string::npos);
+    CHECK(stats.find("  object_records_error_offset: 1234\n") != std::string::npos);
 }

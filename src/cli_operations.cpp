@@ -152,7 +152,9 @@ std::string format_binary_map_stats(
     const BinaryMapObjectCounts& objects,
     const std::optional<BinaryObjectPrefix>& first_object,
     std::optional<BinaryObjectRecord> first_record,
-    std::span<const std::byte> bytes
+    std::span<const std::byte> bytes,
+    std::optional<std::size_t> parsed_object_records_count,
+    std::optional<Error> object_records_error
 )
 {
     std::ostringstream output;
@@ -191,6 +193,16 @@ std::string format_binary_map_stats(
                << objects.elevation_counts[objects.first_counted_elevation] << '\n';
     }
     output << "  data_offset: " << objects.data_offset << '\n';
+    if (object_records_error) {
+        output << "  object_records_status: incomplete\n";
+        output << "  object_records_error: " << object_records_error->message << '\n';
+        output << "  object_records_error_offset: " << object_records_error->offset << '\n';
+    } else if (parsed_object_records_count) {
+        output << "  object_records_status: parsed\n";
+        output << "  object_records_parsed: " << *parsed_object_records_count << '\n';
+    } else {
+        output << "  object_records_status: not_attempted\n";
+    }
     if (first_object) {
         output << "  first_object:\n";
         output << "    pid: " << first_object->pid << '\n';
@@ -366,9 +378,16 @@ int parse_stats(const std::filesystem::path& input)
             return 2;
         }
         std::optional<BinaryObjectRecord> first_record;
+        std::optional<std::size_t> parsed_object_records_count;
+        std::optional<Error> object_records_error;
         auto object_records = parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
-        if (object_records && !object_records.value().records.empty()) {
-            first_record = object_records.value().records.front();
+        if (object_records) {
+            parsed_object_records_count = object_records.value().records.size();
+            if (!object_records.value().records.empty()) {
+                first_record = object_records.value().records.front();
+            }
+        } else {
+            object_records_error = object_records.error();
         }
 
         std::cout << format_binary_map_stats(
@@ -379,7 +398,9 @@ int parse_stats(const std::filesystem::path& input)
             objects.value(),
             first_object.value(),
             first_record,
-            bytes
+            bytes,
+            parsed_object_records_count,
+            object_records_error
         );
         return 0;
     }
