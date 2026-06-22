@@ -116,19 +116,28 @@ char* parse_objects(map_lvls* map, int level)
     if (objects_size < 0) {
         return empty_c_string();
     }
+    constexpr size_t object_begin_len = sizeof("[OBJECT BEGIN]") - 1;
+    constexpr size_t object_end_len = sizeof("[OBJECT END]") - 1;
+    constexpr size_t object_elev_len = sizeof("obj_elev: ") - 1;
+    constexpr size_t inventory_begin_len = sizeof("[BEGIN INVEN ITEMS]") - 1;
+    constexpr size_t inventory_end_len = sizeof("[END INVEN ITEMS]") - 1;
     char* objects_str = (char*)malloc(objects_size + 1);
     char* objects_ptr = objects_str;
-    for (size_t i = 0; i < objects_size; i++)
+    const size_t object_text_size = static_cast<size_t>(objects_size);
+    for (size_t i = 0; i < object_text_size; i++)
     {
+        const size_t remaining = object_text_size - i;
         if ((map->objects[i] != '[') && (map->objects[i] != 'o')) {
             continue;
         }
-        if (io_strncmp(&map->objects[i], "[OBJECT BEGIN]", sizeof("[OBJECT BEGIN]")-1) == 0) {
+        if (remaining >= object_begin_len
+            && io_strncmp(&map->objects[i], "[OBJECT BEGIN]", object_begin_len) == 0) {
             begin = &map->objects[i];
             i += sizeof("[OBJECT BEGIN]");
             continue;
         }
-        if (io_strncmp(&map->objects[i], "obj_elev: ", sizeof("obj_elev: ")-1) == 0) {
+        if (remaining > object_elev_len
+            && io_strncmp(&map->objects[i], "obj_elev: ", object_elev_len) == 0) {
             char l = level + '0';
             char o = map->objects[i + sizeof("obj_elev: ")-1];
             if (o != l) {
@@ -136,11 +145,12 @@ char* parse_objects(map_lvls* map, int level)
                 continue;
             }
         }
-        if (io_strncmp(&map->objects[i], "[BEGIN INVEN ITEMS]", sizeof("[BEGIN INVEN ITEMS]")-1) == 0) {
+        if (remaining >= inventory_begin_len
+            && io_strncmp(&map->objects[i], "[BEGIN INVEN ITEMS]", inventory_begin_len) == 0) {
             // Apparently a critter's inventory is stored inside their own object description
             // And those are all marked [OBJECT BEGIN], so it breaks the current parsing
             // So here we fast forward to the end of the inventory list before returning to parsing
-            while (i + 1 < objects_size)
+            while (i + 1 < object_text_size)
             {
                 i++;
                 if (map->objects[i] != '[') {
@@ -149,17 +159,19 @@ char* parse_objects(map_lvls* map, int level)
                 if (map->objects[i+1] != 'E') {
                     continue;
                 }
-                if (io_strncmp(&map->objects[i], "[END INVEN ITEMS]", sizeof("[END INVEN ITEMS]")-1) == 0) {
+                if (object_text_size - i >= inventory_end_len
+                    && io_strncmp(&map->objects[i], "[END INVEN ITEMS]", inventory_end_len) == 0) {
                     break;
                 }
             }
         }
-        if (io_strncmp(&map->objects[i], "[OBJECT END]", sizeof("[OBJECT END]")-1) == 0) {
+        if (remaining >= object_end_len
+            && io_strncmp(&map->objects[i], "[OBJECT END]", object_end_len) == 0) {
             if (begin == nullptr) {
                 continue;
             }
-            size_t end_offset = i + sizeof("[OBJECT END]") - 1;
-            while (end_offset < static_cast<size_t>(objects_size)
+            size_t end_offset = i + object_end_len;
+            while (end_offset < object_text_size
                 && (map->objects[end_offset] == '\r' || map->objects[end_offset] == '\n')) {
                 ++end_offset;
             }

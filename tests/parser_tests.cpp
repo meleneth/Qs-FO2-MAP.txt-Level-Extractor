@@ -345,6 +345,26 @@ TEST_CASE("legacy object parser accepts object ending at buffer end", "[txt]")
     free(objects);
 }
 
+TEST_CASE("legacy object parser ignores partial markers after object end", "[txt]")
+{
+    const std::string expected =
+        "[OBJECT BEGIN]\n"
+        "obj_elev: 0\n"
+        "[OBJECT END]\n";
+    std::string data = expected + "[OBJECT BE";
+
+    map_lvls map;
+    map.data = reinterpret_cast<uint8_t*>(data.data());
+    map.file_siz = static_cast<int>(data.size());
+    map.objects = data.data();
+
+    char* objects = parse_objects(&map, 0);
+
+    REQUIRE(objects != nullptr);
+    CHECK(std::string(objects) == expected);
+    free(objects);
+}
+
 TEST_CASE("legacy spatial script parser rejects unterminated radius lines", "[txt]")
 {
     std::string script =
