@@ -245,7 +245,7 @@ Result<BinaryScriptRecord> parse_script_record(ByteReader& reader, BinaryScriptT
     return Result<BinaryScriptRecord>::ok(record);
 }
 
-Result<void> skip_script_padding_records(ByteReader& reader, BinaryScriptType type, int parsed_in_block)
+Result<void> skip_script_padding_records(ByteReader& reader, int parsed_in_block)
 {
     for (int slot = parsed_in_block; slot < serialized_script_block_capacity; ++slot) {
         auto script_id = read_u32(reader);
@@ -763,7 +763,7 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
 
             remaining -= block_count;
             if (block_count < serialized_script_block_capacity) {
-                auto skipped_padding = skip_script_padding_records(reader, type, block_count);
+                auto skipped_padding = skip_script_padding_records(reader, block_count);
                 if (!skipped_padding) {
                     return Result<BinaryMapScripts>::fail(skipped_padding.error());
                 }
