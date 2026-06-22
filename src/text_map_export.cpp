@@ -140,7 +140,8 @@ std::string replace_object_line_value(std::string_view raw, std::string_view fie
             : raw.substr(line_start, line_end - line_start);
 
         auto candidate = line_start;
-        while (candidate < raw.size() && (raw[candidate] == ' ' || raw[candidate] == '\t')) {
+        const auto line_stop = line_start + line.size();
+        while (candidate < line_stop && (raw[candidate] == ' ' || raw[candidate] == '\t')) {
             ++candidate;
         }
         const auto trimmed_line = raw.substr(candidate, line.size() - (candidate - line_start));

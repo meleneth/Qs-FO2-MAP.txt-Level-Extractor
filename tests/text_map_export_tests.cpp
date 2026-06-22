@@ -438,6 +438,46 @@ TEST_CASE("export_text_map rewrites only top-level object fields", "[txt][export
     CHECK(exported.value().find("obj_elev: 2\r\nobj_sid: 50331649\r\n") != std::string::npos);
 }
 
+TEST_CASE("export_text_map handles blank lines before top-level object fields", "[txt][export]")
+{
+    const auto left = parse_fixture(
+        "left-header\n"
+        "square_elev: 0\n\n"
+        "left-zero\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 50331649\n"
+        "scr_oid: 215\n"
+        "scr_num_local_vars: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[OBJECT BEGIN]\n"
+        "   \n"
+        "\t\t\n"
+        "obj_elev: 0\n"
+        "obj_sid: 50331649\n"
+        "[OBJECT END]\n"
+        "[[OBJECTS END]]\n"
+    );
+    const auto right = parse_fixture(
+        "right-header\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+    );
+    qmap::TextMapExportPlan plan;
+    plan.elevations[2] = qmap::ElevationSource{qmap::MapSide::left, 0};
+
+    const auto exported = qmap::export_text_map(source_from(left), source_from(right), plan);
+
+    REQUIRE(exported);
+    CHECK(exported.value().find("obj_elev: 2\r\nobj_sid: 50331649\r\n") != std::string::npos);
+}
+
 TEST_CASE("export_text_map reassigns duplicate spatial script ids consistently", "[txt][export]")
 {
     const auto left = parse_fixture(
