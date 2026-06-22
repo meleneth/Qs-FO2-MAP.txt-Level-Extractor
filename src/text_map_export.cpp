@@ -86,12 +86,31 @@ std::optional<int> spatial_elevation(int tile)
 std::string replace_line_value(std::string_view raw, std::string_view field, std::string_view value)
 {
     std::string output;
-    const auto offset = raw.find(field);
-    if (offset == std::string_view::npos) {
+    std::optional<std::size_t> field_offset;
+    std::size_t line_start = 0;
+    while (line_start < raw.size()) {
+        auto candidate = line_start;
+        while (candidate < raw.size() && (raw[candidate] == ' ' || raw[candidate] == '\t')) {
+            ++candidate;
+        }
+        if (raw.substr(candidate).starts_with(field)) {
+            field_offset = candidate;
+            break;
+        }
+
+        const auto line_end = raw.find('\n', line_start);
+        if (line_end == std::string_view::npos) {
+            break;
+        }
+        line_start = line_end + 1;
+    }
+
+    if (!field_offset) {
         append_crlf_normalized(output, raw);
         return output;
     }
 
+    const auto offset = *field_offset;
     append_crlf_normalized(output, raw.substr(0, offset + field.size()));
     output += ' ';
     output += value;

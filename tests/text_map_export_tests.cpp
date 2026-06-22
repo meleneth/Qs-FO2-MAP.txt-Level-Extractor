@@ -176,6 +176,70 @@ TEST_CASE("export_text_map copies selected objects and matching scripts", "[txt]
     CHECK(exported.value().find("obj_sid: 50331650\r\n") == std::string::npos);
 }
 
+TEST_CASE("export_text_map rewrites only real field lines", "[txt][export]")
+{
+    const auto left = parse_fixture(
+        "left-header\n"
+        "square_elev: 0\n\n"
+        "left-zero\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 50331649\n"
+        "note_scr_id: 999\n"
+        "scr_oid: 215\n"
+        "scr_num_local_vars: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[OBJECT BEGIN]\n"
+        "note_obj_elev: 9\n"
+        "note_obj_sid: 999\n"
+        "obj_elev: 0\n"
+        "obj_sid: 50331649\n"
+        "[OBJECT END]\n"
+        "[[OBJECTS END]]\n"
+    );
+    const auto right = parse_fixture(
+        "right-header\n"
+        "square_elev: 0\n\n"
+        "right-zero\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 50331649\n"
+        "scr_oid: 215\n"
+        "scr_num_local_vars: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[OBJECT BEGIN]\n"
+        "obj_elev: 0\n"
+        "obj_sid: 50331649\n"
+        "[OBJECT END]\n"
+        "[[OBJECTS END]]\n"
+    );
+    qmap::TextMapExportPlan plan;
+    plan.elevations[0] = qmap::ElevationSource{qmap::MapSide::right, 0};
+    plan.elevations[2] = qmap::ElevationSource{qmap::MapSide::left, 0};
+
+    const auto exported = qmap::export_text_map(source_from(left), source_from(right), plan);
+
+    REQUIRE(exported);
+    CHECK(exported.value().find("note_obj_elev: 9\r\n") != std::string::npos);
+    CHECK(exported.value().find("note_obj_sid: 999\r\n") != std::string::npos);
+    CHECK(exported.value().find("note_scr_id: 999\r\n") != std::string::npos);
+    CHECK(exported.value().find("obj_elev: 2\r\n") != std::string::npos);
+    CHECK(exported.value().find("obj_sid: 50331650\r\n") != std::string::npos);
+    CHECK(exported.value().find("scr_id: 50331650\r\n") != std::string::npos);
+}
+
 TEST_CASE("export_text_map reassigns duplicate object script ids consistently", "[txt][export]")
 {
     const auto left = parse_fixture(

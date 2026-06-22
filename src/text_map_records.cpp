@@ -51,17 +51,30 @@ std::optional<int> parse_i32(std::string_view value)
 
 std::optional<std::string_view> field_value(std::string_view record, std::string_view field)
 {
-    auto offset = record.find(field);
-    if (offset == std::string_view::npos) {
-        return std::nullopt;
+    std::size_t line_start = 0;
+    while (line_start < record.size()) {
+        auto field_offset = line_start;
+        while (field_offset < record.size()
+            && (record[field_offset] == ' ' || record[field_offset] == '\t')) {
+            ++field_offset;
+        }
+        if (record.substr(field_offset).starts_with(field)) {
+            field_offset += field.size();
+            const auto end = record.find_first_of("\r\n", field_offset);
+            if (end == std::string_view::npos) {
+                return record.substr(field_offset);
+            }
+            return record.substr(field_offset, end - field_offset);
+        }
+
+        const auto line_end = record.find('\n', line_start);
+        if (line_end == std::string_view::npos) {
+            break;
+        }
+        line_start = line_end + 1;
     }
 
-    offset += field.size();
-    const auto end = record.find_first_of("\r\n", offset);
-    if (end == std::string_view::npos) {
-        return record.substr(offset);
-    }
-    return record.substr(offset, end - offset);
+    return std::nullopt;
 }
 
 std::size_t line_start_after(std::string_view text, std::size_t offset)

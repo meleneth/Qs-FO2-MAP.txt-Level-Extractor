@@ -24,6 +24,24 @@ TEST_CASE("parse_text_objects extracts object ranges and numeric fields", "[txt]
     CHECK(objects.substr(parsed.value()[0].raw.offset, parsed.value()[0].raw.size).starts_with("[OBJECT BEGIN]"));
 }
 
+TEST_CASE("parse_text_objects reads field names only at line starts", "[txt][records]")
+{
+    constexpr std::string_view objects =
+        "[OBJECT BEGIN]\r\n"
+        "note_obj_elev: 9\r\n"
+        "note_obj_sid: 999\r\n"
+        "obj_elev: 1\r\n"
+        "obj_sid: 50331649\r\n"
+        "[OBJECT END]\r\n";
+
+    const auto parsed = qmap::parse_text_objects(objects);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 1);
+    CHECK(parsed.value()[0].elevation == 1);
+    CHECK(parsed.value()[0].script_id == 50331649u);
+}
+
 TEST_CASE("parse_text_objects fails on unterminated object blocks", "[txt][records]")
 {
     constexpr std::string_view objects =
@@ -71,6 +89,23 @@ TEST_CASE("parse_text_scripts extracts script records and numeric fields", "[txt
     CHECK(parsed.value()[1].script_type == qmap::ScriptType::object);
     CHECK(parsed.value()[1].object_id == 215u);
     CHECK_FALSE(parsed.value()[1].spatial_tile.has_value());
+}
+
+TEST_CASE("parse_text_scripts reads field names only at line starts", "[txt][records]")
+{
+    constexpr std::string_view scripts =
+        "note_scr_id: 999\r\n"
+        "scr_id: 50331649\r\n"
+        "note_scr_oid: 42\r\n"
+        "scr_oid: 215\r\n"
+        "scr_num_local_vars: 0\r\n";
+
+    const auto parsed = qmap::parse_text_scripts(scripts);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 1);
+    CHECK(parsed.value()[0].script_id == 50331649u);
+    CHECK(parsed.value()[0].object_id == 215u);
 }
 
 TEST_CASE("parse_text_scripts rejects invalid script ids", "[txt][records]")
