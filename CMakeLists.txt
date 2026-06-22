@@ -28,7 +28,21 @@ FetchContent_Declare(
     GIT_TAG        v1.92.7
     GIT_SHALLOW    TRUE
 )
+FetchContent_Declare(
+    cli11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG        v2.4.2
+    GIT_SHALLOW    TRUE
+)
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.14.1
+    GIT_SHALLOW    TRUE
+)
 FetchContent_MakeAvailable(imgui)
+FetchContent_MakeAvailable(cli11)
+FetchContent_MakeAvailable(spdlog)
 set(IMGUI_DIR "${imgui_SOURCE_DIR}")
 
 find_package(SDL3 CONFIG REQUIRED)
@@ -82,6 +96,17 @@ target_sources(
     src/map_txt_gui.cpp
 )
 qmap_enable_coverage(${EXE_NAME})
+
+add_executable(qmap_cli
+    src/cli_main.cpp
+)
+target_link_libraries(
+    qmap_cli PRIVATE
+    qmap_parsers
+    CLI11::CLI11
+    spdlog::spdlog
+)
+qmap_enable_coverage(qmap_cli)
 
 add_library(qmap_imgui STATIC
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
