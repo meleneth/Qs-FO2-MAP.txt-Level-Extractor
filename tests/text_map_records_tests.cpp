@@ -221,6 +221,25 @@ TEST_CASE("parse_text_scripts accepts indented record fields", "[txt][records]")
     CHECK(parsed.value()[1].object_id == 216u);
 }
 
+TEST_CASE("parse_text_scripts handles whitespace-only lines while reading fields", "[txt][records]")
+{
+    constexpr std::string_view scripts =
+        "scr_id: 16777216\r\n"
+        "   \r\n"
+        "\t\t\r\n"
+        "scr_num_local_vars: 0\r\n"
+        "scr_udata.sp.built_tile: 100\r\n"
+        "scr_udata.sp.radius: 5\r\n";
+
+    const auto parsed = qmap::parse_text_scripts(scripts);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 1);
+    CHECK(parsed.value()[0].script_id == 16777216u);
+    CHECK(parsed.value()[0].spatial_tile == 100);
+    CHECK(parsed.value()[0].spatial_radius == 5);
+}
+
 TEST_CASE("parse_text_scripts rejects invalid script ids", "[txt][records]")
 {
     constexpr std::string_view scripts =

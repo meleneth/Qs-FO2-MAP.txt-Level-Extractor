@@ -93,20 +93,27 @@ std::string replace_line_value(std::string_view raw, std::string_view field, std
     std::optional<std::size_t> field_offset;
     std::size_t line_start = 0;
     while (line_start < raw.size()) {
+        const auto line_end = raw.find_first_of("\r\n", line_start);
+        const auto line = line_end == std::string_view::npos
+            ? raw.substr(line_start)
+            : raw.substr(line_start, line_end - line_start);
+
         auto candidate = line_start;
-        while (candidate < raw.size() && (raw[candidate] == ' ' || raw[candidate] == '\t')) {
+        const auto line_stop = line_start + line.size();
+        while (candidate < line_stop && (raw[candidate] == ' ' || raw[candidate] == '\t')) {
             ++candidate;
         }
-        if (raw.substr(candidate).starts_with(field)) {
+        const auto trimmed_line = raw.substr(candidate, line.size() - (candidate - line_start));
+        if (trimmed_line.starts_with(field)) {
             field_offset = candidate;
             break;
         }
 
-        const auto line_end = raw.find('\n', line_start);
         if (line_end == std::string_view::npos) {
             break;
         }
-        line_start = line_end + 1;
+        line_start = line_end + (raw[line_end] == '\r' && line_end + 1 < raw.size()
+            && raw[line_end + 1] == '\n' ? 2 : 1);
     }
 
     if (!field_offset) {

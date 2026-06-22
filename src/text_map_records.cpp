@@ -63,12 +63,19 @@ std::optional<std::string_view> field_value(std::string_view record, std::string
 {
     std::size_t line_start = 0;
     while (line_start < record.size()) {
+        const auto line_end = record.find_first_of("\r\n", line_start);
+        const auto line = line_end == std::string_view::npos
+            ? record.substr(line_start)
+            : record.substr(line_start, line_end - line_start);
+
         auto field_offset = line_start;
-        while (field_offset < record.size()
+        const auto line_stop = line_start + line.size();
+        while (field_offset < line_stop
             && (record[field_offset] == ' ' || record[field_offset] == '\t')) {
             ++field_offset;
         }
-        if (record.substr(field_offset).starts_with(field)) {
+        const auto trimmed_line = record.substr(field_offset, line.size() - (field_offset - line_start));
+        if (trimmed_line.starts_with(field)) {
             field_offset += field.size();
             const auto end = record.find_first_of("\r\n", field_offset);
             if (end == std::string_view::npos) {
@@ -77,11 +84,11 @@ std::optional<std::string_view> field_value(std::string_view record, std::string
             return record.substr(field_offset, end - field_offset);
         }
 
-        const auto line_end = record.find('\n', line_start);
         if (line_end == std::string_view::npos) {
             break;
         }
-        line_start = line_end + 1;
+        line_start = line_end + (record[line_end] == '\r' && line_end + 1 < record.size()
+            && record[line_end + 1] == '\n' ? 2 : 1);
     }
 
     return std::nullopt;
