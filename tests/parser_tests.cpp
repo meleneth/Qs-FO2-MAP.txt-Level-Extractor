@@ -222,6 +222,23 @@ TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
     }
 }
 
+TEST_CASE("binary map parser rejects incomplete headers", "[map]")
+{
+    std::vector<uint8_t> data(8, 0);
+
+    map_lvls map;
+    map.file_siz = static_cast<int>(data.size());
+    map.data = data.data();
+
+    parse_map_map(&map);
+
+    CHECK(map.header_size == 0);
+    CHECK(map.header.version == 0);
+    for (int level = 0; level < 3; ++level) {
+        CHECK(map.level[level] == nullptr);
+    }
+}
+
 
 TEST_CASE("binary map script parser reads script counts and stops at objects", "[map][scripts]")
 {

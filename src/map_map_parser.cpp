@@ -148,6 +148,19 @@ map_header parse_header(uint8_t *map_file) {
 // parse map.map file header
 // QTODO: rename to something better
 void parse_map_map(map_lvls *map) {
+  if (map) {
+    map->header = {};
+    map->header_size = 0;
+    for (int elevation = 0; elevation < 3; ++elevation) {
+      map->level[elevation] = nullptr;
+    }
+  }
+
+  if (!map || !map->data ||
+      map->file_siz < static_cast<int>(sizeof(map_header))) {
+    return;
+  }
+
   map_header h = parse_header(map->data);
   map->header_size = sizeof(h);
 
