@@ -22,6 +22,53 @@ char label_M[3][16] = {"empty", "##1", "##2"};
 char head_L[NAME_LENGTH] = {"empty##1"};
 char head_M[NAME_LENGTH] = {"empty##2"};
 char head_R[NAME_LENGTH] = {"empty##3"};
+
+const char* map_type_name(int map_type)
+{
+    switch (map_type) {
+    case MAP_TXT:
+        return ".txt";
+    case MAP_MAP:
+        return ".map";
+    default:
+        return "empty";
+    }
+}
+
+bool map_parse_succeeded(const map_lvls& map)
+{
+    if (!map.data || map.map_type == EMPTY) {
+        return false;
+    }
+    if (map.map_type == MAP_TXT) {
+        return map.scripts != nullptr && map.objects != nullptr;
+    }
+    if (map.map_type == MAP_MAP) {
+        return map.header_size == static_cast<int>(sizeof(map_header));
+    }
+
+    return false;
+}
+
+void show_map_status(const char* side, const map_lvls& map)
+{
+    if (!map.data) {
+        ImGui::Text("%s: empty", side);
+        return;
+    }
+
+    ImGui::Text(
+        "%s: %s %s",
+        side,
+        map_parse_succeeded(map) ? "file parsed" : "parse failed",
+        map_type_name(map.map_type)
+    );
+    if (map.map_type == MAP_MAP) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("export not implemented");
+    }
+}
+
 void update_labels(map_lvls* map, int list_box)
 {
     if (list_box == -1) {
@@ -175,7 +222,14 @@ void export_map(char** label_ptr_M, int header, char* path_buff)
     // .map file extension for both maps or one .map and one empty
     if ((map_L.map_type == MAP_MAP || map_L.map_type == EMPTY)
     &&  (map_R.map_type == MAP_MAP || map_R.map_type == EMPTY)) {
-        export_map_map(label_ptr_M, &map_L, &map_R, header, path_buff);
+        open_err_popup = true;
+        snprintf(
+            error_text,
+            ERR_TXT_LEN,
+            ".MAP export is not implemented yet.\n"
+            "The file can be parsed, but binary export\n"
+            "is disabled until the full format is modeled."
+        );
     } else
     // .txt file extension for both maps or one .txt and one empty
     if ((map_L.map_type == MAP_TXT || map_L.map_type == EMPTY)
@@ -232,6 +286,8 @@ bool map_txt_gui()
     static char path_buff[PATH_SIZE] = "/path/to/some/folder/with/long/mapname.txt";
 
     ImGui::Text("Map Names:");
+    show_map_status("Left", map_L);
+    show_map_status("Right", map_R);
 
 
     ImVec2 posA = ImGui::GetCursorPos();
