@@ -1,50 +1,14 @@
 #pragma once
-#include <stdint.h>
-#define NAME_LENGTH               (16)
+#include <cstdint>
 
-enum script_type {
-    SCRIPT_SYSTEM  = 0x0,
-    SCRIPT_SPATIAL = 0x1,
-    SCRIPT_TIMED   = 0x2,
-    SCRIPT_OBJECTS = 0x3,
-    SCRIPT_CRITTER = 0x4,
-};
+inline constexpr int NAME_LENGTH = 16;
 
-constexpr int SCRIPT_TYPE_COUNT = 5;
 enum map_type {
     EMPTY          = 0,
     MAP_TXT        = 1,
     MAP_MAP        = 2
 };
 
-struct script
-{
-    int32_t scr_id = 0;
-    int32_t scr_next = 0;
-    int32_t spatial_tile = 0;
-    int32_t spatial_radius = 0;
-    int32_t time = 0;
-    int32_t scr_flags = 0;
-    int32_t scr_index = 0;
-    int32_t program_ptr = 0;
-    uint32_t scr_obj_id = 0;
-    int32_t lvar_offset = 0;
-    int32_t lvar_cnt = 0;
-    int32_t last_used_val = 0;
-    int32_t current_action = 0;
-    int32_t fixed_param = 0;
-    int32_t action_id = 0;
-    int32_t override_flags = 0;
-    int32_t unknown_1 = 0;
-    int32_t how_much = 0;
-    int32_t unknown_2 = 0;
-};
-
-struct scripts_list
-{
-    int32_t count = 0;
-    script* scripts = nullptr;
-};
 struct map_header
 {
     uint32_t version;       // 0x0000 // FO1==19, FO2==20
@@ -81,6 +45,4 @@ struct map_lvls
     char* objects = nullptr;
 
     struct map_header   header;
-    // struct scripts_list scripts_;
-    // struct objects_list objects_;
 };

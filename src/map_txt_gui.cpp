@@ -11,10 +11,13 @@ int list_box         = -1;
 char error_text[ERR_TXT_LEN] = {};
 bool open_err_popup = false;
 
-#define NAME_LENGTH     (16)
-#define LEFT            (0)
-#define MIDDLE          (1)
-#define RIGHT           (2)
+namespace {
+
+constexpr int left_column = 0;
+constexpr int middle_column = 1;
+constexpr int right_column = 2;
+
+} // namespace
 
 map_lvls map_L;
 map_lvls map_R;
@@ -154,7 +157,6 @@ void file_drop_callback(const char* full_path)
     } else
     if (map_ptr->map_type == MAP_TXT) {
         parse_map_txt(map_ptr->data, map_ptr);
-        map_level_sizes(map_ptr);
     }
     update_labels(map_ptr, list_box);
     //QTODO: is this necessary? why did I mark it in the debugger?
@@ -322,7 +324,7 @@ bool map_txt_gui()
 
 
     // left third
-    ImGui::ListBox("##L", &selection[LEFT], map_L.label_ptr, IM_COUNTOF(map_L.label_ptr));
+    ImGui::ListBox("##L", &selection[left_column], map_L.label_ptr, IM_COUNTOF(map_L.label_ptr));
     if (hover_box()) {
         list_box = 0;
     }
@@ -330,7 +332,7 @@ bool map_txt_gui()
     ImGui::SetCursorPos(ImVec2{posB.x+size.x   +  5, posB.y});
     if (ImGui::Button(">##L->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
         // replace middle selection with selection on left
-        strncpy(label_M[selection[MIDDLE]],map_L.label_ptr[selection[LEFT]],NAME_LENGTH);
+        strncpy(label_M[selection[middle_column]],map_L.label_ptr[selection[left_column]],NAME_LENGTH);
     }
 
     // middle third - output listbox
@@ -341,12 +343,12 @@ bool map_txt_gui()
     {
         for (int n = 0; n < IM_COUNTOF(label_ptr_M); n++)
         {
-            const bool item_selected = (n == selection[MIDDLE]);
+            const bool item_selected = (n == selection[middle_column]);
             if (ImGui::Selectable(label_M[n], item_selected))
-                selection[MIDDLE] = n;
+                selection[middle_column] = n;
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                snprintf(label_M[selection[MIDDLE]], NAME_LENGTH, "##%d", n);
+                snprintf(label_M[selection[middle_column]], NAME_LENGTH, "##%d", n);
             }
         }
         ImGui::EndListBox();
@@ -355,12 +357,12 @@ bool map_txt_gui()
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2+20 + 45, posB.y});
     if (ImGui::Button("<##R->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
         // replace middle selection with selection on right
-        strncpy(label_M[selection[MIDDLE]],map_R.label_ptr[selection[RIGHT]],NAME_LENGTH);
+        strncpy(label_M[selection[middle_column]],map_R.label_ptr[selection[right_column]],NAME_LENGTH);
     }
 
     // right third
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2 + 120, posB.y});
-    ImGui::ListBox("##R", &selection[RIGHT], map_R.label_ptr, IM_COUNTOF(map_R.label_ptr));
+    ImGui::ListBox("##R", &selection[right_column], map_R.label_ptr, IM_COUNTOF(map_R.label_ptr));
     if (hover_box()) {
         list_box = 1;
     }

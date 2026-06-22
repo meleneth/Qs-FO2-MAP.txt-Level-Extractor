@@ -123,6 +123,22 @@ TEST_CASE("export_text_map rejects invalid source elevation indexes", "[txt][exp
     CHECK(exported.error().message == "invalid source elevation");
 }
 
+TEST_CASE("export_text_map rejects missing header selection", "[txt][export]")
+{
+    const auto left = parse_fixture(
+        "left-header\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+    );
+    qmap::TextMapExportPlan plan;
+    plan.header_side = std::nullopt;
+
+    const auto exported = qmap::export_text_map(source_from(left), source_from(left), plan);
+
+    REQUIRE_FALSE(exported);
+    CHECK(exported.error().message == "missing header selection");
+}
+
 TEST_CASE("export_text_map copies selected objects and matching scripts", "[txt][export]")
 {
     const auto left = parse_fixture(

@@ -26,7 +26,7 @@ struct ElevationSource {
 };
 
 struct TextMapExportPlan {
-    MapSide header_side = MapSide::left;
+    std::optional<MapSide> header_side = MapSide::left;
     std::array<std::optional<ElevationSource>, elevation_count> elevations;
 };
 

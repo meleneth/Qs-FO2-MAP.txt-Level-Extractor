@@ -41,17 +41,6 @@ std::string header_filename(const map_header& header)
     const auto end = std::find(std::begin(header.filename), std::end(header.filename), '\0');
     return std::string(std::begin(header.filename), end);
 }
-int32_t read_be_i32(const std::vector<uint8_t>& data, int offset)
-{
-    REQUIRE(offset >= 0);
-    REQUIRE(offset + static_cast<int>(sizeof(int32_t)) <= static_cast<int>(data.size()));
-
-    return (static_cast<int32_t>(data[offset]) << 24)
-        | (static_cast<int32_t>(data[offset + 1]) << 16)
-        | (static_cast<int32_t>(data[offset + 2]) << 8)
-        | static_cast<int32_t>(data[offset + 3]);
-}
-
 struct MapFixtureExpectation {
     const char* map_file;
     int file_size;
@@ -77,27 +66,6 @@ struct TextFixtureExpectation {
 };
 
 
-struct ScriptFixtureExpectation {
-    const char* map_file;
-    int scripts_offset;
-    int script_counts[SCRIPT_TYPE_COUNT];
-    int objects_offset;
-    int object_count;
-    int first_elevation_count;
-    int first_object_id;
-};
-
-struct ScriptRecordExpectation {
-    const char* map_file;
-    int type;
-    int index;
-    int32_t scr_id;
-    int32_t scr_index;
-    uint32_t scr_obj_id;
-    int32_t spatial_tile;
-    int32_t spatial_radius;
-};
-
 constexpr MapFixtureExpectation map_fixtures[] = {
     {"ARVILL2.map", 141332, "ARVILL2.map", 29105, 0, 0, 1, 0, 12, 1, 5, -1, {true, false, false}},
     {"BROKEN1.map", 416140, "BROKEN1.MAP", 18954, 0, 0, 2, 675, 8, 1, 31, 78, {true, true, false}},
@@ -108,29 +76,6 @@ constexpr MapFixtureExpectation map_fixtures[] = {
 };
 
 
-constexpr ScriptFixtureExpectation script_fixtures[] = {
-    {"ARVILL2.map", 40260, {0, 0, 0, 0, 0}, 40280, 1141, 1141, 586},
-    {"BROKEN1.map", 80368, {0, 0, 0, 58, 40}, 87696, 3533, 3303, 26},
-    {"BROKEN2.map", 120336, {0, 5, 0, 51, 102}, 132920, 7102, 3011, 34},
-    {"Newr1.map",   120240, {0, 3, 0, 75, 113}, 134876, 3910, 2841, 4032},
-    {"Newr2.map",   120240, {0, 0, 0, 79, 136}, 134716, 5229, 3068, 588},
-    {"test16.map",  120236, {0, 16, 0, 16, 16}, 123480, 32, 16, 122},
-};
-
-
-constexpr ScriptRecordExpectation script_record_fixtures[] = {
-    // Values cross-check selected binary records against the mapper .txt dump.
-    {"BROKEN2.map", SCRIPT_SPATIAL, 0, 16777216, 876, 3840206052u, 536891365, 5},
-    {"BROKEN2.map", SCRIPT_SPATIAL, 4, 16777220, 1165, 29894656u, 1073770953, 2},
-    {"BROKEN2.map", SCRIPT_OBJECTS, 0, 50331649, 511, 215u, 0, 0},
-    {"BROKEN2.map", SCRIPT_OBJECTS, 50, 50331665, 1175, 46u, 0, 0},
-    {"BROKEN2.map", SCRIPT_CRITTER, 0, 67108865, 19, 304u, 0, 0},
-    {"BROKEN2.map", SCRIPT_CRITTER, 101, 67108966, 1134, 160u, 0, 0},
-    {"test16.map", SCRIPT_SPATIAL, 15, 16777231, 1833, 185273296u, 21116, 20},
-    {"test16.map", SCRIPT_OBJECTS, 15, 50331663, 826, 96u, 0, 0},
-    {"test16.map", SCRIPT_CRITTER, 0, 67108866, 1856, 136u, 0, 0},
-    {"test16.map", SCRIPT_CRITTER, 15, 67108880, 1890, 104u, 0, 0},
-};
 constexpr TextFixtureExpectation txt_fixtures[] = {
     {"ARVILL2.txt",  734150, {399, -1, -1},       270955, 271060},
     {"BROKEN1.txt", 2073374, {939, 272014, -1},   542038, 556703},
@@ -151,24 +96,6 @@ int level_marker_size(const std::vector<uint8_t>& data, int marker_offset)
         : static_cast<int>(sizeof("square_elev: 0\n\n") - 1);
 }
 
-void check_script_record(const scripts_list scripts[SCRIPT_TYPE_COUNT], const ScriptRecordExpectation& expected)
-{
-    REQUIRE(expected.type >= 0);
-    REQUIRE(expected.type < SCRIPT_TYPE_COUNT);
-    REQUIRE(expected.index >= 0);
-    REQUIRE(expected.index < scripts[expected.type].count);
-
-    const script& actual = scripts[expected.type].scripts[expected.index];
-    CHECK(actual.scr_id == expected.scr_id);
-    CHECK(actual.scr_index == expected.scr_index);
-    CHECK(actual.scr_obj_id == expected.scr_obj_id);
-    CHECK(static_cast<int>(((uint32_t)actual.scr_id) >> 24) == expected.type);
-
-    if (expected.type == SCRIPT_SPATIAL) {
-        CHECK(actual.spatial_tile == expected.spatial_tile);
-        CHECK(actual.spatial_radius == expected.spatial_radius);
-    }
-}
 int pointer_offset(const map_lvls& map, const char* pointer)
 {
     REQUIRE(pointer != nullptr);
@@ -176,19 +103,6 @@ int pointer_offset(const map_lvls& map, const char* pointer)
 }
 
 } // namespace
-
-char* find_str(uint8_t* map_txt, char* str, int len);
-char* parse_objects(map_lvls* map, int level);
-int script_spatial(char* script_txt, int remainder, int level);
-int script_object(char* script_txt, int remainder, int level, char* objects);
-int32_t read_adv(map_lvls* map, int* offset);
-struct parsed_scripts
-{
-    char* scr_num[SCRIPT_TYPE_COUNT] = {nullptr};
-    int scr_num_cnt[SCRIPT_TYPE_COUNT] = {0};
-};
-parsed_scripts parse_scripts(map_lvls* map, char* objects, int level);
-void check_char_scripts(parsed_scripts* scripts, char** objects, script_type type);
 
 TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
 {
@@ -240,118 +154,6 @@ TEST_CASE("binary map parser rejects incomplete headers", "[map]")
     }
 }
 
-TEST_CASE("binary map reader rejects invalid word offsets", "[map]")
-{
-    std::vector<uint8_t> data{0x12, 0x34, 0x56, 0x78};
-
-    map_lvls map;
-    map.file_siz = static_cast<int>(data.size());
-    map.data = data.data();
-
-    int negative_offset = -1;
-    CHECK(read_adv(&map, &negative_offset) == 0);
-    CHECK(negative_offset == -1);
-
-    int tail_offset = 1;
-    CHECK(read_adv(&map, &tail_offset) == 0);
-    CHECK(tail_offset == 1);
-
-    int valid_offset = 0;
-    CHECK(read_adv(&map, &valid_offset) == 0x12345678);
-    CHECK(valid_offset == 4);
-}
-
-TEST_CASE("binary script parser clears output for invalid input", "[map][scripts]")
-{
-    scripts_list scripts[SCRIPT_TYPE_COUNT];
-    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
-        scripts[type].count = 123;
-        scripts[type].scripts = reinterpret_cast<script*>(static_cast<uintptr_t>(1));
-    }
-
-    map_lvls map;
-    int offset = 0;
-
-    parse_map_scripts(&map, &offset, scripts);
-
-    CHECK(offset == 0);
-    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
-        CHECK(scripts[type].count == 0);
-        CHECK(scripts[type].scripts == nullptr);
-    }
-}
-
-TEST_CASE("binary script parser rejects counts beyond remaining bytes", "[map][scripts]")
-{
-    std::vector<uint8_t> data{0x7f, 0xff, 0xff, 0xff};
-
-    map_lvls map;
-    map.file_siz = static_cast<int>(data.size());
-    map.data = data.data();
-
-    scripts_list scripts[SCRIPT_TYPE_COUNT];
-    int offset = 0;
-
-    parse_map_scripts(&map, &offset, scripts);
-
-    CHECK(offset == 4);
-    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
-        CHECK(scripts[type].count == 0);
-        CHECK(scripts[type].scripts == nullptr);
-    }
-}
-
-
-TEST_CASE("binary map script parser reads script counts and stops at objects", "[map][scripts]")
-{
-    for (const auto& expected : script_fixtures) {
-        DYNAMIC_SECTION(expected.map_file) {
-            auto data = load_binary_fixture(expected.map_file);
-
-            map_lvls map;
-            map.file_siz = static_cast<int>(data.size());
-            map.data = data.data();
-            parse_map_map(&map);
-
-            int offset = expected.scripts_offset;
-            scripts_list scripts[SCRIPT_TYPE_COUNT];
-            parse_map_scripts(&map, &offset, scripts);
-
-            CHECK(offset == expected.objects_offset);
-            CHECK(read_be_i32(data, offset) == expected.object_count);
-
-            int first_object_offset = offset + static_cast<int>(sizeof(int32_t));
-            int first_elevation_count = 0;
-            while (first_elevation_count == 0) {
-                first_elevation_count = read_be_i32(data, first_object_offset);
-                first_object_offset += static_cast<int>(sizeof(int32_t));
-            }
-            CHECK(first_elevation_count == expected.first_elevation_count);
-            CHECK(read_be_i32(data, first_object_offset) == expected.first_object_id);
-
-            for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
-                CHECK(scripts[type].count == expected.script_counts[type]);
-                CHECK((scripts[type].scripts != nullptr) == (expected.script_counts[type] > 0));
-                for (int i = 0; i < scripts[type].count; ++i) {
-                    CHECK(static_cast<int>(((uint32_t)scripts[type].scripts[i].scr_id) >> 24) == type);
-                    CHECK(scripts[type].scripts[i].scr_next == -1);
-                    CHECK(scripts[type].scripts[i].lvar_offset == -1);
-                }
-            }
-
-            for (const auto& record : script_record_fixtures) {
-                if (std::string_view(record.map_file) == expected.map_file) {
-                    check_script_record(scripts, record);
-                }
-            }
-
-            for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
-                free(scripts[type].scripts);
-            }
-        }
-    }
-}
-
 TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
 {
     for (const auto& expected : txt_fixtures) {
@@ -363,7 +165,6 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
             map.file_siz = expected.file_size;
 
             parse_map_txt(data.data(), &map);
-            map_level_sizes(&map);
 
             CHECK(pointer_offset(map, map.scripts) == expected.scripts_offset);
             CHECK(pointer_offset(map, map.objects) == expected.objects_offset);
@@ -395,104 +196,6 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
             }
         }
     }
-}
-
-TEST_CASE("legacy text find_str ignores partial tail matches", "[txt]")
-{
-    std::vector<uint8_t> data{'a', 'b', '\0'};
-    char marker[] = "abc";
-
-    CHECK(find_str(data.data(), marker, 3) == nullptr);
-}
-
-TEST_CASE("legacy object parser accepts object ending at buffer end", "[txt]")
-{
-    std::string data =
-        "[OBJECT BEGIN]\n"
-        "obj_elev: 0\n"
-        "[OBJECT END]";
-
-    map_lvls map;
-    map.data = reinterpret_cast<uint8_t*>(data.data());
-    map.file_siz = static_cast<int>(data.size());
-    map.objects = data.data();
-
-    char* objects = parse_objects(&map, 0);
-
-    REQUIRE(objects != nullptr);
-    CHECK(std::string(objects) == data);
-    free(objects);
-}
-
-TEST_CASE("legacy object parser ignores partial markers after object end", "[txt]")
-{
-    const std::string expected =
-        "[OBJECT BEGIN]\n"
-        "obj_elev: 0\n"
-        "[OBJECT END]\n";
-    std::string data = expected + "[OBJECT BE";
-
-    map_lvls map;
-    map.data = reinterpret_cast<uint8_t*>(data.data());
-    map.file_siz = static_cast<int>(data.size());
-    map.objects = data.data();
-
-    char* objects = parse_objects(&map, 0);
-
-    REQUIRE(objects != nullptr);
-    CHECK(std::string(objects) == expected);
-    free(objects);
-}
-
-TEST_CASE("legacy spatial script parser rejects unterminated radius lines", "[txt]")
-{
-    std::string script =
-        "built_tile: 100\n"
-        "sp.radius: 5";
-
-    CHECK(script_spatial(script.data(), static_cast<int>(script.size()), 0) == 0);
-}
-
-TEST_CASE("legacy object script parser rejects unterminated local variable lines", "[txt]")
-{
-    std::string script =
-        "scr_id: 50331649\n"
-        "scr_num_local_vars: 0";
-    std::string objects = "obj_sid: 50331649\n";
-
-    CHECK(script_object(script.data(), static_cast<int>(script.size()), 0, objects.data()) == 0);
-}
-
-TEST_CASE("legacy script parser rejects inverted script ranges", "[txt]")
-{
-    std::string data = "scripts then objects";
-
-    map_lvls map;
-    map.scripts = data.data() + 10;
-    map.objects = data.data() + 3;
-
-    parsed_scripts scripts = parse_scripts(&map, data.data(), 0);
-
-    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
-        CHECK(scripts.scr_num[type] == nullptr);
-        CHECK(scripts.scr_num_cnt[type] == 0);
-    }
-}
-
-TEST_CASE("legacy character script collision scan skips empty elevations", "[txt]")
-{
-    parsed_scripts scripts[3];
-    std::string script = "scr_id: 50331649\r\n";
-    std::string objects_text = "obj_sid: 50331649\r\n";
-    char* objects[3] = {objects_text.data(), nullptr, nullptr};
-
-    scripts[0].scr_num[SCRIPT_OBJECTS] = script.data();
-    scripts[0].scr_num_cnt[SCRIPT_OBJECTS] = 1;
-
-    check_char_scripts(scripts, objects, SCRIPT_OBJECTS);
-
-    CHECK(script.find("scr_id: 50331650") != std::string::npos);
-    CHECK(objects_text.find("obj_sid: 50331650") != std::string::npos);
 }
 
 TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")

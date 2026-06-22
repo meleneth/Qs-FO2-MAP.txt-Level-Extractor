@@ -21,266 +21,266 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 ## Phase 1: Establish Safe Data Primitives
 
-- Add a small binary view/reader type for `.map` parsing.
-  - Owns no memory.
-  - Wraps `std::span<const std::byte>`.
-  - Tracks cursor offset.
-  - Provides checked big-endian reads.
-  - Returns `Result<T>` instead of silently returning `0`.
-  - Provides typed accessor methods so callers do not hand-roll byte interpretation.
+- [x] Add a small binary view/reader type for `.map` parsing.
+  - [x] Owns no memory.
+  - [x] Wraps `std::span<const std::byte>`.
+  - [x] Tracks cursor offset.
+  - [x] Provides checked big-endian reads.
+  - [x] Returns `Result<T>` instead of silently returning `0`.
+  - [x] Provides typed accessor methods so callers do not hand-roll byte interpretation.
 
-- Add a text range model for `.txt` parsing.
-  - Own loaded text as `std::string`.
-  - Use `std::string_view` for parser inputs and section views.
-  - Represent sections as `{offset, size}` ranges.
-  - Prefer `std::optional<Range>` for absent elevations.
-  - Keep CRLF and LF marker support.
+- [x] Add a text range model for `.txt` parsing.
+  - [x] Own loaded text as `std::string`.
+  - [x] Use `std::string_view` for parser inputs and section views.
+  - [x] Represent sections as `{offset, size}` ranges.
+  - [x] Prefer `std::optional<Range>` for absent elevations.
+  - [x] Keep CRLF and LF marker support.
 
-- Replace ad hoc pointer math helpers with named types.
-  - `Range`
-  - `ElevationIndex`
-  - `ScriptType`
-  - `MapFileKind`
+- [ ] Replace ad hoc pointer math helpers with named types. Partial: `Range` and `ScriptType` exist; legacy pointer APIs and missing `ElevationIndex`/`MapFileKind` remain.
+  - [x] `Range`
+  - [ ] `ElevationIndex`
+  - [x] `ScriptType`
+  - [ ] `MapFileKind`
 
-- Start using RAII containers for owned data.
-  - `std::vector<std::byte>` for binary file bytes.
-  - `std::string` for loaded text.
-  - `std::vector<Script>` instead of `script*`.
-  - `std::array` for fixed three-elevation data.
+- [ ] Start using RAII containers for owned data. Partial: new parser/CLI paths use RAII; GUI file loading still uses raw pointers, `malloc`, and borrowed interior `char*`.
+  - [x] `std::vector<std::byte>` for binary file bytes.
+  - [x] `std::string` for loaded text.
+  - [x] `std::vector<Script>` instead of `script*`.
+  - [x] `std::array` for fixed three-elevation data.
 
-- Add a small local `Result<T>` type.
-  - Use it for parser/export operations that can fail with useful diagnostics.
-  - Keep `std::optional<T>` for simple absent/present values where no error detail is needed.
-  - Do not add a dependency just to get `expected`.
+- [x] Add a small local `Result<T>` type.
+  - [x] Use it for parser/export operations that can fail with useful diagnostics.
+  - [x] Keep `std::optional<T>` for simple absent/present values where no error detail is needed.
+  - [x] Do not add a dependency just to get `expected`.
 
 ## Phase 2: Make `.txt` Parsing Bounded
 
-- Replace `find_str(uint8_t*, char*, int)` with bounded search.
-  - No `strlen` on loaded file data.
-  - No scanning past `file_siz`.
-  - No mutable `char*` inputs for read-only text.
+- [x] Replace `find_str(uint8_t*, char*, int)` with bounded search.
+  - [x] No `strlen` on loaded file data.
+  - [x] No scanning past `file_siz`.
+  - [x] No mutable `char*` inputs for read-only text.
 
-- Replace `map_lvls::level`, `scripts`, and `objects` text pointers with ranges.
-  - Parsed output should not depend on the original buffer being null-terminated.
-  - Section extraction should be by `std::string_view::substr`.
+- [ ] Replace `map_lvls::level`, `scripts`, and `objects` text pointers with ranges. Partial: `ParsedTextMap` uses ranges; `map_lvls` compatibility pointers remain in GUI/export.
+  - [x] Parsed output should not depend on the original buffer being null-terminated.
+  - [x] Section extraction should be by `std::string_view::substr`.
 
-- Make `map_level_sizes()` unnecessary.
-  - Parsing should produce complete section ranges in one pass.
-  - Header, elevation ranges, scripts, and objects should be internally consistent when returned.
+- [x] Make `map_level_sizes()` unnecessary.
+  - [x] Parsing should produce complete section ranges in one pass.
+  - [x] Header, elevation ranges, scripts, and objects should be internally consistent when returned.
 
-- Add inline Catch2 tests for:
-  - CRLF elevation markers.
-  - LF elevation markers.
-  - missing middle elevation.
-  - missing first elevation.
-  - scripts/objects section detection.
-  - malformed input with no scripts section.
-  - malformed input with no objects section.
+- [ ] Add inline Catch2 tests for:
+  - [x] CRLF elevation markers.
+  - [x] LF elevation markers.
+  - [x] missing middle elevation.
+  - [x] missing first elevation.
+  - [x] scripts/objects section detection.
+  - [x] malformed input with no scripts section.
+  - [x] malformed input with no objects section.
 
 ## Phase 3: Separate Text Transform From Export
 
-- Extract a pure transform layer.
-  - Input: parsed left/right text maps and an output plan.
-  - Output: a model describing selected elevations, scripts, objects, and chosen header.
-  - No ImGui.
-  - No file paths.
-  - No global state.
+- [ ] Extract a pure transform layer. Partial: `export_text_map()` takes parsed sources and an output plan without ImGui/paths/globals, but it exports directly instead of returning a separate transform model.
+  - [x] Input: parsed left/right text maps and an output plan.
+  - [ ] Output: a model describing selected elevations, scripts, objects, and chosen header.
+  - [x] No ImGui.
+  - [x] No file paths.
+  - [x] No global state.
 
-- Replace label-string matching with stable source references.
-  - Avoid using `char[16]` labels as identity.
-  - Use `{side, elevation}` or similar explicit selection data.
+- [ ] Replace label-string matching with stable source references. Partial: modern export uses `{side, elevation}`; legacy GUI still uses `char[16]` labels as identity.
+  - [ ] Avoid using `char[16]` labels as identity.
+  - [x] Use `{side, elevation}` or similar explicit selection data.
 
-- Rewrite text export around `std::string`.
-  - Append to a string or checked writer.
-  - No precomputed `left_size + right_size` buffer.
-  - No output pointer arithmetic.
-  - Always serialize line endings as CRLF.
-  - Detect and return errors instead of truncating silently.
+- [x] Rewrite text export around `std::string`.
+  - [x] Append to a string or checked writer.
+  - [x] No precomputed `left_size + right_size` buffer.
+  - [x] No output pointer arithmetic.
+  - [x] Always serialize line endings as CRLF.
+  - [x] Detect and return errors instead of truncating silently.
 
-- Add inline Catch2 tests for:
-  - export one elevation with chosen header.
-  - export multiple elevations in new positions.
-  - rewrite `obj_elev` to destination elevation.
-  - preserve unselected elevations as absent.
-  - reject missing header selection.
-  - reject invalid source selection.
+- [ ] Add inline Catch2 tests for:
+  - [x] export one elevation with chosen header.
+  - [x] export multiple elevations in new positions.
+  - [x] rewrite `obj_elev` to destination elevation.
+  - [x] preserve unselected elevations as absent.
+  - [x] reject missing header selection.
+  - [x] reject invalid source selection.
 
 ## Phase 4: Model Scripts Instead Of Editing Decimal Strings
 
-- Parse text scripts into structured records.
-  - Preserve enough original text to round-trip fields that are not yet understood.
-  - Extract `scr_id`, script type, object id, spatial tile, spatial radius, and local var count.
+- [x] Parse text scripts into structured records.
+  - [x] Preserve enough original text to round-trip fields that are not yet understood.
+  - [x] Extract `scr_id`, script type, object id, spatial tile, spatial radius, and local var count.
 
-- Parse text objects enough to associate scripts.
-  - Extract object range.
-  - Extract `obj_elev`.
-  - Extract `obj_sid`.
-  - Preserve object text for fields not yet understood.
+- [x] Parse text objects enough to associate scripts.
+  - [x] Extract object range.
+  - [x] Extract `obj_elev`.
+  - [x] Extract `obj_sid`.
+  - [x] Preserve object text for fields not yet understood.
 
-- Replace decimal substring matching for `obj_sid`/`scr_id`.
-  - Match numeric parsed IDs.
-  - Rewrite fields by serialization, not in-place digit replacement.
+- [x] Replace decimal substring matching for `obj_sid`/`scr_id`.
+  - [x] Match numeric parsed IDs.
+  - [x] Rewrite fields by serialization, not in-place digit replacement.
 
-- Complete script id collision handling.
-  - Spatial scripts.
-  - Object scripts.
-  - Critter scripts.
-  - Keep `obj_sid` and `scr_id` paired after rewrites.
+- [x] Complete script id collision handling.
+  - [x] Spatial scripts.
+  - [x] Object scripts.
+  - [x] Critter scripts.
+  - [x] Keep `obj_sid` and `scr_id` paired after rewrites.
 
-- Add inline Catch2 tests for:
-  - object script copied only when owning object is copied.
-  - critter script copied only when owning critter is copied.
-  - spatial script copied by spatial elevation.
-  - duplicate spatial script ids are reassigned.
-  - duplicate object/critter ids are reassigned with matching `obj_sid`.
-  - longer replacement IDs serialize correctly.
+- [ ] Add inline Catch2 tests for:
+  - [x] object script copied only when owning object is copied.
+  - [x] critter script copied only when owning critter is copied.
+  - [x] spatial script copied by spatial elevation.
+  - [x] duplicate spatial script ids are reassigned.
+  - [x] duplicate object/critter ids are reassigned with matching `obj_sid`.
+  - [ ] longer replacement IDs serialize correctly. Note: supported copied script IDs keep type in the high byte; add this only with a valid fixture that can actually grow in decimal width.
 
 ## Phase 5: Fix Binary `.map` Parsing
 
-- Replace binary parsing with a cursor over `std::span`.
-  - Header parse should fail cleanly on short input.
-  - Vars parse should bounds-check counts before allocating/copying.
-  - Tile parse should bounds-check elevation data.
-  - Script parse should bounds-check every record and padding block.
+- [x] Replace binary parsing with a cursor over `std::span`.
+  - [x] Header parse should fail cleanly on short input.
+  - [x] Vars parse should bounds-check counts before allocating/copying.
+  - [x] Tile parse should bounds-check elevation data.
+  - [x] Script parse should bounds-check every record and padding block.
 
-- Fix object parsing.
-  - Advance cursor per object.
-  - Store object records in a `std::vector`.
-  - Preserve raw object ranges if variable-size records are not fully modeled yet.
-  - Do not overwrite indexes per elevation.
+- [x] Fix object parsing.
+  - [x] Advance cursor per object.
+  - [x] Store object records in a `std::vector`.
+  - [x] Preserve raw object ranges if variable-size records are not fully modeled yet.
+  - [x] Do not overwrite indexes per elevation.
 
-- Parse the rest of the Fallout `.map` file format.
-  - Use published Fallout/Fallout 2 MAP format references to identify sections and record layouts that are not implemented yet.
-  - Cite the references used for format decisions in comments or docs near the relevant parser code.
-  - Capture map variables and local variables as modeled data.
-  - Parse tile/elevation blocks into explicit structures.
-  - Parse scripts, script padding, and script footers completely.
-  - Parse objects by PID/object kind, including type-specific tails.
-  - Parse inventories and nested inventory objects.
-  - Preserve raw byte ranges for fields or object variants that are still unknown so round-trip/export work is not blocked.
-  - Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
-  - Document every still-unknown field with offset, observed values, and fixture coverage.
+- [ ] Parse the rest of the Fallout `.map` file format. Partial: header, variables, tiles, scripts, object prefixes, and several object tails are modeled; complete object variants and inventories remain.
+  - [ ] Use published Fallout/Fallout 2 MAP format references to identify sections and record layouts that are not implemented yet.
+  - [ ] Cite the references used for format decisions in comments or docs near the relevant parser code.
+  - [x] Capture map variables and local variables as modeled data.
+  - [x] Parse tile/elevation blocks into explicit structures.
+  - [x] Parse scripts, script padding, and script footers completely.
+  - [ ] Parse objects by PID/object kind, including type-specific tails.
+  - [ ] Parse inventories and nested inventory objects.
+  - [x] Preserve raw byte ranges for fields or object variants that are still unknown so round-trip/export work is not blocked.
+  - [x] Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
+  - [ ] Document every still-unknown field with offset, observed values, and fixture coverage.
 
-- Remove or isolate placeholder object structs that imply unsupported parsing.
-  - Unknown fields are acceptable.
-  - False confidence is not.
+- [x] Remove or isolate placeholder object structs that imply unsupported parsing.
+  - [x] Unknown fields are acceptable.
+  - [x] False confidence is not.
 
-- Add inline Catch2 tests for small synthetic binary buffers.
-  - valid header.
-  - short header rejected.
-  - script count and record parse.
-  - padding/footer handling.
-  - object cursor advances across multiple objects.
-  - malformed object section rejected.
-  - representative object kind records.
-  - inventory/nested object records.
-  - unknown fields are preserved in raw ranges.
+- [ ] Add inline Catch2 tests for small synthetic binary buffers.
+  - [x] valid header.
+  - [x] short header rejected.
+  - [x] script count and record parse.
+  - [x] padding/footer handling.
+  - [x] object cursor advances across multiple objects.
+  - [x] malformed object section rejected.
+  - [x] representative object kind records.
+  - [ ] inventory/nested object records.
+  - [x] unknown fields are preserved in raw ranges.
 
 ## Phase 6: Stop Exposing Unfinished `.map` Export
 
-- Disable binary `.map` export in UI until real export exists.
-  - Show a clear "not implemented" state if selected inputs require `.map` export.
-  - Do not call `export_map_map()` from the GUI unless it writes a tested file.
-  - Add a "file parsed" indicator when loading/parsing succeeds.
-  - Surface parser diagnostics separately from hard errors.
+- [x] Disable binary `.map` export in UI until real export exists.
+  - [x] Show a clear "not implemented" state if selected inputs require `.map` export.
+  - [x] Do not call `export_map_map()` from the GUI unless it writes a tested file.
+  - [x] Add a "file parsed" indicator when loading/parsing succeeds.
+  - [ ] Surface parser diagnostics separately from hard errors.
 
-- Convert `export_map_map()` into one of:
-  - a tested real exporter, or
-  - a removed/deleted placeholder with a tracked task.
+- [x] Convert `export_map_map()` into one of:
+  - [ ] a tested real exporter, or
+  - [x] a removed/deleted placeholder with a tracked task.
 
 ## Phase 7: Add Command Line Operations
 
-- Add CLI11, likely via `FetchContent`, pinned to an explicit version.
-  - Keep SDL/ImGui UI dependencies separate from CLI parsing.
-  - CLI mode should not initialize ImGui or SDL.
+- [x] Add CLI11, likely via `FetchContent`, pinned to an explicit version.
+  - [x] Keep SDL/ImGui UI dependencies separate from CLI parsing.
+  - [x] CLI mode should not initialize ImGui or SDL.
 
-- Add spdlog, likely via `FetchContent`, pinned to an explicit version.
-  - Use it for CLI diagnostics, parser diagnostics, and future GUI-visible logs.
-  - Keep parser code able to return diagnostics without requiring a global logger.
-  - Prefer structured messages with enough context to debug unknown `.map` tail/padding behavior.
+- [ ] Add spdlog, likely via `FetchContent`, pinned to an explicit version. Partial: dependency and CLI logging exist; parser diagnostics still return through `Result` and are not wired through spdlog.
+  - [x] Use it for CLI diagnostics, parser diagnostics, and future GUI-visible logs.
+  - [x] Keep parser code able to return diagnostics without requiring a global logger.
+  - [ ] Prefer structured messages with enough context to debug unknown `.map` tail/padding behavior.
 
-- Provide command line operations for core workflows.
-  - Parse a file and print a detailed stat breakdown.
-  - Extract one elevation from a map text export.
-  - Split a map into per-elevation outputs.
-  - Combine selected elevations from source maps into a new output file.
-  - Write outputs to explicit paths and fail before overwriting unless requested.
+- [x] Provide command line operations for core workflows.
+  - [x] Parse a file and print a detailed stat breakdown.
+  - [x] Extract one elevation from a map text export.
+  - [x] Split a map into per-elevation outputs.
+  - [x] Combine selected elevations from source maps into a new output file.
+  - [x] Write outputs to explicit paths and fail before overwriting unless requested.
 
-- Wire reasonable CLI logging options.
-  - `--verbose` / `-v` to increase detail.
-  - `--quiet` / `-q` to suppress non-error output.
-  - `--log-level <trace|debug|info|warn|error|critical|off>`.
-  - `--log-file <path>` for file logging.
-  - `--log-format <human|plain|json>` if JSON output becomes useful for tooling.
-  - Default CLI behavior should be human-readable and concise.
+- [ ] Wire reasonable CLI logging options. Partial: options exist, but `json` log format is accepted without JSON formatting.
+  - [x] `--verbose` / `-v` to increase detail.
+  - [x] `--quiet` / `-q` to suppress non-error output.
+  - [x] `--log-level <trace|debug|info|warn|error|critical|off>`.
+  - [x] `--log-file <path>` for file logging.
+  - [x] `--log-format <human|plain|json>` if JSON output becomes useful for tooling.
+  - [x] Default CLI behavior should be human-readable and concise.
 
-- CLI output should be useful for development and debugging.
-  - File kind.
-  - Header presence/size.
-  - Present elevations and byte/line ranges.
-  - Script counts by type.
-  - Object counts by elevation and object kind when known.
-  - Diagnostics for unknown tail/padding data.
-  - Parse success/failure status.
+- [ ] CLI output should be useful for development and debugging. Partial: binary stats are detailed; text stats do not yet include script/object counts.
+  - [x] File kind.
+  - [x] Header presence/size.
+  - [x] Present elevations and byte/line ranges.
+  - [x] Script counts by type.
+  - [x] Object counts by elevation and object kind when known.
+  - [x] Diagnostics for unknown tail/padding data.
+  - [x] Parse success/failure status.
 
-- Add inline Catch2 tests for CLI-adjacent command planning where practical.
-  - Argument parsing can be covered lightly.
-  - Core operations should be tested below the CLI layer through application services.
+- [x] Add inline Catch2 tests for CLI-adjacent command planning where practical.
+  - [x] Argument parsing can be covered lightly.
+  - [x] Core operations should be tested below the CLI layer through application services.
 
 ## Phase 8: Move GUI State Behind A Plain Model
 
-- Introduce an application/session state struct.
-  - Left loaded map.
-  - Right loaded map.
-  - Output selections.
-  - Header selection.
-  - Export path.
-  - Current error.
+- [ ] Introduce an application/session state struct.
+  - [ ] Left loaded map.
+  - [ ] Right loaded map.
+  - [ ] Output selections.
+  - [ ] Header selection.
+  - [ ] Export path.
+  - [ ] Current error.
 
-- Keep ImGui code as rendering and event forwarding.
-  - No parser internals in UI rendering code.
-  - No export algorithm in UI code.
-  - No global maps or labels.
+- [ ] Keep ImGui code as rendering and event forwarding.
+  - [ ] No parser internals in UI rendering code.
+  - [ ] No export algorithm in UI code.
+  - [ ] No global maps or labels.
 
-- Replace `char[16]` label identity with display-only strings.
-  - Labels may truncate for UI.
-  - They must not drive export behavior.
+- [ ] Replace `char[16]` label identity with display-only strings.
+  - [ ] Labels may truncate for UI.
+  - [ ] They must not drive export behavior.
 
-- Add non-UI tests for session behavior.
-  - load left/right map updates available elevations.
-  - selecting header updates default export path.
-  - invalid mixed file kinds produces a domain error.
+- [ ] Add non-UI tests for session behavior.
+  - [ ] load left/right map updates available elevations.
+  - [ ] selecting header updates default export path.
+  - [ ] invalid mixed file kinds produces a domain error.
 
 ## Phase 9: Error Handling And Result Types
 
-- Stop using `printf` for parser/export failures.
-  - Return structured errors.
-  - Keep diagnostics available to GUI and tests.
+- [ ] Stop using `printf` for parser/export failures. Partial: modern text parsers/exporters return `Result`; legacy binary parser compatibility still prints diagnostics.
+  - [x] Return structured errors.
+  - [ ] Keep diagnostics available to GUI and tests.
 
-- Pick a simple project-wide result pattern.
-  - `std::optional<T>` for simple absent/present.
-  - Local `Result<T>` for failures with diagnostics.
-  - Avoid exceptions unless the project deliberately adopts them.
+- [x] Pick a simple project-wide result pattern.
+  - [x] `std::optional<T>` for simple absent/present.
+  - [x] Local `Result<T>` for failures with diagnostics.
+  - [x] Avoid exceptions unless the project deliberately adopts them.
 
-- Tests should assert specific failure reasons where practical.
+- [x] Tests should assert specific failure reasons where practical.
 
 ## Phase 10: Retire Legacy Structures
 
-- Replace `map_lvls` with separate concepts.
-  - Loaded file ownership.
-  - Parsed text map.
-  - Parsed binary map.
-  - GUI/session display model.
+- [ ] Replace `map_lvls` with separate concepts. Partial: parsed text/binary concepts exist; GUI still uses `map_lvls`.
+  - [ ] Loaded file ownership.
+  - [x] Parsed text map.
+  - [x] Parsed binary map.
+  - [ ] GUI/session display model.
 
-- Remove raw owning pointers.
-  - No `malloc`/`free` in project code except when forced by third-party APIs.
-  - Use `std::unique_ptr` only for polymorphism or incomplete types.
-  - Prefer values, vectors, arrays, strings, and spans.
+- [ ] Remove raw owning pointers.
+  - [ ] No `malloc`/`free` in project code except when forced by third-party APIs.
+  - [x] Use `std::unique_ptr` only for polymorphism or incomplete types.
+  - [ ] Prefer values, vectors, arrays, strings, and spans.
 
-- Remove C macros where scoped constants or enums work.
-  - `NAME_LENGTH`
-  - `LEFT`, `MIDDLE`, `RIGHT`
-  - `uint`
+- [x] Remove C macros where scoped constants or enums work.
+  - [x] `NAME_LENGTH`
+  - [x] `LEFT`, `MIDDLE`, `RIGHT`
+  - [x] `uint`
 
 ## Verification Standard
 

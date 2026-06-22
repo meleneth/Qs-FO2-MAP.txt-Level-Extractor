@@ -61,6 +61,27 @@ TEST_CASE("parse_text_map locates LF elevation ranges with missing middle elevat
     CHECK(*parsed.value().elevation_view(lf_map, 2) == "tiles-2\n");
 }
 
+TEST_CASE("parse_text_map locates maps with missing first elevation", "[txt][bounded]")
+{
+    constexpr std::string_view text =
+        "header\n"
+        "square_elev: 1\n\n"
+        "tiles-1\n"
+        "square_elev: 2\n\n"
+        "tiles-2\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n";
+
+    const auto parsed = qmap::parse_text_map(text);
+
+    REQUIRE(parsed);
+    CHECK_FALSE(parsed.value().elevation_view(text, 0).has_value());
+    REQUIRE(parsed.value().elevation_view(text, 1));
+    CHECK(*parsed.value().elevation_view(text, 1) == "tiles-1\n");
+    REQUIRE(parsed.value().elevation_view(text, 2));
+    CHECK(*parsed.value().elevation_view(text, 2) == "tiles-2\n");
+}
+
 TEST_CASE("parse_text_map treats all text before first elevation as header", "[txt][bounded]")
 {
     constexpr std::string_view text =

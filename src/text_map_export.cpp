@@ -411,7 +411,11 @@ Result<std::string> export_text_map(
     const TextMapExportPlan& plan
 )
 {
-    const auto& header_source = source_for_side(left, right, plan.header_side);
+    if (!plan.header_side) {
+        return Result<std::string>::fail({"missing header selection", 0});
+    }
+
+    const auto& header_source = source_for_side(left, right, *plan.header_side);
     auto header = header_source.map.header_view(header_source.text);
     if (!header) {
         return Result<std::string>::fail({"invalid header range", 0});
