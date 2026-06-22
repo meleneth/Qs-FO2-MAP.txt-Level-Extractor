@@ -4,10 +4,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <stdexcept>
+#include <sstream>
 
 namespace qmap::cli {
 namespace {
@@ -59,6 +61,23 @@ void print_range(const char* label, Range range)
               << " end=" << range.end() << '\n';
 }
 
+std::string script_type_name(int type)
+{
+    switch (static_cast<BinaryScriptType>(type)) {
+    case BinaryScriptType::system:
+        return "system";
+    case BinaryScriptType::spatial:
+        return "spatial";
+    case BinaryScriptType::timed:
+        return "timed";
+    case BinaryScriptType::object:
+        return "object";
+    case BinaryScriptType::critter:
+        return "critter";
+    }
+    return "unknown";
+}
+
 } // namespace
 
 std::string read_text_file(const std::filesystem::path& path)
@@ -74,6 +93,21 @@ std::string read_text_file(const std::filesystem::path& path)
     };
 }
 
+std::vector<std::byte> read_binary_file(const std::filesystem::path& path)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("unable to open input file: " + path.string());
+    }
+
+    std::vector<std::byte> bytes;
+    char ch = 0;
+    while (file.get(ch)) {
+        bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(ch)));
+    }
+    return bytes;
+}
+
 std::string lowercase_extension(const std::filesystem::path& path)
 {
     auto ext = path.extension().string();
@@ -81,6 +115,44 @@ std::string lowercase_extension(const std::filesystem::path& path)
         return static_cast<char>(std::tolower(ch));
     });
     return ext;
+}
+
+std::string format_binary_map_stats(
+    const BinaryMapHeader& header,
+    const BinaryMapVariables& variables,
+    const BinaryMapTiles& tiles,
+    const BinaryMapScripts& scripts
+)
+{
+    std::ostringstream output;
+    output << "kind: binary map\n";
+    output << "status: parsed\n";
+    output << "header:\n";
+    output << "  version: " << header.version << '\n';
+    output << "  filename: " << header.filename_string() << '\n';
+    output << "  map_id: " << header.map_id << '\n';
+    output << "  map_flags: " << header.map_flags << '\n';
+    output << "  start: tile=" << header.dude_start
+           << " elevation=" << header.elev_start
+           << " rotation=" << header.face_start << '\n';
+    output << "variables:\n";
+    output << "  map: " << variables.map_vars.size() << '\n';
+    output << "  local: " << variables.local_vars.size() << '\n';
+    output << "elevations:\n";
+    for (int elevation = 0; elevation < 3; ++elevation) {
+        output << "  elevation " << elevation << ": ";
+        if (tiles.elevations[elevation].empty()) {
+            output << "absent\n";
+        } else {
+            output << "tile_bytes=" << tiles.elevations[elevation].size() << '\n';
+        }
+    }
+    output << "scripts:\n";
+    for (int type = 0; type < binary_script_type_count; ++type) {
+        output << "  " << script_type_name(type) << ": " << scripts.by_type[type].size() << '\n';
+    }
+    output << "  section_end: " << scripts.end_offset << '\n';
+    return output.str();
 }
 
 TextMapExportPlan single_elevation_plan(int elevation)
@@ -172,8 +244,41 @@ int parse_stats(const std::filesystem::path& input)
     }
 
     if (ext == ".map") {
-        std::cout << "kind: binary map\n";
-        std::cout << "status: detailed binary stats not implemented yet\n";
+        const auto bytes = read_binary_file(input);
+        auto header = parse_binary_map_header(bytes);
+        if (!header) {
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: " << header.error().message
+                      << " at offset " << header.error().offset << '\n';
+            return 2;
+        }
+        auto variables = parse_binary_map_variables(bytes, header.value());
+        if (!variables) {
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: " << variables.error().message
+                      << " at offset " << variables.error().offset << '\n';
+            return 2;
+        }
+        auto tiles = parse_binary_map_tiles(bytes, header.value());
+        if (!tiles) {
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: " << tiles.error().message
+                      << " at offset " << tiles.error().offset << '\n';
+            return 2;
+        }
+        auto scripts = parse_binary_map_scripts(bytes, header.value());
+        if (!scripts) {
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: " << scripts.error().message
+                      << " at offset " << scripts.error().offset << '\n';
+            return 2;
+        }
+
+        std::cout << format_binary_map_stats(header.value(), variables.value(), tiles.value(), scripts.value());
         return 0;
     }
 

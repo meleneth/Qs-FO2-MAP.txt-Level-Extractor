@@ -1,5 +1,6 @@
 #pragma once
 
+#include "binary_map_parser.h"
 #include "text_map_export.h"
 
 #include <filesystem>
@@ -32,8 +33,15 @@ struct CombineOptions {
 };
 
 std::string read_text_file(const std::filesystem::path& path);
+std::vector<std::byte> read_binary_file(const std::filesystem::path& path);
 std::string lowercase_extension(const std::filesystem::path& path);
 
+std::string format_binary_map_stats(
+    const BinaryMapHeader& header,
+    const BinaryMapVariables& variables,
+    const BinaryMapTiles& tiles,
+    const BinaryMapScripts& scripts
+);
 TextMapExportPlan single_elevation_plan(int elevation);
 std::filesystem::path split_output_path(
     const std::filesystem::path& output_dir,

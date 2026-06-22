@@ -2,6 +2,7 @@
 
 #include "cli_operations.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <stdexcept>
 
@@ -60,4 +61,42 @@ TEST_CASE("lowercase_extension normalizes input paths", "[cli]")
 {
     CHECK(qmap::cli::lowercase_extension("CITY.MAP.TXT") == ".txt");
     CHECK(qmap::cli::lowercase_extension("VAULT.MAP") == ".map");
+}
+
+TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
+{
+    qmap::BinaryMapHeader header;
+    header.version = 20;
+    header.filename = {'V', 'A', 'U', 'L', 'T', '.', 'M', 'A', 'P'};
+    header.map_id = 42;
+    header.map_flags = 4;
+    header.dude_start = 123;
+    header.elev_start = 2;
+    header.face_start = 5;
+
+    qmap::BinaryMapVariables variables;
+    variables.map_vars = {1, 2, 3};
+    variables.local_vars = {4, 5};
+
+    qmap::BinaryMapTiles tiles;
+    const std::byte tile_bytes[] = {std::byte{0xAA}, std::byte{0xBB}};
+    tiles.elevations[0] = tile_bytes;
+
+    qmap::BinaryMapScripts scripts;
+    scripts.by_type[1].push_back({});
+    scripts.by_type[3].push_back({});
+    scripts.by_type[3].push_back({});
+    scripts.end_offset = 999;
+
+    const auto stats = qmap::cli::format_binary_map_stats(header, variables, tiles, scripts);
+
+    CHECK(stats.find("kind: binary map\n") != std::string::npos);
+    CHECK(stats.find("status: parsed\n") != std::string::npos);
+    CHECK(stats.find("  filename: VAULT.MAP\n") != std::string::npos);
+    CHECK(stats.find("  map: 3\n") != std::string::npos);
+    CHECK(stats.find("  elevation 0: tile_bytes=2\n") != std::string::npos);
+    CHECK(stats.find("  elevation 1: absent\n") != std::string::npos);
+    CHECK(stats.find("  spatial: 1\n") != std::string::npos);
+    CHECK(stats.find("  object: 2\n") != std::string::npos);
+    CHECK(stats.find("  section_end: 999\n") != std::string::npos);
 }
