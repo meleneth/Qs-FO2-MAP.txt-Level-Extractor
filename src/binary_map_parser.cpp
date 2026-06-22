@@ -3,6 +3,7 @@
 #include "byte_reader.h"
 
 #include <algorithm>
+#include <string>
 
 namespace qmap {
 namespace {
@@ -435,7 +436,11 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
 
     const auto object_type = binary_object_type_from_pid(prefix.value().pid);
     if (!object_type) {
-        return Result<BinaryObjectRecord>::fail({"unsupported object pid type", prefix.value().raw.offset});
+        const auto message = std::string{"unsupported object pid type "}
+            + std::to_string(prefix.value().pid_type())
+            + " from pid "
+            + std::to_string(prefix.value().pid);
+        return Result<BinaryObjectRecord>::fail({message, prefix.value().raw.offset});
     }
 
     const auto tail_start = reader.offset();

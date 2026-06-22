@@ -773,7 +773,7 @@ TEST_CASE("parse_binary_map_object_records rejects unknown object types", "[map]
     const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE_FALSE(parsed);
-    CHECK(parsed.error().message == "unsupported object pid type");
+    CHECK(parsed.error().message == "unsupported object pid type 10 from pid 167772161");
 }
 
 TEST_CASE("parse_binary_map_object_records rejects truncated known tails", "[map][binary]")
