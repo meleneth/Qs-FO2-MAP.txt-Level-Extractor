@@ -173,7 +173,7 @@ std::string format_binary_map_stats(
     output << "  map: " << variables.map_vars.size() << '\n';
     output << "  local: " << variables.local_vars.size() << '\n';
     output << "elevations:\n";
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         output << "  elevation " << elevation << ": ";
         if (tiles.elevations[elevation].empty()) {
             output << "absent\n";
