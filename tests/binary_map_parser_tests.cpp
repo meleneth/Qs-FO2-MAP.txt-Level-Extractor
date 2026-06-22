@@ -532,3 +532,18 @@ TEST_CASE("parse_binary_map_object_records rejects truncated known tails", "[map
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
 }
+
+TEST_CASE("parse_binary_map composes header variables tiles scripts and objects", "[map][binary]")
+{
+    const auto bytes = example_map_with_object_records();
+
+    const auto parsed = qmap::parse_binary_map(bytes);
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().header.filename_string() == "TEST.MAP");
+    CHECK(parsed.value().variables.map_vars.size() == 7);
+    CHECK(parsed.value().tiles.elevations[0].size() == 40000);
+    CHECK(parsed.value().scripts.by_type[1].size() == 1);
+    CHECK(parsed.value().objects.records.size() == 2);
+    CHECK(parsed.value().objects.end_offset == bytes.size());
+}

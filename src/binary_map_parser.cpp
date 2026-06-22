@@ -784,4 +784,41 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     return parse_object_records_after_counts(reader, object_section_offset);
 }
 
+Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes)
+{
+    BinaryMap map;
+
+    auto header = parse_binary_map_header(bytes);
+    if (!header) {
+        return Result<BinaryMap>::fail(header.error());
+    }
+    map.header = header.value();
+
+    auto variables = parse_binary_map_variables(bytes, map.header);
+    if (!variables) {
+        return Result<BinaryMap>::fail(variables.error());
+    }
+    map.variables = std::move(variables.value());
+
+    auto tiles = parse_binary_map_tiles(bytes, map.header);
+    if (!tiles) {
+        return Result<BinaryMap>::fail(tiles.error());
+    }
+    map.tiles = tiles.value();
+
+    auto scripts = parse_binary_map_scripts(bytes, map.header);
+    if (!scripts) {
+        return Result<BinaryMap>::fail(scripts.error());
+    }
+    map.scripts = std::move(scripts.value());
+
+    auto objects = parse_binary_map_object_records(bytes, map.scripts.end_offset);
+    if (!objects) {
+        return Result<BinaryMap>::fail(objects.error());
+    }
+    map.objects = std::move(objects.value());
+
+    return Result<BinaryMap>::ok(std::move(map));
+}
+
 } // namespace qmap

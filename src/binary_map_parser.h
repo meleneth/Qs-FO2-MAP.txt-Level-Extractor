@@ -144,6 +144,14 @@ struct BinaryMapObjectRecords {
     std::size_t end_offset = 0;
 };
 
+struct BinaryMap {
+    BinaryMapHeader header;
+    BinaryMapVariables variables;
+    BinaryMapTiles tiles;
+    BinaryMapScripts scripts;
+    BinaryMapObjectRecords objects;
+};
+
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes);
 Result<BinaryMapVariables> parse_binary_map_variables(
     std::span<const std::byte> bytes,
@@ -165,5 +173,6 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset
 );
+Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes);
 
 } // namespace qmap
