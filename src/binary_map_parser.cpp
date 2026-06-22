@@ -497,7 +497,6 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
         return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
     }
 
-    objects.records.reserve(static_cast<std::size_t>(objects.total_count));
     for (std::int32_t index = 0; index < objects.total_count; ++index) {
         auto record = parse_object_record(reader);
         if (!record) {
@@ -655,7 +654,6 @@ Result<BinaryMapVariables> parse_binary_map_variables(
     }
 
     BinaryMapVariables variables;
-    variables.map_vars.reserve(static_cast<std::size_t>(header.mvar_count));
     for (std::int32_t index = 0; index < header.mvar_count; ++index) {
         auto value = read_i32(reader);
         if (!value) {
@@ -664,7 +662,6 @@ Result<BinaryMapVariables> parse_binary_map_variables(
         variables.map_vars.push_back(value.value());
     }
 
-    variables.local_vars.reserve(static_cast<std::size_t>(header.lvar_count));
     for (std::int32_t index = 0; index < header.lvar_count; ++index) {
         auto value = read_i32(reader);
         if (!value) {
@@ -741,7 +738,6 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
         }
 
         auto& records = scripts.by_type[script_type_index(type)];
-        records.reserve(static_cast<std::size_t>(count.value()));
         int remaining = count.value();
         while (remaining > 0) {
             const auto block_count =
@@ -811,7 +807,6 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
         return Result<BinaryMapObjectPrefixes>::fail({"object count mismatch", object_section_offset});
     }
 
-    objects.records.reserve(static_cast<std::size_t>(objects.total_count));
     for (std::int32_t index = 0; index < objects.total_count; ++index) {
         auto record = parse_object_prefix(reader);
         if (!record) {
