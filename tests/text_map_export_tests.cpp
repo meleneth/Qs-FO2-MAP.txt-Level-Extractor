@@ -397,3 +397,55 @@ TEST_CASE("export_text_map reassigns duplicate spatial script ids consistently",
     CHECK(exported.value().find("scr_udata.sp.built_tile: 0\r\n") != std::string::npos);
     CHECK(exported.value().find("scr_udata.sp.built_tile: 1073741824\r\n") != std::string::npos);
 }
+
+TEST_CASE("export_text_map keeps reassigned script ids within the original type", "[txt][export]")
+{
+    const auto left = parse_fixture(
+        "left-header\n"
+        "square_elev: 1\n\n"
+        "left-one\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 33554431\n"
+        "scr_num_local_vars: 0\n\n"
+        "scr_udata.sp.built_tile: 536870912\n\n"
+        "scr_udata.sp.radius: 5\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[[OBJECTS END]]\n"
+    );
+    const auto right = parse_fixture(
+        "right-header\n"
+        "square_elev: 1\n\n"
+        "right-one\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 33554431\n"
+        "scr_num_local_vars: 0\n\n"
+        "scr_udata.sp.built_tile: 536870912\n\n"
+        "scr_udata.sp.radius: 7\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[[OBJECTS END]]\n"
+    );
+    qmap::TextMapExportPlan plan;
+    plan.elevations[0] = qmap::ElevationSource{qmap::MapSide::left, 1};
+    plan.elevations[2] = qmap::ElevationSource{qmap::MapSide::right, 1};
+
+    const auto exported = qmap::export_text_map(source_from(left), source_from(right), plan);
+
+    REQUIRE(exported);
+    CHECK(exported.value().find("scr_id: 33554431\r\n") != std::string::npos);
+    CHECK(exported.value().find("scr_id: 16777216\r\n") != std::string::npos);
+    CHECK(exported.value().find("scr_id: 33554432\r\n") == std::string::npos);
+}

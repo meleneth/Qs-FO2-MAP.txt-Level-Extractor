@@ -17,6 +17,8 @@ constexpr std::string_view scripts_header =
     ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\r\n\r\n\r\n"
     "SCRS:\r\n";
 constexpr std::string_view objects_header = ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n\r\n";
+constexpr std::uint32_t script_type_bits = 0xFF000000u;
+constexpr std::uint32_t script_local_id_bits = 0x00FFFFFFu;
 
 const ParsedTextSource& source_for_side(
     const ParsedTextSource& left,
@@ -178,14 +180,31 @@ struct ExportRecords {
     std::vector<std::string> objects;
     std::unordered_set<std::uint32_t> used_script_ids;
 
-    std::uint32_t reserve_script_id(std::uint32_t preferred)
+    Result<std::uint32_t> reserve_script_id(std::uint32_t preferred)
     {
-        auto candidate = preferred;
-        while (used_script_ids.contains(candidate)) {
-            ++candidate;
+        const auto type = preferred & script_type_bits;
+        const auto preferred_local_id = preferred & script_local_id_bits;
+
+        for (auto local_id = preferred_local_id; local_id <= script_local_id_bits; ++local_id) {
+            const auto candidate = type | local_id;
+            if (!used_script_ids.contains(candidate)) {
+                used_script_ids.insert(candidate);
+                return Result<std::uint32_t>::ok(candidate);
+            }
+            if (local_id == script_local_id_bits) {
+                break;
+            }
         }
-        used_script_ids.insert(candidate);
-        return candidate;
+
+        for (std::uint32_t local_id = 0; local_id < preferred_local_id; ++local_id) {
+            const auto candidate = type | local_id;
+            if (!used_script_ids.contains(candidate)) {
+                used_script_ids.insert(candidate);
+                return Result<std::uint32_t>::ok(candidate);
+            }
+        }
+
+        return Result<std::uint32_t>::fail({"no available script ids for script type", 0});
     }
 };
 
@@ -223,7 +242,11 @@ Result<void> append_selected_records(
 
         std::optional<std::uint32_t> rewritten_script_id;
         if (object.script_id && *object.script_id != 0xFFFFFFFFu) {
-            rewritten_script_id = output.reserve_script_id(*object.script_id);
+            auto reserved = output.reserve_script_id(*object.script_id);
+            if (!reserved) {
+                return Result<void>::fail(reserved.error());
+            }
+            rewritten_script_id = reserved.value();
             copied_object_script_ids[*object.script_id] = *rewritten_script_id;
         }
 
@@ -247,7 +270,11 @@ Result<void> append_selected_records(
                 copy = destination.has_value();
             }
             if (copy) {
-                rewritten_script_id = output.reserve_script_id(script.script_id);
+                auto reserved = output.reserve_script_id(script.script_id);
+                if (!reserved) {
+                    return Result<void>::fail(reserved.error());
+                }
+                rewritten_script_id = reserved.value();
                 rewritten_spatial_tile = destination_tile(
                     static_cast<std::uint32_t>(*script.spatial_tile),
                     *destination
