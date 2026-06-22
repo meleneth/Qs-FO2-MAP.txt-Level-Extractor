@@ -359,6 +359,19 @@ void parse_script_record(map_lvls *map, int *offset, int type, script *out) {
 
 void parse_map_scripts(map_lvls *map, int *offset,
                        scripts_list scripts[SCRIPT_TYPE_COUNT]) {
+  if (!scripts) {
+    return;
+  }
+
+  for (int type = SCRIPT_SYSTEM; type < SCRIPT_TYPE_COUNT; ++type) {
+    scripts[type].count = 0;
+    scripts[type].scripts = nullptr;
+  }
+
+  if (!map || !offset || !map->data) {
+    return;
+  }
+
   for (int type = SCRIPT_SYSTEM; type < SCRIPT_TYPE_COUNT; ++type) {
     scripts[type].count = read_adv(map, offset);
     if (scripts[type].count <= 0) {

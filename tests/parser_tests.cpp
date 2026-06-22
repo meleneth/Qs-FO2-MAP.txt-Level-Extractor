@@ -261,6 +261,26 @@ TEST_CASE("binary map reader rejects invalid word offsets", "[map]")
     CHECK(valid_offset == 4);
 }
 
+TEST_CASE("binary script parser clears output for invalid input", "[map][scripts]")
+{
+    scripts_list scripts[SCRIPT_TYPE_COUNT];
+    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
+        scripts[type].count = 123;
+        scripts[type].scripts = reinterpret_cast<script*>(static_cast<uintptr_t>(1));
+    }
+
+    map_lvls map;
+    int offset = 0;
+
+    parse_map_scripts(&map, &offset, scripts);
+
+    CHECK(offset == 0);
+    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
+        CHECK(scripts[type].count == 0);
+        CHECK(scripts[type].scripts == nullptr);
+    }
+}
+
 
 TEST_CASE("binary map script parser reads script counts and stops at objects", "[map][scripts]")
 {
