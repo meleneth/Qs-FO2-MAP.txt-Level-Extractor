@@ -242,7 +242,8 @@ tiles parse_map_tiles(map_lvls *map, int *offset) {
 }
 
 int32_t read_adv(map_lvls *map, int *offset) {
-  if ((*offset + sizeof(int32_t)) > map->file_siz) {
+  if (!map || !offset || !map->data || *offset < 0 ||
+      map->file_siz - *offset < static_cast<int>(sizeof(int32_t))) {
     return 0;
   }
 

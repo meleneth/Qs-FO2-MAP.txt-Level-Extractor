@@ -181,6 +181,7 @@ char* find_str(uint8_t* map_txt, char* str, int len);
 char* parse_objects(map_lvls* map, int level);
 int script_spatial(char* script_txt, int remainder, int level);
 int script_object(char* script_txt, int remainder, int level, char* objects);
+int32_t read_adv(map_lvls* map, int* offset);
 struct parsed_scripts
 {
     char* scr_num[SCRIPT_TYPE_COUNT] = {nullptr};
@@ -237,6 +238,27 @@ TEST_CASE("binary map parser rejects incomplete headers", "[map]")
     for (int level = 0; level < 3; ++level) {
         CHECK(map.level[level] == nullptr);
     }
+}
+
+TEST_CASE("binary map reader rejects invalid word offsets", "[map]")
+{
+    std::vector<uint8_t> data{0x12, 0x34, 0x56, 0x78};
+
+    map_lvls map;
+    map.file_siz = static_cast<int>(data.size());
+    map.data = data.data();
+
+    int negative_offset = -1;
+    CHECK(read_adv(&map, &negative_offset) == 0);
+    CHECK(negative_offset == -1);
+
+    int tail_offset = 1;
+    CHECK(read_adv(&map, &tail_offset) == 0);
+    CHECK(tail_offset == 1);
+
+    int valid_offset = 0;
+    CHECK(read_adv(&map, &valid_offset) == 0x12345678);
+    CHECK(valid_offset == 4);
 }
 
 
