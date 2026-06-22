@@ -66,6 +66,14 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
     }
 
     map->data = map_data;
+    map->header_size = 0;
+    for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
+        map->level[elevation] = nullptr;
+        map->lvl_sizes[elevation] = 0;
+    }
+    map->scripts = nullptr;
+    map->objects = nullptr;
+
     auto parsed = qmap::parse_text_map(
         std::string_view{
             reinterpret_cast<const char*>(map_data),

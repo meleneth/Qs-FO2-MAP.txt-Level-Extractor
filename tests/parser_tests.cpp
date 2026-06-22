@@ -305,3 +305,27 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
         }
     }
 }
+
+TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")
+{
+    std::vector<uint8_t> data{'h', 'e', 'a', 'd', 'e', 'r', '\n', '\0'};
+
+    map_lvls map;
+    map.file_siz = static_cast<int>(data.size() - 1);
+    map.header_size = 123;
+    map.level[0] = reinterpret_cast<char*>(data.data());
+    map.lvl_sizes[0] = 456;
+    map.scripts = reinterpret_cast<char*>(data.data());
+    map.objects = reinterpret_cast<char*>(data.data());
+
+    parse_map_txt(data.data(), &map);
+
+    CHECK(map.data == data.data());
+    CHECK(map.header_size == 0);
+    for (int level = 0; level < 3; ++level) {
+        CHECK(map.level[level] == nullptr);
+        CHECK(map.lvl_sizes[level] == 0);
+    }
+    CHECK(map.scripts == nullptr);
+    CHECK(map.objects == nullptr);
+}
