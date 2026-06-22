@@ -28,6 +28,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Provides checked big-endian reads.
   - [x] Returns `Result<T>` instead of silently returning `0`.
   - [x] Provides typed accessor methods so callers do not hand-roll byte interpretation.
+  - [x] Remove the old unchecked `B_Endian` helper.
 
 - [x] Add a text range model for `.txt` parsing.
   - [x] Own loaded text as `std::string`.
