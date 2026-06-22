@@ -55,6 +55,20 @@ TEST_CASE("parse_text_objects fails on unterminated object blocks", "[txt][recor
     CHECK(parsed.error().offset == 0);
 }
 
+TEST_CASE("parse_text_objects rejects invalid numeric fields", "[txt][records]")
+{
+    constexpr std::string_view objects =
+        "[OBJECT BEGIN]\r\n"
+        "obj_elev: nope\r\n"
+        "obj_sid: 50331649\r\n"
+        "[OBJECT END]\r\n";
+
+    const auto parsed = qmap::parse_text_objects(objects);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "record has invalid numeric field");
+}
+
 TEST_CASE("parse_text_scripts extracts script records and numeric fields", "[txt][records]")
 {
     constexpr std::string_view scripts =
@@ -118,6 +132,19 @@ TEST_CASE("parse_text_scripts rejects invalid script ids", "[txt][records]")
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "script record has invalid scr_id");
+}
+
+TEST_CASE("parse_text_scripts rejects invalid numeric fields", "[txt][records]")
+{
+    constexpr std::string_view scripts =
+        "scr_id: 50331649\r\n"
+        "scr_oid: nope\r\n"
+        "scr_num_local_vars: 0\r\n";
+
+    const auto parsed = qmap::parse_text_scripts(scripts);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "record has invalid numeric field");
 }
 
 TEST_CASE("parse_text_scripts rejects unsupported script types", "[txt][records]")

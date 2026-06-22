@@ -77,6 +77,46 @@ std::optional<std::string_view> field_value(std::string_view record, std::string
     return std::nullopt;
 }
 
+Result<std::optional<std::uint32_t>> optional_u32_field(
+    std::string_view record,
+    std::string_view field,
+    std::size_t record_offset
+)
+{
+    const auto value = field_value(record, field);
+    if (!value) {
+        return Result<std::optional<std::uint32_t>>::ok(std::nullopt);
+    }
+    const auto parsed = parse_u32(*value);
+    if (!parsed) {
+        return Result<std::optional<std::uint32_t>>::fail({
+            "record has invalid numeric field",
+            record_offset,
+        });
+    }
+    return Result<std::optional<std::uint32_t>>::ok(*parsed);
+}
+
+Result<std::optional<int>> optional_i32_field(
+    std::string_view record,
+    std::string_view field,
+    std::size_t record_offset
+)
+{
+    const auto value = field_value(record, field);
+    if (!value) {
+        return Result<std::optional<int>>::ok(std::nullopt);
+    }
+    const auto parsed = parse_i32(*value);
+    if (!parsed) {
+        return Result<std::optional<int>>::fail({
+            "record has invalid numeric field",
+            record_offset,
+        });
+    }
+    return Result<std::optional<int>>::ok(*parsed);
+}
+
 std::size_t line_start_after(std::string_view text, std::size_t offset)
 {
     const auto next = text.find('\n', offset);
@@ -151,12 +191,16 @@ Result<std::vector<TextObjectRecord>> parse_text_objects(std::string_view object
 
         TextObjectRecord record;
         record.raw = raw;
-        if (const auto value = field_value(record_text, "obj_elev:")) {
-            record.elevation = parse_i32(*value);
+        auto elevation = optional_i32_field(record_text, "obj_elev:", begin);
+        if (!elevation) {
+            return Result<std::vector<TextObjectRecord>>::fail(elevation.error());
         }
-        if (const auto value = field_value(record_text, "obj_sid:")) {
-            record.script_id = parse_u32(*value);
+        record.elevation = elevation.value();
+        auto script_id = optional_u32_field(record_text, "obj_sid:", begin);
+        if (!script_id) {
+            return Result<std::vector<TextObjectRecord>>::fail(script_id.error());
         }
+        record.script_id = script_id.value();
 
         records.push_back(record);
         search_offset = end;
@@ -205,18 +249,26 @@ Result<std::vector<TextScriptRecord>> parse_text_scripts(std::string_view script
             });
         }
         record.script_type = *script_type;
-        if (const auto value = field_value(record_text, "scr_oid:")) {
-            record.object_id = parse_u32(*value);
+        auto object_id = optional_u32_field(record_text, "scr_oid:", begin);
+        if (!object_id) {
+            return Result<std::vector<TextScriptRecord>>::fail(object_id.error());
         }
-        if (const auto value = field_value(record_text, "scr_num_local_vars:")) {
-            record.local_var_count = parse_i32(*value);
+        record.object_id = object_id.value();
+        auto local_var_count = optional_i32_field(record_text, "scr_num_local_vars:", begin);
+        if (!local_var_count) {
+            return Result<std::vector<TextScriptRecord>>::fail(local_var_count.error());
         }
-        if (const auto value = field_value(record_text, "scr_udata.sp.built_tile:")) {
-            record.spatial_tile = parse_i32(*value);
+        record.local_var_count = local_var_count.value();
+        auto spatial_tile = optional_i32_field(record_text, "scr_udata.sp.built_tile:", begin);
+        if (!spatial_tile) {
+            return Result<std::vector<TextScriptRecord>>::fail(spatial_tile.error());
         }
-        if (const auto value = field_value(record_text, "scr_udata.sp.radius:")) {
-            record.spatial_radius = parse_i32(*value);
+        record.spatial_tile = spatial_tile.value();
+        auto spatial_radius = optional_i32_field(record_text, "scr_udata.sp.radius:", begin);
+        if (!spatial_radius) {
+            return Result<std::vector<TextScriptRecord>>::fail(spatial_radius.error());
         }
+        record.spatial_radius = spatial_radius.value();
 
         records.push_back(record);
         search_offset = end;
