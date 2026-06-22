@@ -442,6 +442,17 @@ objects_list parse_map_objects(map_lvls *map, int *offset) {
   ol.count_elev[1] = B_Endian::read_i32(&data_ptr[0x08]);
   ol.count_elev[2] = B_Endian::read_i32(&data_ptr[0x0C]);
 
+  if (ol.count_total < 0 || ol.count_elev[0] < 0 || ol.count_elev[1] < 0 ||
+      ol.count_elev[2] < 0 ||
+      (ol.count_elev[0] + ol.count_elev[1] + ol.count_elev[2]) >
+          ol.count_total) {
+    printf("ERROR: invalid object counts; total=%d elevs=%d,%d,%d\n",
+           ol.count_total, ol.count_elev[0], ol.count_elev[1],
+           ol.count_elev[2]);
+    ol = {};
+    return ol;
+  }
+
   ol.objects = (object *)malloc(sizeof(object) * ol.count_total);
   object *obj = ol.objects;
 
