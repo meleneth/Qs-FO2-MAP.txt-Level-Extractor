@@ -1,9 +1,11 @@
 #include <imgui_internal.h>
+#include "binary_map_parser.h"
 #include "io_Platform.h"
 #include "map_txt_gui.h"
 #include "map_txt_parser.h"
-#include "map_map_parser.h"
 
+#include <cstddef>
+#include <span>
 
 bool is_hovering     = false;
 int list_box         = -1;
@@ -16,6 +18,35 @@ namespace {
 constexpr int left_column = 0;
 constexpr int middle_column = 1;
 constexpr int right_column = 2;
+
+void parse_binary_map_for_gui(map_lvls& map)
+{
+    map.header_size = 0;
+    for (int level = 0; level < qmap::binary_map_elevation_count; ++level) {
+        map.level[level] = nullptr;
+        map.lvl_sizes[level] = 0;
+    }
+
+    if (!map.data || map.file_siz <= 0) {
+        return;
+    }
+
+    const auto bytes = std::span<const std::byte>(
+        reinterpret_cast<const std::byte*>(map.data),
+        static_cast<std::size_t>(map.file_siz)
+    );
+    const auto header = qmap::parse_binary_map_header(bytes);
+    if (!header) {
+        return;
+    }
+
+    map.header_size = static_cast<int>(qmap::binary_map_header_size);
+    for (int level = 0; level < qmap::binary_map_elevation_count; ++level) {
+        if (header.value().has_elevation(level)) {
+            map.level[level] = map.label[level];
+        }
+    }
+}
 
 } // namespace
 
@@ -47,7 +78,7 @@ bool map_parse_succeeded(const map_lvls& map)
         return map.scripts != nullptr && map.objects != nullptr;
     }
     if (map.map_type == MAP_MAP) {
-        return map.header_size == static_cast<int>(sizeof(map_header));
+        return map.header_size == static_cast<int>(qmap::binary_map_header_size);
     }
 
     return false;
@@ -153,7 +184,7 @@ void file_drop_callback(const char* full_path)
 
 
     if (map_ptr->map_type == MAP_MAP) {
-        parse_map_map(map_ptr);
+        parse_binary_map_for_gui(*map_ptr);
     } else
     if (map_ptr->map_type == MAP_TXT) {
         parse_map_txt(map_ptr->data, map_ptr);

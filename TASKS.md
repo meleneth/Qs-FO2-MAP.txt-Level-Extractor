@@ -253,7 +253,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 ## Phase 9: Error Handling And Result Types
 
-- [ ] Stop using `printf` for parser/export failures. Partial: modern text parsers/exporters return `Result`; legacy binary parser compatibility still prints diagnostics.
+- [x] Stop using `printf` for parser/export failures.
   - [x] Return structured errors.
   - [ ] Keep diagnostics available to GUI and tests.
 
@@ -271,6 +271,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Parsed text map.
   - [x] Parsed binary map.
   - [ ] GUI/session display model.
+  - [x] Remove legacy binary `map_header` compatibility storage.
 
 - [ ] Remove raw owning pointers.
   - [ ] No `malloc`/`free` in project code except when forced by third-party APIs.

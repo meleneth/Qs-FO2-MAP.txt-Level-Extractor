@@ -76,7 +76,6 @@ target_sources(
     src/text_map_parser.cpp
     src/text_map_export.cpp
     src/text_map_records.cpp
-    src/map_map_parser.cpp
     src/B_Endian/B_Endian.cpp
     ${IO_PLATFORM_DIR}/io_Platform.cpp
 )

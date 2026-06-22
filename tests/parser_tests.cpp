@@ -1,9 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "map_map_parser.h"
 #include "map_txt_parser.h"
 
-#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -36,27 +34,6 @@ std::vector<uint8_t> load_text_fixture(std::string_view name)
     return data;
 }
 
-std::string header_filename(const map_header& header)
-{
-    const auto end = std::find(std::begin(header.filename), std::end(header.filename), '\0');
-    return std::string(std::begin(header.filename), end);
-}
-struct MapFixtureExpectation {
-    const char* map_file;
-    int file_size;
-    const char* filename;
-    int dude_start;
-    int elev_start;
-    int face_start;
-    int lvar_cnt;
-    int map_script_id;
-    int map_flags;
-    int light_level;
-    int mvar_cnt;
-    int map_id;
-    bool levels[3];
-};
-
 struct TextFixtureExpectation {
     const char* txt_file;
     int file_size;
@@ -64,17 +41,6 @@ struct TextFixtureExpectation {
     int scripts_offset;
     int objects_offset;
 };
-
-
-constexpr MapFixtureExpectation map_fixtures[] = {
-    {"ARVILL2.map", 141332, "ARVILL2.map", 29105, 0, 0, 1, 0, 12, 1, 5, -1, {true, false, false}},
-    {"BROKEN1.map", 416140, "BROKEN1.MAP", 18954, 0, 0, 2, 675, 8, 1, 31, 78, {true, true, false}},
-    {"BROKEN2.map", 767096, "BROKEN2.MAP", 21154, 0, 0, 0, 899, 0, 1, 25, 79, {true, true, true}},
-    {"Newr1.map",   515376, "NEWR1.MAP",   24305, 0, 0, 0, 353, 0, 1, 1, 54, {true, true, true}},
-    {"Newr2.map",   654784, "NEWR2.MAP",   20100, 0, 0, 0, 354, 0, 1, 1, 55, {true, true, true}},
-    {"test16.map", 126968, "TEST16.MAP", 20100, 0, 0, 0, 1538, 0, 1, 0, -1, {true, true, true}},
-};
-
 
 constexpr TextFixtureExpectation txt_fixtures[] = {
     {"ARVILL2.txt",  734150, {399, -1, -1},       270955, 271060},
@@ -103,56 +69,6 @@ int pointer_offset(const map_lvls& map, const char* pointer)
 }
 
 } // namespace
-
-TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
-{
-    for (const auto& expected : map_fixtures) {
-        DYNAMIC_SECTION(expected.map_file) {
-            auto data = load_binary_fixture(expected.map_file);
-            REQUIRE(static_cast<int>(data.size()) == expected.file_size);
-
-            map_lvls map;
-            map.file_siz = static_cast<int>(data.size());
-            map.data = data.data();
-
-            parse_map_map(&map);
-
-            CHECK(map.header_size == static_cast<int>(sizeof(map_header)));
-            CHECK(map.header.version == 20);
-            CHECK(header_filename(map.header) == expected.filename);
-            CHECK(map.header.dude_start == expected.dude_start);
-            CHECK(map.header.elev_start == expected.elev_start);
-            CHECK(map.header.face_start == expected.face_start);
-            CHECK(map.header.lvar_cnt == expected.lvar_cnt);
-            CHECK(map.header.map_script_id == expected.map_script_id);
-            CHECK(map.header.map_flags == expected.map_flags);
-            CHECK(map.header.light_level == expected.light_level);
-            CHECK(map.header.mvar_cnt == expected.mvar_cnt);
-            CHECK(map.header.map_id == expected.map_id);
-
-            for (int level = 0; level < 3; ++level) {
-                CHECK((map.level[level] != nullptr) == expected.levels[level]);
-            }
-        }
-    }
-}
-
-TEST_CASE("binary map parser rejects incomplete headers", "[map]")
-{
-    std::vector<uint8_t> data(8, 0);
-
-    map_lvls map;
-    map.file_siz = static_cast<int>(data.size());
-    map.data = data.data();
-
-    parse_map_map(&map);
-
-    CHECK(map.header_size == 0);
-    CHECK(map.header.version == 0);
-    for (int level = 0; level < 3; ++level) {
-        CHECK(map.level[level] == nullptr);
-    }
-}
 
 TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
 {

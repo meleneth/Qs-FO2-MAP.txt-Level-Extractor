@@ -1,5 +1,4 @@
 #pragma once
-// #include "map_map_parser.h"
 #include "map_structs.h"
 
 void parse_map_txt(uint8_t* map, map_lvls* lvls);
