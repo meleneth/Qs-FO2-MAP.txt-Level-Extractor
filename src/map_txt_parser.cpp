@@ -666,6 +666,10 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
     spatials[0] = (spatial_script*)malloc(spatial_cnt_0 * sizeof(spatial_script));
     spatials[1] = (spatial_script*)malloc(spatial_cnt_1 * sizeof(spatial_script));
     spatials[2] = (spatial_script*)malloc(spatial_cnt_2 * sizeof(spatial_script));
+    auto skip_legacy_line = [](char* text, size_t text_len, size_t& offset) {
+        while (offset < text_len && text[offset++] != '\n') {
+        }
+    };
     // assign new levels to spatial scripts
     for (size_t elevation = 0; elevation < 3; elevation++) {
         if (!scripts[elevation].scr_num_cnt[SCRIPT_SPATIAL]) {
@@ -674,7 +678,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
 
 
         char* scr_ptr = scripts[elevation].scr_num[SCRIPT_SPATIAL];
-        int len = strlen(scr_ptr);
+        size_t len = strlen(scr_ptr);
         int j = 0;
         for (size_t i = 0; i < len; i++) {
             if (scr_ptr[i] != 's') {
@@ -685,61 +689,94 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
             if (io_strncmp(&scr_ptr[i], "scr_id: ", sizeof("scr_id")) == 0) {
                 i += sizeof("scr_id");
                 spatials[elevation][j].scr_id = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_next: 4294967295
             if (io_strncmp(&scr_ptr[i], "scr_next: ", sizeof("scr_next:")) == 0) {
                 i += sizeof("scr_next:");
                 spatials[elevation][j].scr_next = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_flags: 0
             if (io_strncmp(&scr_ptr[i], "scr_flags: ", sizeof("scr_flags:")) == 0) {
                 i += sizeof("scr_flags:");
                 spatials[elevation][j].scr_flags = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_script_idx: 221
             if (io_strncmp(&scr_ptr[i], "scr_script_idx: ", sizeof("scr_script_idx:")) == 0) {
                 i += sizeof("scr_script_idx:");
                 spatials[elevation][j].scr_script_idx = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_oid: 1919251315
             if (io_strncmp(&scr_ptr[i], "scr_oid: ", sizeof("scr_oid:")) == 0) {
                 i += sizeof("scr_oid:");
                 spatials[elevation][j].scr_oid = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_local_var_offset: 4294967295
             if (io_strncmp(&scr_ptr[i], "scr_local_var_offset: ", sizeof("scr_local_var_offset:")) == 0) {
                 i += sizeof("scr_local_var_offset:");
                 spatials[elevation][j].scr_local_var_offset = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_num_local_vars: 0
             if (io_strncmp(&scr_ptr[i], "scr_num_local_vars: ", sizeof("scr_num_local_vars:")) == 0) {
                 i += sizeof("scr_num_local_vars:");
                 spatials[elevation][j].scr_num_local_vars = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
-            if (scr_ptr[i] == '\r') {
-                while (scr_ptr[i++] != '\n');
+            if (i < len && scr_ptr[i] == '\r') {
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_udata.sp.built_tile: 21925
             if (io_strncmp(&scr_ptr[i], "scr_udata.sp.built_tile: ", sizeof("scr_udata.sp.built_tile:")) == 0) {
                 i += sizeof("scr_udata.sp.built_tile:");
                 spatials[elevation][j].built_tile = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
-            if (scr_ptr[i] == '\r') {
-                while (scr_ptr[i++] != '\n');
+            if (i < len && scr_ptr[i] == '\r') {
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
             // scr_udata.sp.radius: 0
             if (io_strncmp(&scr_ptr[i], "scr_udata.sp.radius: ", sizeof("scr_udata.sp.radius:")) == 0) {
                 i += sizeof("scr_udata.sp.radius:");
                 spatials[elevation][j].radius = atoi(&scr_ptr[i]);
-                while (scr_ptr[i++] != '\n');   //go to next line
+                skip_legacy_line(scr_ptr, len, i);
+                if (i >= len) {
+                    break;
+                }
             }
 
             //actually assign the new level here
