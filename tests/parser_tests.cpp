@@ -178,6 +178,7 @@ int pointer_offset(const map_lvls& map, const char* pointer)
 } // namespace
 
 char* find_str(uint8_t* map_txt, char* str, int len);
+char* parse_objects(map_lvls* map, int level);
 int script_spatial(char* script_txt, int remainder, int level);
 int script_object(char* script_txt, int remainder, int level, char* objects);
 struct parsed_scripts
@@ -323,6 +324,25 @@ TEST_CASE("legacy text find_str ignores partial tail matches", "[txt]")
     char marker[] = "abc";
 
     CHECK(find_str(data.data(), marker, 3) == nullptr);
+}
+
+TEST_CASE("legacy object parser accepts object ending at buffer end", "[txt]")
+{
+    std::string data =
+        "[OBJECT BEGIN]\n"
+        "obj_elev: 0\n"
+        "[OBJECT END]";
+
+    map_lvls map;
+    map.data = reinterpret_cast<uint8_t*>(data.data());
+    map.file_siz = static_cast<int>(data.size());
+    map.objects = data.data();
+
+    char* objects = parse_objects(&map, 0);
+
+    REQUIRE(objects != nullptr);
+    CHECK(std::string(objects) == data);
+    free(objects);
 }
 
 TEST_CASE("legacy spatial script parser rejects unterminated radius lines", "[txt]")

@@ -158,7 +158,12 @@ char* parse_objects(map_lvls* map, int level)
             if (begin == nullptr) {
                 continue;
             }
-            end = &map->objects[i + sizeof("[OBJECT END]") + 3];
+            size_t end_offset = i + sizeof("[OBJECT END]") - 1;
+            while (end_offset < static_cast<size_t>(objects_size)
+                && (map->objects[end_offset] == '\r' || map->objects[end_offset] == '\n')) {
+                ++end_offset;
+            }
+            end = &map->objects[end_offset];
             int size = end - begin;
             memcpy(objects_ptr, begin, size);
             objects_ptr += size;
