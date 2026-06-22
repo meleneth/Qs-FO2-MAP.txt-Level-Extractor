@@ -131,6 +131,19 @@ struct BinaryMapObjectPrefixes {
     std::size_t end_offset = 0;
 };
 
+struct BinaryObjectRecord {
+    BinaryObjectPrefix prefix;
+    Range raw;
+    Range tail;
+};
+
+struct BinaryMapObjectRecords {
+    std::int32_t total_count = 0;
+    std::array<std::int32_t, 3> elevation_counts{};
+    std::vector<BinaryObjectRecord> records;
+    std::size_t end_offset = 0;
+};
+
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes);
 Result<BinaryMapVariables> parse_binary_map_variables(
     std::span<const std::byte> bytes,
@@ -145,6 +158,10 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
     const BinaryMapHeader& header
 );
 Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset
+);
+Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset
 );

@@ -377,6 +377,85 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     return Result<BinaryObjectPrefix>::ok(record);
 }
 
+std::size_t known_object_tail_size(BinaryObjectType type)
+{
+    switch (type) {
+    case BinaryObjectType::critter:
+        return 11 * sizeof(std::int32_t);
+    case BinaryObjectType::scenery:
+        return 3 * sizeof(std::int32_t);
+    case BinaryObjectType::misc:
+        return 5 * sizeof(std::int32_t);
+    case BinaryObjectType::item:
+    case BinaryObjectType::wall:
+    case BinaryObjectType::tile:
+    case BinaryObjectType::interface_object:
+    case BinaryObjectType::inventory:
+    case BinaryObjectType::head:
+    case BinaryObjectType::background:
+        return 0;
+    }
+    return 0;
+}
+
+Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& reader, std::size_t object_section_offset)
+{
+    BinaryMapObjectRecords objects;
+    auto total_count = read_i32(reader);
+    if (!total_count) {
+        return Result<BinaryMapObjectRecords>::fail(total_count.error());
+    }
+    if (total_count.value() < 0) {
+        return Result<BinaryMapObjectRecords>::fail({"negative object count", object_section_offset});
+    }
+    objects.total_count = total_count.value();
+
+    std::int32_t summed_counts = 0;
+    for (auto& count : objects.elevation_counts) {
+        auto parsed = read_i32(reader);
+        if (!parsed) {
+            return Result<BinaryMapObjectRecords>::fail(parsed.error());
+        }
+        if (parsed.value() < 0) {
+            return Result<BinaryMapObjectRecords>::fail({"negative elevation object count", reader.offset() - 4});
+        }
+        count = parsed.value();
+        summed_counts += count;
+    }
+
+    if (summed_counts != objects.total_count) {
+        return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
+    }
+
+    objects.records.reserve(static_cast<std::size_t>(objects.total_count));
+    for (std::int32_t index = 0; index < objects.total_count; ++index) {
+        const auto record_start = reader.offset();
+        auto prefix = parse_object_prefix(reader);
+        if (!prefix) {
+            return Result<BinaryMapObjectRecords>::fail(prefix.error());
+        }
+        const auto object_type = binary_object_type_from_pid(prefix.value().pid);
+        if (!object_type) {
+            return Result<BinaryMapObjectRecords>::fail({"unsupported object pid type", prefix.value().raw.offset});
+        }
+
+        const auto tail_start = reader.offset();
+        auto tail_bytes = reader.read_bytes(known_object_tail_size(*object_type));
+        if (!tail_bytes) {
+            return Result<BinaryMapObjectRecords>::fail(tail_bytes.error());
+        }
+
+        BinaryObjectRecord record;
+        record.prefix = prefix.value();
+        record.tail = Range{tail_start, tail_bytes.value().size()};
+        record.raw = Range{record_start, reader.offset() - record_start};
+        objects.records.push_back(record);
+    }
+    objects.end_offset = reader.offset();
+
+    return Result<BinaryMapObjectRecords>::ok(std::move(objects));
+}
+
 } // namespace
 
 std::string BinaryMapHeader::filename_string() const
@@ -689,6 +768,20 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
     objects.end_offset = reader.offset();
 
     return Result<BinaryMapObjectPrefixes>::ok(std::move(objects));
+}
+
+Result<BinaryMapObjectRecords> parse_binary_map_object_records(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset
+)
+{
+    ByteReader reader(bytes);
+    auto skipped = reader.read_bytes(object_section_offset);
+    if (!skipped) {
+        return Result<BinaryMapObjectRecords>::fail(skipped.error());
+    }
+
+    return parse_object_records_after_counts(reader, object_section_offset);
 }
 
 } // namespace qmap
