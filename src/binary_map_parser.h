@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -193,6 +194,11 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
     const BinaryMapHeader& header
 );
 Result<BinaryObjectBlockHeader> parse_first_binary_object_block_header(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header
+);
+Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset,
     const BinaryMapHeader& header

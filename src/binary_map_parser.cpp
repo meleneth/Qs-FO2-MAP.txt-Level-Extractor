@@ -928,6 +928,33 @@ Result<BinaryObjectBlockHeader> parse_first_binary_object_block_header(
     return Result<BinaryObjectBlockHeader>::ok(block);
 }
 
+Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header
+)
+{
+    auto block = parse_first_binary_object_block_header(bytes, object_section_offset, header);
+    if (!block) {
+        return Result<std::optional<BinaryObjectPrefix>>::fail(block.error());
+    }
+    if (block.value().block_count == 0) {
+        return Result<std::optional<BinaryObjectPrefix>>::ok(std::nullopt);
+    }
+
+    ByteReader reader(bytes);
+    auto skipped = reader.read_bytes(block.value().objects_offset);
+    if (!skipped) {
+        return Result<std::optional<BinaryObjectPrefix>>::fail(skipped.error());
+    }
+
+    auto prefix = parse_object_prefix(reader);
+    if (!prefix) {
+        return Result<std::optional<BinaryObjectPrefix>>::fail(prefix.error());
+    }
+    return Result<std::optional<BinaryObjectPrefix>>::ok(prefix.value());
+}
+
 Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset

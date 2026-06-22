@@ -78,6 +78,33 @@ std::string script_type_name(int type)
     return "unknown";
 }
 
+std::string object_type_name(BinaryObjectType type)
+{
+    switch (type) {
+    case BinaryObjectType::item:
+        return "item";
+    case BinaryObjectType::critter:
+        return "critter";
+    case BinaryObjectType::scenery:
+        return "scenery";
+    case BinaryObjectType::wall:
+        return "wall";
+    case BinaryObjectType::tile:
+        return "tile";
+    case BinaryObjectType::misc:
+        return "misc";
+    case BinaryObjectType::interface_object:
+        return "interface";
+    case BinaryObjectType::inventory:
+        return "inventory";
+    case BinaryObjectType::head:
+        return "head";
+    case BinaryObjectType::background:
+        return "background";
+    }
+    return "unknown";
+}
+
 } // namespace
 
 std::string read_text_file(const std::filesystem::path& path)
@@ -122,7 +149,8 @@ std::string format_binary_map_stats(
     const BinaryMapVariables& variables,
     const BinaryMapTiles& tiles,
     const BinaryMapScripts& scripts,
-    const BinaryMapObjectCounts& objects
+    const BinaryMapObjectCounts& objects,
+    const std::optional<BinaryObjectPrefix>& first_object
 )
 {
     std::ostringstream output;
@@ -161,6 +189,17 @@ std::string format_binary_map_stats(
                << objects.elevation_counts[objects.first_counted_elevation] << '\n';
     }
     output << "  data_offset: " << objects.data_offset << '\n';
+    if (first_object) {
+        output << "  first_object:\n";
+        output << "    pid: " << first_object->pid << '\n';
+        if (const auto type = binary_object_type_from_pid(first_object->pid)) {
+            output << "    type: " << object_type_name(*type) << '\n';
+        } else {
+            output << "    type: unknown\n";
+        }
+        output << "    elevation: " << first_object->elevation << '\n';
+        output << "    script_id: " << first_object->script_id << '\n';
+    }
     return output.str();
 }
 
@@ -294,13 +333,22 @@ int parse_stats(const std::filesystem::path& input)
                       << " at offset " << objects.error().offset << '\n';
             return 2;
         }
+        auto first_object = parse_first_binary_object_prefix(bytes, scripts.value().end_offset, header.value());
+        if (!first_object) {
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: " << first_object.error().message
+                      << " at offset " << first_object.error().offset << '\n';
+            return 2;
+        }
 
         std::cout << format_binary_map_stats(
             header.value(),
             variables.value(),
             tiles.value(),
             scripts.value(),
-            objects.value()
+            objects.value(),
+            first_object.value()
         );
         return 0;
     }

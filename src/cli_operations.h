@@ -4,6 +4,7 @@
 #include "text_map_export.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,7 +42,8 @@ std::string format_binary_map_stats(
     const BinaryMapVariables& variables,
     const BinaryMapTiles& tiles,
     const BinaryMapScripts& scripts,
-    const BinaryMapObjectCounts& objects
+    const BinaryMapObjectCounts& objects,
+    const std::optional<BinaryObjectPrefix>& first_object
 );
 TextMapExportPlan single_elevation_plan(int elevation);
 std::filesystem::path split_output_path(

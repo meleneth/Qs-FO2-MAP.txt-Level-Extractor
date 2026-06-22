@@ -92,8 +92,19 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     objects.elevation_counts = {2, 3, 2};
     objects.first_counted_elevation = 1;
     objects.data_offset = 1015;
+    qmap::BinaryObjectPrefix first_object;
+    first_object.pid = 0x02000001;
+    first_object.elevation = 1;
+    first_object.script_id = 50331649;
 
-    const auto stats = qmap::cli::format_binary_map_stats(header, variables, tiles, scripts, objects);
+    const auto stats = qmap::cli::format_binary_map_stats(
+        header,
+        variables,
+        tiles,
+        scripts,
+        objects,
+        first_object
+    );
 
     CHECK(stats.find("kind: binary map\n") != std::string::npos);
     CHECK(stats.find("status: parsed\n") != std::string::npos);
@@ -109,4 +120,8 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("  first_counted_elevation: 1\n") != std::string::npos);
     CHECK(stats.find("  first_elevation_count: 3\n") != std::string::npos);
     CHECK(stats.find("  data_offset: 1015\n") != std::string::npos);
+    CHECK(stats.find("  first_object:\n") != std::string::npos);
+    CHECK(stats.find("    type: scenery\n") != std::string::npos);
+    CHECK(stats.find("    elevation: 1\n") != std::string::npos);
+    CHECK(stats.find("    script_id: 50331649\n") != std::string::npos);
 }
