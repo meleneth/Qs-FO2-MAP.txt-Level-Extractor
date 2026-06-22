@@ -140,7 +140,7 @@ char* parse_objects(map_lvls* map, int level)
             // Apparently a critter's inventory is stored inside their own object description
             // And those are all marked [OBJECT BEGIN], so it breaks the current parsing
             // So here we fast forward to the end of the inventory list before returning to parsing
-            while (i < objects_size)
+            while (i + 1 < objects_size)
             {
                 i++;
                 if (map->objects[i] != '[') {
