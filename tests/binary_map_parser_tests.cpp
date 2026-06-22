@@ -84,6 +84,90 @@ std::vector<std::byte> example_map_with_tiles()
     return bytes;
 }
 
+void append_script_record(
+    std::vector<std::byte>& bytes,
+    qmap::BinaryScriptType type,
+    std::int32_t scr_id,
+    std::int32_t scr_index
+)
+{
+    append_i32(bytes, scr_id);
+    append_i32(bytes, -1);
+    if (type == qmap::BinaryScriptType::spatial) {
+        append_i32(bytes, 536870912);
+        append_i32(bytes, 5);
+    }
+    if (type == qmap::BinaryScriptType::timed) {
+        append_i32(bytes, 1234);
+    }
+    append_i32(bytes, 0);
+    append_i32(bytes, scr_index);
+    append_i32(bytes, 0);
+    append_u32(bytes, 215);
+    append_i32(bytes, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+}
+
+int script_record_word_count(qmap::BinaryScriptType type)
+{
+    int words = 16;
+    if (type == qmap::BinaryScriptType::spatial) {
+        words += 2;
+    }
+    if (type == qmap::BinaryScriptType::timed) {
+        words += 1;
+    }
+    return words;
+}
+
+void append_script_padding(std::vector<std::byte>& bytes, qmap::BinaryScriptType type, int parsed_count)
+{
+    const auto words = (16 - parsed_count) * script_record_word_count(type);
+    for (int index = 0; index < words; ++index) {
+        append_i32(bytes, 0);
+    }
+}
+
+void append_script_footer(std::vector<std::byte>& bytes, int count, int next)
+{
+    append_i32(bytes, count);
+    append_i32(bytes, next);
+}
+
+std::vector<std::byte> example_map_with_scripts()
+{
+    auto bytes = example_map_with_tiles();
+
+    append_i32(bytes, 0);
+
+    append_i32(bytes, 1);
+    append_script_record(bytes, qmap::BinaryScriptType::spatial, 0x01000000, 876);
+    append_script_padding(bytes, qmap::BinaryScriptType::spatial, 1);
+    append_script_footer(bytes, 1, 0);
+
+    append_i32(bytes, 0);
+
+    append_i32(bytes, 17);
+    for (int index = 0; index < 16; ++index) {
+        append_script_record(bytes, qmap::BinaryScriptType::object, 0x03000001 + index, 500 + index);
+    }
+    append_script_footer(bytes, 16, 1234);
+    append_script_record(bytes, qmap::BinaryScriptType::object, 0x03000020, 900);
+    append_script_padding(bytes, qmap::BinaryScriptType::object, 1);
+    append_script_footer(bytes, 1, 0);
+
+    append_i32(bytes, 0);
+    return bytes;
+}
+
 } // namespace
 
 TEST_CASE("parse_binary_map_header reads typed header fields", "[map][binary]")
@@ -193,6 +277,68 @@ TEST_CASE("parse_binary_map_tiles rejects truncated tile blocks", "[map][binary]
     REQUIRE(header);
 
     const auto parsed = qmap::parse_binary_map_tiles(bytes, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "unexpected end of input");
+}
+
+TEST_CASE("parse_binary_map_scripts reads script records and block footers", "[map][binary]")
+{
+    const auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_scripts(bytes, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().by_type[0].empty());
+
+    const auto& spatial = parsed.value().by_type[1];
+    REQUIRE(spatial.size() == 1);
+    CHECK(spatial[0].type == qmap::BinaryScriptType::spatial);
+    CHECK(spatial[0].scr_id == 0x01000000);
+    CHECK(spatial[0].scr_next == -1);
+    CHECK(spatial[0].spatial_tile == 536870912);
+    CHECK(spatial[0].spatial_radius == 5);
+    CHECK(spatial[0].scr_index == 876);
+    CHECK(spatial[0].scr_obj_id == 215u);
+    CHECK(spatial[0].raw.size == 18 * sizeof(std::int32_t));
+
+    const auto& objects = parsed.value().by_type[3];
+    REQUIRE(objects.size() == 17);
+    CHECK(objects[0].scr_id == 0x03000001);
+    CHECK(objects[15].scr_id == 0x03000010);
+    CHECK(objects[16].scr_id == 0x03000020);
+    CHECK(objects[16].scr_index == 900);
+    CHECK(objects[16].raw.size == 16 * sizeof(std::int32_t));
+}
+
+TEST_CASE("parse_binary_map_scripts rejects footer count mismatches", "[map][binary]")
+{
+    auto bytes = example_map_with_tiles();
+    append_i32(bytes, 0);
+    append_i32(bytes, 1);
+    append_script_record(bytes, qmap::BinaryScriptType::spatial, 0x01000000, 876);
+    append_script_padding(bytes, qmap::BinaryScriptType::spatial, 1);
+    append_script_footer(bytes, 2, 0);
+
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_scripts(bytes, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "script block footer count mismatch");
+}
+
+TEST_CASE("parse_binary_map_scripts rejects truncated records", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    bytes.resize(bytes.size() - 3);
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_scripts(bytes, header.value());
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
