@@ -22,7 +22,7 @@ struct Range {
 
     constexpr bool contains(std::size_t position) const
     {
-        return position >= offset && position < end();
+        return position >= offset && position - offset < size;
     }
 };
 

@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string_view>
 
 namespace {
@@ -30,6 +31,16 @@ TEST_CASE("Range describes half-open offsets", "[foundation][range]")
     CHECK(range.contains(4));
     CHECK(range.contains(6));
     CHECK_FALSE(range.contains(7));
+}
+
+TEST_CASE("Range containment does not overflow wrapped ends", "[foundation][range]")
+{
+    const qmap::Range range{std::numeric_limits<std::size_t>::max() - 1, 4};
+
+    CHECK_FALSE(range.contains(0));
+    CHECK_FALSE(range.contains(std::numeric_limits<std::size_t>::max() - 2));
+    CHECK(range.contains(std::numeric_limits<std::size_t>::max() - 1));
+    CHECK(range.contains(std::numeric_limits<std::size_t>::max()));
 }
 
 TEST_CASE("view_range returns a string_view for valid ranges", "[foundation][range]")
