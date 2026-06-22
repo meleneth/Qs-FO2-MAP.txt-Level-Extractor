@@ -26,6 +26,8 @@ constexpr int serialized_script_block_capacity = 16;
 constexpr std::size_t critter_tail_words = 11;
 constexpr std::size_t scenery_tail_words = 3;
 constexpr std::size_t misc_tail_words = 5;
+constexpr int pid_type_shift = 24;
+constexpr std::uint32_t pid_type_mask = 0xFFu;
 
 Result<std::int32_t> read_i32(ByteReader& reader)
 {
@@ -536,12 +538,12 @@ bool BinaryMapHeader::has_elevation(int elevation) const
 
 int BinaryObjectPrefix::pid_type() const
 {
-    return static_cast<int>((static_cast<std::uint32_t>(pid) >> 24) & 0xFFu);
+    return static_cast<int>((static_cast<std::uint32_t>(pid) >> pid_type_shift) & pid_type_mask);
 }
 
 std::optional<BinaryObjectType> binary_object_type_from_pid(std::int32_t pid)
 {
-    const auto type = static_cast<int>((static_cast<std::uint32_t>(pid) >> 24) & 0xFFu);
+    const auto type = static_cast<int>((static_cast<std::uint32_t>(pid) >> pid_type_shift) & pid_type_mask);
     if (type < 0 || type > static_cast<int>(BinaryObjectType::background)) {
         return std::nullopt;
     }
