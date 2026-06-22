@@ -331,6 +331,7 @@ TEST_CASE("parse_binary_map_variables rejects truncated variable blocks", "[map]
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
+    CHECK(parsed.error().offset == qmap::binary_map_header_size);
 }
 
 TEST_CASE("parse_binary_map_variables rejects negative counts", "[map][binary]")

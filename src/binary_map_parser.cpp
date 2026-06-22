@@ -659,6 +659,10 @@ Result<BinaryMapVariables> parse_binary_map_variables(
     if (!skipped_header) {
         return Result<BinaryMapVariables>::fail(skipped_header.error());
     }
+    const auto variables_size = variable_byte_count(header);
+    if (!reader.can_read(variables_size)) {
+        return Result<BinaryMapVariables>::fail({"unexpected end of input", reader.offset()});
+    }
 
     BinaryMapVariables variables;
     for (std::int32_t index = 0; index < header.mvar_count; ++index) {
