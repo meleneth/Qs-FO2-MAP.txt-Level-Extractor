@@ -23,6 +23,7 @@ constexpr std::array<std::int32_t, binary_map_elevation_count> map_elevation_abs
 constexpr std::size_t tile_count_per_elevation = 10000;
 constexpr std::size_t tile_bytes_per_elevation = tile_count_per_elevation * sizeof(std::uint32_t);
 constexpr int serialized_script_block_capacity = 16;
+constexpr int base_script_record_words = 16;
 constexpr std::size_t critter_tail_words = 11;
 constexpr std::size_t scenery_tail_words = 3;
 constexpr std::size_t misc_tail_words = 5;
@@ -97,7 +98,7 @@ int script_type_index(BinaryScriptType type)
 
 int script_record_word_count(BinaryScriptType type)
 {
-    int words = 16;
+    int words = base_script_record_words;
     if (type == BinaryScriptType::spatial) {
         words += 2;
     }
