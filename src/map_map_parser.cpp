@@ -392,6 +392,12 @@ void parse_map_scripts(map_lvls *map, int *offset,
 
     scripts[type].scripts =
         (script *)calloc(scripts[type].count, sizeof(script));
+    if (!scripts[type].scripts) {
+      printf("ERROR: failed to allocate scripts; type=%d count=%d\n",
+             type, scripts[type].count);
+      scripts[type].count = 0;
+      return;
+    }
 
     int remaining = scripts[type].count;
     int parsed = 0;
