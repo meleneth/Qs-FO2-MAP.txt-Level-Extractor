@@ -52,6 +52,7 @@ TEST_CASE("apply_selection rejects malformed selections", "[cli]")
     qmap::TextMapExportPlan plan;
 
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "0=L"), std::runtime_error);
+    CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "0=LL:1"), std::runtime_error);
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "0=X:1"), std::runtime_error);
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "3=L:1"), std::runtime_error);
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "1=L:3"), std::runtime_error);

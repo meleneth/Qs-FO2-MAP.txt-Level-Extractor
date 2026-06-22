@@ -301,7 +301,7 @@ void apply_selection(TextMapExportPlan& plan, std::string_view spec)
     // Format: destination=side:source, for example 2=R:0.
     const auto equals = spec.find('=');
     const auto colon = spec.find(':');
-    if (equals == std::string_view::npos || colon == std::string_view::npos || colon <= equals + 1) {
+    if (equals == std::string_view::npos || colon == std::string_view::npos || colon != equals + 2) {
         throw std::runtime_error("selection must use DEST=SIDE:SOURCE, for example 2=R:0");
     }
 
