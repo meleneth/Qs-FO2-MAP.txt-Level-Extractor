@@ -652,6 +652,20 @@ TEST_CASE("parse_binary_map_object_prefixes rejects count mismatches", "[map][bi
     CHECK(parsed.error().message == "object count mismatch");
 }
 
+TEST_CASE("parse_binary_map_object_prefixes rejects count sums without overflowing", "[map][binary]")
+{
+    std::vector<std::byte> bytes;
+    append_i32(bytes, 1);
+    append_i32(bytes, 2147483647);
+    append_i32(bytes, 2147483647);
+    append_i32(bytes, 0);
+
+    const auto parsed = qmap::parse_binary_map_object_prefixes(bytes, 0);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "object count mismatch");
+}
+
 TEST_CASE("parse_binary_map_object_prefixes rejects truncated prefixes", "[map][binary]")
 {
     auto bytes = example_map_with_object_prefixes();
@@ -665,6 +679,21 @@ TEST_CASE("parse_binary_map_object_prefixes rejects truncated prefixes", "[map][
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
+}
+
+TEST_CASE("parse_binary_map_object_records rejects excessive elevation counts before parsing objects", "[map][binary]")
+{
+    std::vector<std::byte> bytes;
+    append_i32(bytes, 1);
+    append_i32(bytes, 2);
+
+    qmap::BinaryMapHeader header;
+    header.map_flags = 0x6;
+
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, 0, header);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "object count mismatch");
 }
 
 TEST_CASE("parse_binary_map_object_records preserves known type-specific tails", "[map][binary]")

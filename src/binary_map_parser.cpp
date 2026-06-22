@@ -480,7 +480,7 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
     }
     objects.total_count = total_count.value();
 
-    std::int32_t summed_counts = 0;
+    std::int64_t summed_counts = 0;
     for (auto& count : objects.elevation_counts) {
         auto parsed = read_i32(reader);
         if (!parsed) {
@@ -490,7 +490,7 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
             return Result<BinaryMapObjectRecords>::fail({"negative elevation object count", reader.offset() - 4});
         }
         count = parsed.value();
-        summed_counts += count;
+        summed_counts += parsed.value();
     }
 
     if (summed_counts != objects.total_count) {
@@ -794,7 +794,7 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
     }
     objects.total_count = total_count.value();
 
-    std::int32_t summed_counts = 0;
+    std::int64_t summed_counts = 0;
     for (auto& count : objects.elevation_counts) {
         auto parsed = read_i32(reader);
         if (!parsed) {
@@ -804,7 +804,7 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
             return Result<BinaryMapObjectPrefixes>::fail({"negative elevation object count", reader.offset() - 4});
         }
         count = parsed.value();
-        summed_counts += count;
+        summed_counts += parsed.value();
     }
 
     if (summed_counts != objects.total_count) {
@@ -1127,7 +1127,7 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     objects.total_count = total_count.value();
     objects.records.reserve(static_cast<std::size_t>(objects.total_count));
 
-    std::int32_t summed_counts = 0;
+    std::int64_t summed_counts = 0;
     for (int elevation = 0; elevation < 3; ++elevation) {
         objects.elevation_counts[elevation] = 0;
         if (!header.has_elevation(elevation)) {
@@ -1143,6 +1143,9 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
         }
         objects.elevation_counts[elevation] = block_count.value();
         summed_counts += block_count.value();
+        if (summed_counts > objects.total_count) {
+            return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
+        }
 
         for (std::int32_t index = 0; index < block_count.value(); ++index) {
             auto record = parse_object_record(reader);
