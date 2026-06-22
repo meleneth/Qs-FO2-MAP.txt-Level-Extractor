@@ -61,14 +61,14 @@ TEST_CASE("parse_text_scripts extracts script records and numeric fields", "[txt
     REQUIRE(parsed);
     REQUIRE(parsed.value().size() == 2);
     CHECK(parsed.value()[0].script_id == 16777216u);
-    CHECK(parsed.value()[0].script_type == 1);
+    CHECK(parsed.value()[0].script_type == qmap::ScriptType::spatial);
     CHECK(parsed.value()[0].object_id == 1919251315u);
     CHECK(parsed.value()[0].local_var_count == 3);
     CHECK(parsed.value()[0].spatial_tile == 536870912);
     CHECK(parsed.value()[0].spatial_radius == 5);
 
     CHECK(parsed.value()[1].script_id == 50331649u);
-    CHECK(parsed.value()[1].script_type == 3);
+    CHECK(parsed.value()[1].script_type == qmap::ScriptType::object);
     CHECK(parsed.value()[1].object_id == 215u);
     CHECK_FALSE(parsed.value()[1].spatial_tile.has_value());
 }
@@ -83,4 +83,16 @@ TEST_CASE("parse_text_scripts rejects invalid script ids", "[txt][records]")
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "script record has invalid scr_id");
+}
+
+TEST_CASE("parse_text_scripts rejects unsupported script types", "[txt][records]")
+{
+    constexpr std::string_view scripts =
+        "scr_id: 83886081\r\n"
+        "scr_num_local_vars: 0\r\n";
+
+    const auto parsed = qmap::parse_text_scripts(scripts);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "script record has unsupported script type");
 }

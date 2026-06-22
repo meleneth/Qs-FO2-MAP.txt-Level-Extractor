@@ -1,8 +1,6 @@
 #include "text_map_export.h"
 #include "text_map_records.h"
 
-#include "map_structs.h"
-
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -157,7 +155,7 @@ std::string serialize_script(
 }
 
 struct ExportRecords {
-    std::array<std::vector<std::string>, SCRIPT_TYPE_COUNT> scripts;
+    std::array<std::vector<std::string>, script_type_count> scripts;
     std::vector<std::string> objects;
     std::unordered_set<std::uint32_t> used_script_ids;
 
@@ -223,7 +221,7 @@ Result<void> append_selected_records(
         std::optional<std::uint32_t> rewritten_script_id;
         std::optional<std::uint32_t> rewritten_spatial_tile;
 
-        if (script.script_type == SCRIPT_SPATIAL && script.spatial_tile) {
+        if (script.script_type == ScriptType::spatial && script.spatial_tile) {
             const auto elevation = spatial_elevation(*script.spatial_tile);
             if (elevation) {
                 destination = source_destination(plan, side, *elevation);
@@ -236,7 +234,7 @@ Result<void> append_selected_records(
                     *destination
                 );
             }
-        } else if ((script.script_type == SCRIPT_OBJECTS || script.script_type == SCRIPT_CRITTER)
+        } else if ((script.script_type == ScriptType::object || script.script_type == ScriptType::critter)
             && copied_object_script_ids.contains(script.script_id)) {
             copy = true;
             rewritten_script_id = copied_object_script_ids.at(script.script_id);
@@ -250,7 +248,7 @@ Result<void> append_selected_records(
         if (!raw) {
             return Result<void>::fail({"invalid script record range", script.raw.offset});
         }
-        output.scripts[script.script_type].push_back(
+        output.scripts[script_type_index(script.script_type)].push_back(
             serialize_script(*raw, rewritten_script_id, rewritten_spatial_tile)
         );
     }
@@ -261,7 +259,7 @@ Result<void> append_selected_records(
 void append_scripts(std::string& output, const ExportRecords& records)
 {
     output += scripts_header;
-    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
+    for (int type = 0; type < script_type_count; ++type) {
         output += "scr_num: ";
         output += std::to_string(records.scripts[type].size());
         output += "\r\n";

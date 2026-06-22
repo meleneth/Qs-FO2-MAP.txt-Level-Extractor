@@ -99,6 +99,20 @@ std::size_t next_script_boundary(std::string_view text, std::size_t start)
 
 } // namespace
 
+std::optional<ScriptType> script_type_from_id(std::uint32_t script_id)
+{
+    const auto raw_type = static_cast<int>(script_id >> 24);
+    if (raw_type < 0 || raw_type >= script_type_count) {
+        return std::nullopt;
+    }
+    return static_cast<ScriptType>(raw_type);
+}
+
+int script_type_index(ScriptType type)
+{
+    return static_cast<int>(type);
+}
+
 Result<std::vector<TextObjectRecord>> parse_text_objects(std::string_view objects_section)
 {
     std::vector<TextObjectRecord> records;
@@ -170,7 +184,14 @@ Result<std::vector<TextScriptRecord>> parse_text_scripts(std::string_view script
         TextScriptRecord record;
         record.raw = raw;
         record.script_id = *script_id;
-        record.script_type = static_cast<int>(record.script_id >> 24);
+        const auto script_type = script_type_from_id(record.script_id);
+        if (!script_type) {
+            return Result<std::vector<TextScriptRecord>>::fail({
+                "script record has unsupported script type",
+                begin,
+            });
+        }
+        record.script_type = *script_type;
         if (const auto value = field_value(record_text, "scr_oid:")) {
             record.object_id = parse_u32(*value);
         }
