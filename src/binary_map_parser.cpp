@@ -857,6 +857,9 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
         if (parsed.value() < 0) {
             return Result<BinaryMapObjectCounts>::fail({"negative elevation object count", reader.offset() - 4});
         }
+        if (parsed.value() > counts.total_count) {
+            return Result<BinaryMapObjectCounts>::fail({"object count mismatch", object_section_offset});
+        }
         counts.elevation_counts[counts.first_counted_elevation] = parsed.value();
     }
 
@@ -897,6 +900,9 @@ Result<BinaryObjectBlockHeader> parse_first_binary_object_block_header(
         }
         if (block_count.value() < 0) {
             return Result<BinaryObjectBlockHeader>::fail({"negative elevation object count", reader.offset() - 4});
+        }
+        if (block_count.value() > block.total_count) {
+            return Result<BinaryObjectBlockHeader>::fail({"object count mismatch", object_section_offset});
         }
         block.elevation = elevation;
         block.block_count = block_count.value();
@@ -941,6 +947,12 @@ Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
             return Result<std::optional<BinaryObjectPrefix>>::fail({
                 "negative elevation object count",
                 reader.offset() - 4,
+            });
+        }
+        if (block_count.value() > total_count.value()) {
+            return Result<std::optional<BinaryObjectPrefix>>::fail({
+                "object count mismatch",
+                object_section_offset,
             });
         }
         if (block_count.value() == 0) {

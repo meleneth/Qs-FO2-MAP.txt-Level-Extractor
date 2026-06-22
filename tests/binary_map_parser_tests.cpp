@@ -541,6 +541,22 @@ TEST_CASE("parse_binary_map_object_counts follows present elevation counts", "[m
     CHECK(parsed.value().data_offset == scripts.value().end_offset + 2 * sizeof(std::int32_t));
 }
 
+TEST_CASE("parse_binary_map_object_counts rejects excessive first elevation count", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 2);
+
+    const auto parsed = qmap::parse_binary_map_object_counts(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "object count mismatch");
+}
+
 TEST_CASE("parse_first_binary_object_block_header finds the first present elevation block", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();
@@ -566,6 +582,26 @@ TEST_CASE("parse_first_binary_object_block_header finds the first present elevat
     CHECK(parsed.value().elevation == 1);
     CHECK(parsed.value().block_count == 0);
     CHECK(parsed.value().objects_offset == scripts.value().end_offset + 2 * sizeof(std::int32_t));
+}
+
+TEST_CASE("parse_first_binary_object_block_header rejects excessive first block count", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 2);
+
+    const auto parsed = qmap::parse_first_binary_object_block_header(
+        bytes,
+        scripts.value().end_offset,
+        header.value()
+    );
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "object count mismatch");
 }
 
 TEST_CASE("parse_first_binary_object_prefix reads the first prefix in the first object block", "[map][binary]")
@@ -610,6 +646,23 @@ TEST_CASE("parse_first_binary_object_prefix skips empty object blocks", "[map][b
     CHECK(parsed.value()->obj_id == 200);
     CHECK(parsed.value()->pid == 0x01000002);
     CHECK(parsed.value()->elevation == 2);
+}
+
+TEST_CASE("parse_first_binary_object_prefix rejects excessive first block count", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 2);
+    append_object_prefix(bytes, 100, 0, 0x02000001, 50331649);
+
+    const auto parsed = qmap::parse_first_binary_object_prefix(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "object count mismatch");
 }
 
 TEST_CASE("parse_first_binary_object_prefix returns empty when all present blocks are empty", "[map][binary]")
