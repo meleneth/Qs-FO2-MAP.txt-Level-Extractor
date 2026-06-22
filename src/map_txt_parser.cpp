@@ -33,26 +33,6 @@ char* find_str(uint8_t* map_txt, char* str, int len)
     return str_start;
 }
 
-char* find_level_marker(uint8_t* map_data, int level, int* marker_len)
-{
-    char buff[24];
-    snprintf(buff, 24, "square_elev: %d\r\n\r\n", level);
-    char* tmp = find_str(map_data, buff, strlen(buff));
-    if (tmp) {
-        *marker_len = strlen(buff);
-        return tmp;
-    }
-
-    snprintf(buff, 24, "square_elev: %d\n\n", level);
-    tmp = find_str(map_data, buff, strlen(buff));
-    if (tmp) {
-        *marker_len = strlen(buff);
-        return tmp;
-    }
-
-    *marker_len = 0;
-    return nullptr;
-}
 // TEMP_COMPAT: legacy GUI/export adapter. New code should call
 // qmap::parse_text_map(std::string_view) and use ranges instead of map_lvls
 // interior char pointers. Remove after GUI/export migrate to ParsedTextMap.
