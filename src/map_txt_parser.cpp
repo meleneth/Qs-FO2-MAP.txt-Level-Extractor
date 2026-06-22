@@ -33,6 +33,13 @@ char* find_str(uint8_t* map_txt, char* str, int len)
     return str_start;
 }
 
+char* empty_c_string()
+{
+    char* empty = (char*)malloc(1);
+    empty[0] = '\0';
+    return empty;
+}
+
 // TEMP_COMPAT: legacy GUI/export adapter. New code should call
 // qmap::parse_text_map(std::string_view) and use ranges instead of map_lvls
 // interior char pointers. Remove after GUI/export migrate to ParsedTextMap.
@@ -102,7 +109,13 @@ char* parse_objects(map_lvls* map, int level)
 {
     char* begin = nullptr;
     char* end   = nullptr;
+    if (!map || !map->data || !map->objects || map->objects < reinterpret_cast<char*>(map->data)) {
+        return empty_c_string();
+    }
     int objects_size = map->file_siz - (map->objects - (char*)map->data);
+    if (objects_size < 0) {
+        return empty_c_string();
+    }
     char* objects_str = (char*)malloc(objects_size + 1);
     char* objects_ptr = objects_str;
     for (size_t i = 0; i < objects_size; i++)
