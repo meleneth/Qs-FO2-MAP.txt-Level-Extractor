@@ -106,6 +106,8 @@ struct BinaryObjectPrefix {
     std::int32_t script_index = 0;
     std::int32_t inventory_count = 0;
     std::int32_t inventory_size = 0;
+    std::int32_t unknown_10 = 0;
+    std::int32_t unknown_11 = 0;
 
     int pid_type() const;
 };

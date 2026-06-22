@@ -223,6 +223,8 @@ void append_object_prefix(
     append_i32(bytes, 800);
     append_i32(bytes, 0);
     append_i32(bytes, 0);
+    append_i32(bytes, 901);
+    append_i32(bytes, 902);
 }
 
 void append_i32_repeated(std::vector<std::byte>& bytes, int count, std::int32_t start_value)
@@ -505,7 +507,9 @@ TEST_CASE("parse_binary_map_object_prefixes reads counts and fixed object fields
     CHECK(parsed.value().records[0].pid_type() == 2);
     CHECK(qmap::binary_object_type_from_pid(parsed.value().records[0].pid) == qmap::BinaryObjectType::scenery);
     CHECK(parsed.value().records[0].script_id == 50331649);
-    CHECK(parsed.value().records[0].raw.size == 20 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].unknown_10 == 901);
+    CHECK(parsed.value().records[0].unknown_11 == 902);
+    CHECK(parsed.value().records[0].raw.size == 22 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].obj_id == 200);
     CHECK(parsed.value().records[1].elevation == 2);
     CHECK(parsed.value().records[1].pid == 0x01000002);
@@ -584,7 +588,7 @@ TEST_CASE("parse_first_binary_object_prefix reads the first prefix in the first 
     CHECK(parsed.value()->obj_id == 100);
     CHECK(parsed.value()->pid == 0x02000001);
     CHECK(parsed.value()->elevation == 0);
-    CHECK(parsed.value()->raw.size == 20 * sizeof(std::int32_t));
+    CHECK(parsed.value()->raw.size == 22 * sizeof(std::int32_t));
 }
 
 TEST_CASE("parse_first_binary_object_prefix returns empty when the first block is empty", "[map][binary]")
@@ -655,10 +659,10 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     REQUIRE(parsed.value().records.size() == 2);
     CHECK(parsed.value().records[0].prefix.pid == 0x02000001);
     CHECK(parsed.value().records[0].tail.size == 3 * sizeof(std::int32_t));
-    CHECK(parsed.value().records[0].raw.size == 23 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].raw.size == 25 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].prefix.pid == 0x01000002);
     CHECK(parsed.value().records[1].tail.size == 11 * sizeof(std::int32_t));
-    CHECK(parsed.value().records[1].raw.size == 31 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].raw.size == 33 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
 }
 

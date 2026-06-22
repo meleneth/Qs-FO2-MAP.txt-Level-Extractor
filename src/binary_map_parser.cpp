@@ -400,6 +400,18 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
         return Result<BinaryObjectPrefix>::fail(inventory_size.error());
     }
     record.inventory_size = inventory_size.value();
+
+    auto unknown_10 = read_i32(reader);
+    if (!unknown_10) {
+        return Result<BinaryObjectPrefix>::fail(unknown_10.error());
+    }
+    record.unknown_10 = unknown_10.value();
+
+    auto unknown_11 = read_i32(reader);
+    if (!unknown_11) {
+        return Result<BinaryObjectPrefix>::fail(unknown_11.error());
+    }
+    record.unknown_11 = unknown_11.value();
     record.raw = Range{start, reader.offset() - start};
 
     return Result<BinaryObjectPrefix>::ok(record);
