@@ -1,18 +1,9 @@
 // Dear ImGui: standalone example application for SDL3 + OpenGL
 // (SDL is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan/Metal graphics context creation, etc.)
 
-// Learn about Dear ImGui:
-// - FAQ                  https://dearimgui.com/faq
-// - Getting Started      https://dearimgui.com/getting-started
-// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
-// - Introduction, links and more at the top of imgui.cpp
-bool show_demo_window = false;
-bool show_another_window = false;
-
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
-#include <stdio.h>
 #include <SDL3/SDL.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <SDL3/SDL_opengles2.h>
@@ -24,28 +15,12 @@ bool show_another_window = false;
 #include "../libs/emscripten/emscripten_mainloop_stub.h"
 #endif
 
-
-#include <stdlib.h>
-#include <io_Platform.h>
-#include <imgui_internal.h>
-#include "map_txt_parser.h"
 #include "map_txt_gui.h"
-char* filename = NULL;
-bool file_drop_frame = false;
-bool file_drag_frame = false;
+
 void file_drop_callback_SDL3(SDL_Event event)
 {
-    //SDL3 version
-    //apparently SDL only drops one file at a time?
     const char* file = event.drop.data;
     file_drop_callback(file);
-
-    file_drop_frame = true;
-}
-bool key_callback(int key)
-{
-    //not sure what I'm doing here yet
-    return false;
 }
 
 // Main code
@@ -55,7 +30,7 @@ int main(int, char**)
     // [If using SDL_MAIN_USE_CALLBACKS: all code below until the main loop starts would likely be your SDL_AppInit() function]
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
     {
-        printf("Error: SDL_Init(): %s\n", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed: %s", SDL_GetError());
         return 1;
     }
 
@@ -99,13 +74,13 @@ int main(int, char**)
     SDL_Window* window = SDL_CreateWindow("Q's FO2 MAP.txt Level Extractor", (int)(640 * main_scale), (int)(480 * main_scale), window_flags);
     if (window == nullptr)
     {
-        printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_CreateWindow failed: %s", SDL_GetError());
         return 1;
     }
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     if (gl_context == nullptr)
     {
-        printf("Error: SDL_GL_CreateContext(): %s\n", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_GL_CreateContext failed: %s", SDL_GetError());
         return 1;
     }
 
@@ -224,20 +199,10 @@ int main(int, char**)
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        // if (show_demo_window)
-        //     ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
             ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
             ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
             ImGui::Begin("MAP.txt GUI", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
-            // if (ImGui::Button("Demo Window")) {
-            //     show_demo_window = !show_demo_window;
-            // }
-
-            // ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
             map_txt_gui();
 
