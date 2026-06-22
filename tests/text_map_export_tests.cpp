@@ -516,6 +516,42 @@ TEST_CASE("export_text_map handles blank lines before script fields", "[txt][exp
     CHECK(exported.value().find("scr_udata.sp.built_tile: 1073741924\r\n") != std::string::npos);
 }
 
+TEST_CASE("export_text_map rewrites elevation two spatial tiles", "[txt][export]")
+{
+    const auto left = parse_fixture(
+        "left-header\n"
+        "square_elev: 2\n\n"
+        "left-two\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 16777216\n"
+        "scr_num_local_vars: 0\n\n"
+        "scr_udata.sp.built_tile: 1073741924\n\n"
+        "scr_udata.sp.radius: 5\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[[OBJECTS END]]\n"
+    );
+    const auto right = parse_fixture(
+        "right-header\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+    );
+    qmap::TextMapExportPlan plan;
+    plan.elevations[1] = qmap::ElevationSource{qmap::MapSide::left, 2};
+
+    const auto exported = qmap::export_text_map(source_from(left), source_from(right), plan);
+
+    REQUIRE(exported);
+    CHECK(exported.value().find("scr_id: 16777216\r\n") != std::string::npos);
+    CHECK(exported.value().find("scr_udata.sp.built_tile: 536871012\r\n") != std::string::npos);
+}
+
 TEST_CASE("export_text_map reassigns duplicate spatial script ids consistently", "[txt][export]")
 {
     const auto left = parse_fixture(

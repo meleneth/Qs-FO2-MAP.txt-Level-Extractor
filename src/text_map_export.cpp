@@ -19,6 +19,10 @@ constexpr std::string_view scripts_header =
 constexpr std::string_view objects_header = ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n\r\n";
 constexpr std::uint32_t script_type_bits = 0xFF000000u;
 constexpr std::uint32_t script_local_id_bits = 0x00FFFFFFu;
+constexpr std::uint32_t base_tile_mask = 0x0FFFFFFFu;
+constexpr std::uint32_t elevation_one_tile_flag = 0x20000000u;
+constexpr std::uint32_t elevation_two_tile_flag = 0x40000000u;
+constexpr int tiles_per_elevation = 40000;
 constexpr std::string_view object_begin = "[OBJECT BEGIN]";
 constexpr std::string_view object_end = "[OBJECT END]";
 
@@ -75,13 +79,14 @@ std::optional<int> source_destination(const TextMapExportPlan& plan, MapSide sid
 
 std::optional<int> spatial_elevation(int tile)
 {
-    if (tile >= 0 && tile < 40000) {
+    if (tile >= 0 && tile < tiles_per_elevation) {
         return 0;
     }
-    if (tile & 0x20000000) {
+    const auto encoded_tile = static_cast<std::uint32_t>(tile);
+    if (encoded_tile & elevation_one_tile_flag) {
         return 1;
     }
-    if (tile & 0x40000000) {
+    if (encoded_tile & elevation_two_tile_flag) {
         return 2;
     }
     return std::nullopt;
@@ -189,7 +194,7 @@ std::string replace_object_line_value(std::string_view raw, std::string_view fie
 
 std::uint32_t destination_tile(std::uint32_t source_tile, int destination_elevation)
 {
-    auto tile = source_tile & 0x0FFFFFFFu;
+    auto tile = source_tile & base_tile_mask;
     if (destination_elevation != 0) {
         tile |= (0x1u << (28 + destination_elevation));
     }
