@@ -591,14 +591,36 @@ TEST_CASE("parse_first_binary_object_prefix reads the first prefix in the first 
     CHECK(parsed.value()->raw.size == 22 * sizeof(std::int32_t));
 }
 
-TEST_CASE("parse_first_binary_object_prefix returns empty when the first block is empty", "[map][binary]")
+TEST_CASE("parse_first_binary_object_prefix skips empty object blocks", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();
     auto header = qmap::parse_binary_map_header(bytes);
     REQUIRE(header);
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
     REQUIRE(scripts);
-    append_i32(bytes, 5);
+    append_i32(bytes, 1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 200, 2, 0x01000002, 67108865);
+
+    const auto parsed = qmap::parse_first_binary_object_prefix(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().has_value());
+    CHECK(parsed.value()->obj_id == 200);
+    CHECK(parsed.value()->pid == 0x01000002);
+    CHECK(parsed.value()->elevation == 2);
+}
+
+TEST_CASE("parse_first_binary_object_prefix returns empty when all present blocks are empty", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
     append_i32(bytes, 0);
 
     const auto parsed = qmap::parse_first_binary_object_prefix(bytes, scripts.value().end_offset, header.value());

@@ -919,25 +919,47 @@ Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
     const BinaryMapHeader& header
 )
 {
-    auto block = parse_first_binary_object_block_header(bytes, object_section_offset, header);
-    if (!block) {
-        return Result<std::optional<BinaryObjectPrefix>>::fail(block.error());
-    }
-    if (block.value().block_count == 0) {
-        return Result<std::optional<BinaryObjectPrefix>>::ok(std::nullopt);
-    }
-
     ByteReader reader(bytes);
-    auto skipped = reader.read_bytes(block.value().objects_offset);
+    auto skipped = reader.read_bytes(object_section_offset);
     if (!skipped) {
         return Result<std::optional<BinaryObjectPrefix>>::fail(skipped.error());
     }
 
-    auto prefix = parse_object_prefix(reader);
-    if (!prefix) {
-        return Result<std::optional<BinaryObjectPrefix>>::fail(prefix.error());
+    auto total_count = read_i32(reader);
+    if (!total_count) {
+        return Result<std::optional<BinaryObjectPrefix>>::fail(total_count.error());
     }
-    return Result<std::optional<BinaryObjectPrefix>>::ok(prefix.value());
+    if (total_count.value() < 0) {
+        return Result<std::optional<BinaryObjectPrefix>>::fail({"negative object count", object_section_offset});
+    }
+
+    for (int elevation = 0; elevation < 3; ++elevation) {
+        if (!header.has_elevation(elevation)) {
+            continue;
+        }
+
+        auto block_count = read_i32(reader);
+        if (!block_count) {
+            return Result<std::optional<BinaryObjectPrefix>>::fail(block_count.error());
+        }
+        if (block_count.value() < 0) {
+            return Result<std::optional<BinaryObjectPrefix>>::fail({
+                "negative elevation object count",
+                reader.offset() - 4,
+            });
+        }
+        if (block_count.value() == 0) {
+            continue;
+        }
+
+        auto prefix = parse_object_prefix(reader);
+        if (!prefix) {
+            return Result<std::optional<BinaryObjectPrefix>>::fail(prefix.error());
+        }
+        return Result<std::optional<BinaryObjectPrefix>>::ok(prefix.value());
+    }
+
+    return Result<std::optional<BinaryObjectPrefix>>::ok(std::nullopt);
 }
 
 Result<BinarySceneryTail> parse_binary_scenery_tail(std::span<const std::byte> bytes, Range tail)
