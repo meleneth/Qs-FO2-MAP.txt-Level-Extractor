@@ -78,7 +78,7 @@ bool has_duplicate_level_marker(std::string_view text, int elevation, MarkerMatc
 
 Result<std::size_t> find_required_marker(std::string_view text, std::string_view marker)
 {
-    const auto offset = text.find(marker);
+    const auto offset = find_line_start_marker(text, marker);
     if (offset == std::string_view::npos) {
         return Result<std::size_t>::fail({
             "required marker not found",
@@ -91,7 +91,7 @@ Result<std::size_t> find_required_marker(std::string_view text, std::string_view
 
 bool has_duplicate_marker(std::string_view text, std::string_view marker, std::size_t first_offset)
 {
-    return text.find(marker, first_offset + marker.size()) != std::string_view::npos;
+    return find_line_start_marker(text, marker, first_offset + marker.size()) != std::string_view::npos;
 }
 
 } // namespace

@@ -109,6 +109,27 @@ TEST_CASE("parse_text_map returns section ranges", "[txt][bounded]")
     CHECK(parsed.value().objects_view(crlf_map)->ends_with("[[OBJECTS BEGIN]]\r\n"));
 }
 
+TEST_CASE("parse_text_map ignores section marker text that is not at line start", "[txt][bounded]")
+{
+    constexpr std::string_view text =
+        "header mentions >>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "header mentions >>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "square_elev: 0\n\n"
+        "tiles-0\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n";
+
+    const auto parsed = qmap::parse_text_map(text);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().scripts_view(text));
+    CHECK(parsed.value().scripts_view(text)->starts_with(">>>>>>>>>>: SCRIPTS"));
+    REQUIRE(parsed.value().objects_view(text));
+    CHECK(parsed.value().objects_view(text)->starts_with(">>>>>>>>>>: OBJECTS"));
+}
+
 TEST_CASE("parse_text_map fails when required sections are missing", "[txt][bounded]")
 {
     const auto no_scripts = qmap::parse_text_map("header\n>>>>>>>>>>: OBJECTS <<<<<<<<<<\n");
