@@ -74,6 +74,11 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
     map->scripts = nullptr;
     map->objects = nullptr;
 
+    if (map->file_siz < 0) {
+        printf("ERROR: negative text map size\n");
+        return;
+    }
+
     auto parsed = qmap::parse_text_map(
         std::string_view{
             reinterpret_cast<const char*>(map_data),
