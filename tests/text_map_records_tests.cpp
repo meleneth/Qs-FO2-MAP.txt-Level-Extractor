@@ -42,6 +42,33 @@ TEST_CASE("parse_text_objects reads field names only at line starts", "[txt][rec
     CHECK(parsed.value()[0].script_id == 50331649u);
 }
 
+TEST_CASE("parse_text_objects keeps nested inventory objects inside the parent record", "[txt][records]")
+{
+    constexpr std::string_view objects =
+        "[OBJECT BEGIN]\r\n"
+        "obj_elev: 1\r\n"
+        "obj_sid: 50331649\r\n"
+        "obj_pud.[BEGIN INVEN ITEMS]:\r\n"
+        "[OBJECT BEGIN]\r\n"
+        "obj_elev: 2\r\n"
+        "obj_sid: 50331650\r\n"
+        "[OBJECT END]\r\n"
+        "obj_pud.[END INVEN ITEMS]:\r\n"
+        "[OBJECT END]\r\n";
+
+    const auto parsed = qmap::parse_text_objects(objects);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 1);
+    CHECK(parsed.value()[0].elevation == 1);
+    CHECK(parsed.value()[0].script_id == 50331649u);
+    CHECK(parsed.value()[0].raw.offset == 0);
+    CHECK(
+        parsed.value()[0].raw.size
+        == objects.rfind("[OBJECT END]") + std::string_view{"[OBJECT END]"}.size()
+    );
+}
+
 TEST_CASE("parse_text_objects fails on unterminated object blocks", "[txt][records]")
 {
     constexpr std::string_view objects =

@@ -160,6 +160,34 @@ std::size_t next_script_boundary(std::string_view text, std::size_t start)
     return text.size();
 }
 
+std::optional<std::size_t> object_record_end(std::string_view text, std::size_t begin)
+{
+    std::size_t cursor = begin + object_begin.size();
+    int depth = 1;
+
+    while (cursor < text.size()) {
+        const auto next_begin = text.find(object_begin, cursor);
+        const auto next_end = text.find(object_end, cursor);
+        if (next_end == std::string_view::npos) {
+            return std::nullopt;
+        }
+
+        if (next_begin != std::string_view::npos && next_begin < next_end) {
+            ++depth;
+            cursor = next_begin + object_begin.size();
+            continue;
+        }
+
+        --depth;
+        cursor = next_end + object_end.size();
+        if (depth == 0) {
+            return cursor;
+        }
+    }
+
+    return std::nullopt;
+}
+
 } // namespace
 
 std::optional<ScriptType> script_type_from_id(std::uint32_t script_id)
@@ -187,16 +215,15 @@ Result<std::vector<TextObjectRecord>> parse_text_objects(std::string_view object
             break;
         }
 
-        const auto end_marker = objects_section.find(object_end, begin + object_begin.size());
-        if (end_marker == std::string_view::npos) {
+        const auto end = object_record_end(objects_section, begin);
+        if (!end) {
             return Result<std::vector<TextObjectRecord>>::fail({
                 "object record missing [OBJECT END]",
                 begin,
             });
         }
 
-        const auto end = end_marker + object_end.size();
-        const auto raw = Range{begin, end - begin};
+        const auto raw = Range{begin, *end - begin};
         const auto record_text = objects_section.substr(raw.offset, raw.size);
 
         TextObjectRecord record;
@@ -213,7 +240,7 @@ Result<std::vector<TextObjectRecord>> parse_text_objects(std::string_view object
         record.script_id = script_id.value();
 
         records.push_back(record);
-        search_offset = end;
+        search_offset = *end;
     }
 
     return Result<std::vector<TextObjectRecord>>::ok(std::move(records));
