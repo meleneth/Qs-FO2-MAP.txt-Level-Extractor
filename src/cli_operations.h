@@ -40,7 +40,8 @@ std::string format_binary_map_stats(
     const BinaryMapHeader& header,
     const BinaryMapVariables& variables,
     const BinaryMapTiles& tiles,
-    const BinaryMapScripts& scripts
+    const BinaryMapScripts& scripts,
+    const BinaryMapObjectCounts& objects
 );
 TextMapExportPlan single_elevation_plan(int elevation);
 std::filesystem::path split_output_path(

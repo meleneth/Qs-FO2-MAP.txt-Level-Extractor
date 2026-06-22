@@ -121,7 +121,8 @@ std::string format_binary_map_stats(
     const BinaryMapHeader& header,
     const BinaryMapVariables& variables,
     const BinaryMapTiles& tiles,
-    const BinaryMapScripts& scripts
+    const BinaryMapScripts& scripts,
+    const BinaryMapObjectCounts& objects
 )
 {
     std::ostringstream output;
@@ -152,6 +153,12 @@ std::string format_binary_map_stats(
         output << "  " << script_type_name(type) << ": " << scripts.by_type[type].size() << '\n';
     }
     output << "  section_end: " << scripts.end_offset << '\n';
+    output << "objects:\n";
+    output << "  total: " << objects.total_count << '\n';
+    for (int elevation = 0; elevation < 3; ++elevation) {
+        output << "  elevation " << elevation << ": " << objects.elevation_counts[elevation] << '\n';
+    }
+    output << "  data_offset: " << objects.data_offset << '\n';
     return output.str();
 }
 
@@ -277,8 +284,22 @@ int parse_stats(const std::filesystem::path& input)
                       << " at offset " << scripts.error().offset << '\n';
             return 2;
         }
+        auto objects = parse_binary_map_object_counts(bytes, scripts.value().end_offset, header.value());
+        if (!objects) {
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: " << objects.error().message
+                      << " at offset " << objects.error().offset << '\n';
+            return 2;
+        }
 
-        std::cout << format_binary_map_stats(header.value(), variables.value(), tiles.value(), scripts.value());
+        std::cout << format_binary_map_stats(
+            header.value(),
+            variables.value(),
+            tiles.value(),
+            scripts.value(),
+            objects.value()
+        );
         return 0;
     }
 
