@@ -687,6 +687,78 @@ TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
+TEST_CASE("parse_binary_scenery_tail decodes preserved scenery tail fields", "[map][binary]")
+{
+    const auto bytes = example_map_with_object_records();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    auto objects = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+    REQUIRE(objects);
+
+    const auto parsed = qmap::parse_binary_scenery_tail(bytes, objects.value().records[0].tail);
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().flags == 9000);
+    CHECK(parsed.value().door_flags == 9001);
+    CHECK(parsed.value().destination == 9002);
+}
+
+TEST_CASE("parse_binary_critter_tail decodes preserved critter tail fields", "[map][binary]")
+{
+    const auto bytes = example_map_with_object_records();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    auto objects = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+    REQUIRE(objects);
+
+    const auto parsed = qmap::parse_binary_critter_tail(bytes, objects.value().records[1].tail);
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().flags == 9100);
+    CHECK(parsed.value().damage_last_turn == 9101);
+    CHECK(parsed.value().team == 9106);
+    CHECK(parsed.value().poison == 9110);
+}
+
+TEST_CASE("parse_binary_misc_tail decodes preserved misc tail fields", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 300, 0, 0x05000001, -1);
+    append_i32_repeated(bytes, 5, 9200);
+    append_i32(bytes, 0);
+    auto objects = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+    REQUIRE(objects);
+
+    const auto parsed = qmap::parse_binary_misc_tail(bytes, objects.value().records[0].tail);
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().flags == 9200);
+    CHECK(parsed.value().dest_map == 9201);
+    CHECK(parsed.value().dest_tile == 9202);
+    CHECK(parsed.value().dest_elevation == 9203);
+    CHECK(parsed.value().dest_rotation == 9204);
+}
+
+TEST_CASE("binary tail accessors reject invalid ranges", "[map][binary]")
+{
+    const auto bytes = example_map_with_object_records();
+
+    const auto parsed = qmap::parse_binary_scenery_tail(bytes, qmap::Range{bytes.size() + 1, 4});
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "invalid scenery tail range");
+}
+
 TEST_CASE("parse_binary_map_object_records rejects unknown object types", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();

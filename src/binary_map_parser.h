@@ -152,6 +152,34 @@ struct BinaryObjectRecord {
     Range tail;
 };
 
+struct BinarySceneryTail {
+    std::int32_t flags = 0;
+    std::int32_t door_flags = 0;
+    std::int32_t destination = 0;
+};
+
+struct BinaryCritterTail {
+    std::int32_t flags = 0;
+    std::int32_t damage_last_turn = 0;
+    std::int32_t combat_flags = 0;
+    std::int32_t action_points = 0;
+    std::int32_t combat_result = 0;
+    std::int32_t ai_packet = 0;
+    std::int32_t team = 0;
+    std::int32_t last_hit_cid = 0;
+    std::int32_t hit_points = 0;
+    std::int32_t radiation = 0;
+    std::int32_t poison = 0;
+};
+
+struct BinaryMiscTail {
+    std::int32_t flags = 0;
+    std::int32_t dest_map = 0;
+    std::int32_t dest_tile = 0;
+    std::int32_t dest_elevation = 0;
+    std::int32_t dest_rotation = 0;
+};
+
 struct BinaryMapObjectRecords {
     std::int32_t total_count = 0;
     std::array<std::int32_t, 3> elevation_counts{};
@@ -199,6 +227,9 @@ Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
     std::size_t object_section_offset,
     const BinaryMapHeader& header
 );
+Result<BinarySceneryTail> parse_binary_scenery_tail(std::span<const std::byte> bytes, Range tail);
+Result<BinaryCritterTail> parse_binary_critter_tail(std::span<const std::byte> bytes, Range tail);
+Result<BinaryMiscTail> parse_binary_misc_tail(std::span<const std::byte> bytes, Range tail);
 Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset
