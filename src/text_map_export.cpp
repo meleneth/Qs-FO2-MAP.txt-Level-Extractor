@@ -19,6 +19,7 @@ constexpr std::string_view scripts_header =
 constexpr std::string_view objects_header = ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n\r\n";
 constexpr std::uint32_t script_type_bits = 0xFF000000u;
 constexpr std::uint32_t script_local_id_bits = 0x00FFFFFFu;
+constexpr std::uint32_t no_script_id = 0xFFFFFFFFu;
 constexpr std::uint32_t base_tile_mask = 0x0FFFFFFFu;
 constexpr std::uint32_t elevation_one_tile_flag = 0x20000000u;
 constexpr std::uint32_t elevation_two_tile_flag = 0x40000000u;
@@ -195,8 +196,10 @@ std::string replace_object_line_value(std::string_view raw, std::string_view fie
 std::uint32_t destination_tile(std::uint32_t source_tile, int destination_elevation)
 {
     auto tile = source_tile & base_tile_mask;
-    if (destination_elevation != 0) {
-        tile |= (0x1u << (28 + destination_elevation));
+    if (destination_elevation == 1) {
+        tile |= elevation_one_tile_flag;
+    } else if (destination_elevation == 2) {
+        tile |= elevation_two_tile_flag;
     }
     return tile;
 }
@@ -308,7 +311,7 @@ Result<void> append_selected_records(
         }
 
         std::optional<std::uint32_t> rewritten_script_id;
-        if (object.script_id && *object.script_id != 0xFFFFFFFFu) {
+        if (object.script_id && *object.script_id != no_script_id) {
             auto reserved = output.reserve_script_id(*object.script_id);
             if (!reserved) {
                 return Result<void>::fail(reserved.error());
