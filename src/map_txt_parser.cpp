@@ -255,6 +255,10 @@ int script_spatial(char* script_txt, int remainder, int level)
 // is in the passed in string of objects
 bool check_object_level(char* id, char* objects)
 {
+    if (!id || !objects) {
+        return false;
+    }
+
     int id_len = 0;
     while ((id[id_len] >= '0') && id[id_len] <= '9') {
         id_len++;
@@ -271,6 +275,11 @@ bool check_object_level(char* id, char* objects)
 int script_object(char* script_txt, int remainder, int level, char* objects)
 {
     int scr_id_len  = sizeof("scr_id: ")            -1;
+    int local_vars_len = sizeof("scr_num_local_vars: ") - 1;
+    if (!script_txt || !objects || remainder <= scr_id_len) {
+        return 0;
+    }
+    const size_t script_size = static_cast<size_t>(remainder);
 
     // objects being passed in are only on this level,
     // so only scripts attached to those objects should be copied
@@ -278,14 +287,20 @@ int script_object(char* script_txt, int remainder, int level, char* objects)
         return 0;
     }
 
-    for (size_t i = 0; i < remainder; i++) {
+    for (size_t i = 0; i < script_size; i++) {
         if (script_txt[i] != 's') {
             continue;
         }
 
-        if (io_strncmp(&script_txt[i], "scr_num_local_vars: ", sizeof("scr_num_local_vars: ")-1) == 0) {
-            while (script_txt[i++] != '\n') {}
-            return i;
+        if (script_size - i >= static_cast<size_t>(local_vars_len)
+            && io_strncmp(&script_txt[i], "scr_num_local_vars: ", local_vars_len) == 0) {
+            while (i < script_size && script_txt[i] != '\n') {
+                ++i;
+            }
+            if (i >= script_size) {
+                return 0;
+            }
+            return static_cast<int>(i + 1);
         }
 
     }

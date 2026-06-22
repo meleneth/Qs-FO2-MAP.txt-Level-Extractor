@@ -179,6 +179,7 @@ int pointer_offset(const map_lvls& map, const char* pointer)
 
 char* find_str(uint8_t* map_txt, char* str, int len);
 int script_spatial(char* script_txt, int remainder, int level);
+int script_object(char* script_txt, int remainder, int level, char* objects);
 
 TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
 {
@@ -324,6 +325,16 @@ TEST_CASE("legacy spatial script parser rejects unterminated radius lines", "[tx
         "sp.radius: 5";
 
     CHECK(script_spatial(script.data(), static_cast<int>(script.size()), 0) == 0);
+}
+
+TEST_CASE("legacy object script parser rejects unterminated local variable lines", "[txt]")
+{
+    std::string script =
+        "scr_id: 50331649\n"
+        "scr_num_local_vars: 0";
+    std::string objects = "obj_sid: 50331649\n";
+
+    CHECK(script_object(script.data(), static_cast<int>(script.size()), 0, objects.data()) == 0);
 }
 
 TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")
