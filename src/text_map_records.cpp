@@ -221,9 +221,18 @@ bool is_script_record_start(std::string_view text, std::size_t offset)
     if (offset >= text.size()) {
         return false;
     }
-    if (offset > 0 && text[offset - 1] != '\n') {
+
+    auto line_start = offset;
+    while (line_start > 0 && text[line_start - 1] != '\n') {
+        --line_start;
+    }
+    while (line_start < offset && (text[line_start] == ' ' || text[line_start] == '\t')) {
+        ++line_start;
+    }
+    if (line_start != offset) {
         return false;
     }
+
     return text.substr(offset).starts_with(scr_id_field);
 }
 
@@ -231,7 +240,12 @@ std::size_t next_script_boundary(std::string_view text, std::size_t start)
 {
     auto cursor = line_start_after(text, start);
     while (cursor < text.size()) {
-        const auto rest = text.substr(cursor);
+        auto field_offset = cursor;
+        while (field_offset < text.size()
+            && (text[field_offset] == ' ' || text[field_offset] == '\t')) {
+            ++field_offset;
+        }
+        const auto rest = text.substr(field_offset);
         if (rest.starts_with(scr_id_field) || rest.starts_with(scr_num_field)) {
             return cursor;
         }
