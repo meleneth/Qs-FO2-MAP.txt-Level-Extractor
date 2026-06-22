@@ -3,6 +3,7 @@
 #include "text_map_parser.h"
 
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <cstddef>
 #include <fstream>
@@ -275,6 +276,26 @@ MapSide parse_side(char side)
     throw std::runtime_error("selection side must be L or R");
 }
 
+int parse_selection_elevation(std::string_view value)
+{
+    if (value.empty()) {
+        throw std::runtime_error("selection elevations must be 0, 1, or 2");
+    }
+
+    int parsed = 0;
+    const auto* begin = value.data();
+    const auto* end = value.data() + value.size();
+    const auto result = std::from_chars(begin, end, parsed);
+    if (result.ec != std::errc{} || result.ptr != end) {
+        throw std::runtime_error("selection elevations must be 0, 1, or 2");
+    }
+    if (parsed < 0 || parsed >= elevation_count) {
+        throw std::runtime_error("selection elevations must be 0, 1, or 2");
+    }
+
+    return parsed;
+}
+
 void apply_selection(TextMapExportPlan& plan, std::string_view spec)
 {
     // Format: destination=side:source, for example 2=R:0.
@@ -284,11 +305,8 @@ void apply_selection(TextMapExportPlan& plan, std::string_view spec)
         throw std::runtime_error("selection must use DEST=SIDE:SOURCE, for example 2=R:0");
     }
 
-    const auto destination = std::stoi(std::string(spec.substr(0, equals)));
-    const auto source = std::stoi(std::string(spec.substr(colon + 1)));
-    if (destination < 0 || destination >= elevation_count || source < 0 || source >= elevation_count) {
-        throw std::runtime_error("selection elevations must be 0, 1, or 2");
-    }
+    const auto destination = parse_selection_elevation(spec.substr(0, equals));
+    const auto source = parse_selection_elevation(spec.substr(colon + 1));
 
     plan.elevations[destination] = ElevationSource{parse_side(spec[equals + 1]), source};
 }

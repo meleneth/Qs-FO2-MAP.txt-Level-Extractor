@@ -55,6 +55,8 @@ TEST_CASE("apply_selection rejects malformed selections", "[cli]")
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "0=X:1"), std::runtime_error);
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "3=L:1"), std::runtime_error);
     CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "1=L:3"), std::runtime_error);
+    CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "0x=L:1"), std::runtime_error);
+    CHECK_THROWS_AS(qmap::cli::apply_selection(plan, "1=L:2x"), std::runtime_error);
 }
 
 TEST_CASE("lowercase_extension normalizes input paths", "[cli]")
