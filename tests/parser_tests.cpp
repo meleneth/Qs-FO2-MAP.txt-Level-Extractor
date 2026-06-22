@@ -177,6 +177,8 @@ int pointer_offset(const map_lvls& map, const char* pointer)
 
 } // namespace
 
+char* find_str(uint8_t* map_txt, char* str, int len);
+
 TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
 {
     for (const auto& expected : map_fixtures) {
@@ -304,6 +306,14 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
             }
         }
     }
+}
+
+TEST_CASE("legacy text find_str ignores partial tail matches", "[txt]")
+{
+    std::vector<uint8_t> data{'a', 'b', '\0'};
+    char marker[] = "abc";
+
+    CHECK(find_str(data.data(), marker, 3) == nullptr);
 }
 
 TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")

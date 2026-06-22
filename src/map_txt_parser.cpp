@@ -8,15 +8,15 @@
 
 char* find_str(uint8_t* map_txt, char* str, int len)
 {
-    //TODO: check if map.data (what's being passed as map_txt)
-    //      has a "\0" terminator so string parsing works
-    //      else use map.file_siz
-    //TODO: just make this a normal find_string function
+    if (!map_txt || !str || len <= 0) {
+        return nullptr;
+    }
+
     char* str_start = nullptr;
     char* map_str   = (char*)map_txt;
-    int map_len     = strlen(map_str);
-    int str_len     = len;
-    for (size_t i = 0; i < map_len; i++)
+    const size_t map_len = strlen(map_str);
+    const size_t str_len = static_cast<size_t>(len);
+    for (size_t i = 0; i + str_len <= map_len; i++)
     {
         if (map_str[i] == str[0]) {
             if (len > 2) {
