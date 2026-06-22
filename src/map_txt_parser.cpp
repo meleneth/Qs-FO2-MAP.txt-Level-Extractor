@@ -670,6 +670,9 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
         while (offset < text_len && text[offset++] != '\n') {
         }
     };
+    auto legacy_has_prefix = [](char* text, size_t text_len, size_t offset, const char* prefix, size_t prefix_len) {
+        return offset + prefix_len <= text_len && io_strncmp(&text[offset], prefix, prefix_len) == 0;
+    };
     // assign new levels to spatial scripts
     for (size_t elevation = 0; elevation < 3; elevation++) {
         if (!scripts[elevation].scr_num_cnt[SCRIPT_SPATIAL]) {
@@ -686,7 +689,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
             }
 
             // scr_id: 16777216
-            if (io_strncmp(&scr_ptr[i], "scr_id: ", sizeof("scr_id")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_id: ", sizeof("scr_id"))) {
                 i += sizeof("scr_id");
                 spatials[elevation][j].scr_id = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -695,7 +698,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_next: 4294967295
-            if (io_strncmp(&scr_ptr[i], "scr_next: ", sizeof("scr_next:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_next: ", sizeof("scr_next:"))) {
                 i += sizeof("scr_next:");
                 spatials[elevation][j].scr_next = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -704,7 +707,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_flags: 0
-            if (io_strncmp(&scr_ptr[i], "scr_flags: ", sizeof("scr_flags:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_flags: ", sizeof("scr_flags:"))) {
                 i += sizeof("scr_flags:");
                 spatials[elevation][j].scr_flags = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -713,7 +716,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_script_idx: 221
-            if (io_strncmp(&scr_ptr[i], "scr_script_idx: ", sizeof("scr_script_idx:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_script_idx: ", sizeof("scr_script_idx:"))) {
                 i += sizeof("scr_script_idx:");
                 spatials[elevation][j].scr_script_idx = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -722,7 +725,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_oid: 1919251315
-            if (io_strncmp(&scr_ptr[i], "scr_oid: ", sizeof("scr_oid:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_oid: ", sizeof("scr_oid:"))) {
                 i += sizeof("scr_oid:");
                 spatials[elevation][j].scr_oid = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -731,7 +734,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_local_var_offset: 4294967295
-            if (io_strncmp(&scr_ptr[i], "scr_local_var_offset: ", sizeof("scr_local_var_offset:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_local_var_offset: ", sizeof("scr_local_var_offset:"))) {
                 i += sizeof("scr_local_var_offset:");
                 spatials[elevation][j].scr_local_var_offset = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -740,7 +743,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_num_local_vars: 0
-            if (io_strncmp(&scr_ptr[i], "scr_num_local_vars: ", sizeof("scr_num_local_vars:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_num_local_vars: ", sizeof("scr_num_local_vars:"))) {
                 i += sizeof("scr_num_local_vars:");
                 spatials[elevation][j].scr_num_local_vars = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -755,7 +758,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_udata.sp.built_tile: 21925
-            if (io_strncmp(&scr_ptr[i], "scr_udata.sp.built_tile: ", sizeof("scr_udata.sp.built_tile:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_udata.sp.built_tile: ", sizeof("scr_udata.sp.built_tile:"))) {
                 i += sizeof("scr_udata.sp.built_tile:");
                 spatials[elevation][j].built_tile = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
@@ -770,7 +773,7 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
                 }
             }
             // scr_udata.sp.radius: 0
-            if (io_strncmp(&scr_ptr[i], "scr_udata.sp.radius: ", sizeof("scr_udata.sp.radius:")) == 0) {
+            if (legacy_has_prefix(scr_ptr, len, i, "scr_udata.sp.radius: ", sizeof("scr_udata.sp.radius:"))) {
                 i += sizeof("scr_udata.sp.radius:");
                 spatials[elevation][j].radius = atoi(&scr_ptr[i]);
                 skip_legacy_line(scr_ptr, len, i);
