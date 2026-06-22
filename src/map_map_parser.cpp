@@ -169,13 +169,13 @@ void parse_map_map(map_lvls *map) {
   if (!(h.map_flags & MAP_ELEV_0)) {
     // QTODO: replace "Level 0" etc. with proper markers (possibly ptrs to map
     // level data?) QTODO: yeah, this definitely needs a better marker
-    map->level[0] = "Level 0";
+    map->level[0] = map->label[0];
   }
   if (!(h.map_flags & MAP_ELEV_1)) {
-    map->level[1] = "Level 1";
+    map->level[1] = map->label[1];
   }
   if (!(h.map_flags & MAP_ELEV_2)) {
-    map->level[2] = "Level 2";
+    map->level[2] = map->label[2];
   }
 
   map->header = h;
