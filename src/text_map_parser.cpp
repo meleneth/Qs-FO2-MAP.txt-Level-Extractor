@@ -77,6 +77,11 @@ Result<std::size_t> find_required_marker(std::string_view text, std::string_view
     return Result<std::size_t>::ok(offset);
 }
 
+bool has_duplicate_marker(std::string_view text, std::string_view marker, std::size_t first_offset)
+{
+    return text.find(marker, first_offset + marker.size()) != std::string_view::npos;
+}
+
 } // namespace
 
 Result<ParsedTextMap> parse_text_map(std::string_view text)
@@ -100,6 +105,18 @@ Result<ParsedTextMap> parse_text_map(std::string_view text)
     if (objects_offset.value() < scripts_offset.value()) {
         return Result<ParsedTextMap>::fail({
             "OBJECTS section appears before SCRIPTS section",
+            objects_offset.value(),
+        });
+    }
+    if (has_duplicate_marker(text, scripts_marker, scripts_offset.value())) {
+        return Result<ParsedTextMap>::fail({
+            "duplicate SCRIPTS section",
+            scripts_offset.value(),
+        });
+    }
+    if (has_duplicate_marker(text, objects_marker, objects_offset.value())) {
+        return Result<ParsedTextMap>::fail({
+            "duplicate OBJECTS section",
             objects_offset.value(),
         });
     }
