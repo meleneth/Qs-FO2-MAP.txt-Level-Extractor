@@ -105,7 +105,24 @@ struct BinaryObjectPrefix {
     std::int32_t script_index = 0;
     std::int32_t inventory_count = 0;
     std::int32_t inventory_size = 0;
+
+    int pid_type() const;
 };
+
+enum class BinaryObjectType : int {
+    item = 0,
+    critter = 1,
+    scenery = 2,
+    wall = 3,
+    tile = 4,
+    misc = 5,
+    interface_object = 6,
+    inventory = 7,
+    head = 8,
+    background = 9,
+};
+
+std::optional<BinaryObjectType> binary_object_type_from_pid(std::int32_t pid);
 
 struct BinaryMapObjectPrefixes {
     std::int32_t total_count = 0;

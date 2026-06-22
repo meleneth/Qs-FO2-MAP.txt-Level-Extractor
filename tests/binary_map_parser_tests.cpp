@@ -406,13 +406,22 @@ TEST_CASE("parse_binary_map_object_prefixes reads counts and fixed object fields
     CHECK(parsed.value().records[0].obj_id == 100);
     CHECK(parsed.value().records[0].elevation == 0);
     CHECK(parsed.value().records[0].pid == 0x02000001);
+    CHECK(parsed.value().records[0].pid_type() == 2);
+    CHECK(qmap::binary_object_type_from_pid(parsed.value().records[0].pid) == qmap::BinaryObjectType::scenery);
     CHECK(parsed.value().records[0].script_id == 50331649);
     CHECK(parsed.value().records[0].raw.size == 20 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].obj_id == 200);
     CHECK(parsed.value().records[1].elevation == 2);
     CHECK(parsed.value().records[1].pid == 0x01000002);
+    CHECK(parsed.value().records[1].pid_type() == 1);
+    CHECK(qmap::binary_object_type_from_pid(parsed.value().records[1].pid) == qmap::BinaryObjectType::critter);
     CHECK(parsed.value().records[1].script_id == 67108865);
     CHECK(parsed.value().end_offset == bytes.size());
+}
+
+TEST_CASE("binary_object_type_from_pid rejects unknown object type bytes", "[map][binary]")
+{
+    CHECK_FALSE(qmap::binary_object_type_from_pid(0x0A000001).has_value());
 }
 
 TEST_CASE("parse_binary_map_object_prefixes rejects count mismatches", "[map][binary]")

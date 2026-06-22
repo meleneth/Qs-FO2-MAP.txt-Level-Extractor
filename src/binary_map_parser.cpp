@@ -399,6 +399,20 @@ bool BinaryMapHeader::has_elevation(int elevation) const
     }
 }
 
+int BinaryObjectPrefix::pid_type() const
+{
+    return static_cast<int>((static_cast<std::uint32_t>(pid) >> 24) & 0xFFu);
+}
+
+std::optional<BinaryObjectType> binary_object_type_from_pid(std::int32_t pid)
+{
+    const auto type = static_cast<int>((static_cast<std::uint32_t>(pid) >> 24) & 0xFFu);
+    if (type < 0 || type > static_cast<int>(BinaryObjectType::background)) {
+        return std::nullopt;
+    }
+    return static_cast<BinaryObjectType>(type);
+}
+
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes)
 {
     ByteReader reader(bytes);
