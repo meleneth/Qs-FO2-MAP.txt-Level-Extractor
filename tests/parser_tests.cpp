@@ -186,6 +186,7 @@ struct parsed_scripts
     int scr_num_cnt[SCRIPT_TYPE_COUNT] = {0};
 };
 parsed_scripts parse_scripts(map_lvls* map, char* objects, int level);
+void check_char_scripts(parsed_scripts* scripts, char** objects, script_type type);
 
 TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
 {
@@ -357,6 +358,22 @@ TEST_CASE("legacy script parser rejects inverted script ranges", "[txt]")
         CHECK(scripts.scr_num[type] == nullptr);
         CHECK(scripts.scr_num_cnt[type] == 0);
     }
+}
+
+TEST_CASE("legacy character script collision scan skips empty elevations", "[txt]")
+{
+    parsed_scripts scripts[3];
+    std::string script = "scr_id: 50331649\r\n";
+    std::string objects_text = "obj_sid: 50331649\r\n";
+    char* objects[3] = {objects_text.data(), nullptr, nullptr};
+
+    scripts[0].scr_num[SCRIPT_OBJECTS] = script.data();
+    scripts[0].scr_num_cnt[SCRIPT_OBJECTS] = 1;
+
+    check_char_scripts(scripts, objects, SCRIPT_OBJECTS);
+
+    CHECK(script.find("scr_id: 50331650") != std::string::npos);
+    CHECK(objects_text.find("obj_sid: 50331650") != std::string::npos);
 }
 
 TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")

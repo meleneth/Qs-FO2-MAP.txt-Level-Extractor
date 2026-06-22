@@ -492,37 +492,50 @@ void check_char_scripts(parsed_scripts* scripts, char** objects, script_type typ
     char* script_ptr = nullptr;
     uint scr_id = 0;
     uint max_id = 0;
+    constexpr size_t scr_id_prefix_len = sizeof("scr_id: ") - 1;
 
 
     for (size_t el_out = 0; el_out < 3; el_out++)
     {
-        for (size_t i = 0; i < strlen(scripts[el_out].scr_num[type]); i++)
+        char* current_scripts = scripts[el_out].scr_num[type];
+        if (!current_scripts) {
+            continue;
+        }
+
+        const size_t current_scripts_len = strlen(current_scripts);
+        for (size_t i = 0; i < current_scripts_len; i++)
         {
             bool match_found = false;
-            if (scripts[el_out].scr_num[type][i] != 's') {
+            if (current_scripts[i] != 's') {
                 continue;
             }
-            if (io_strncmp(&scripts[el_out].scr_num[type][i], "scr_id: ", sizeof("scr_id: ")-1) != 0) {
+            if (io_strncmp(&current_scripts[i], "scr_id: ", scr_id_prefix_len) != 0) {
                 continue;
             }
 
 
 
-            script_ptr = &scripts[el_out].scr_num[type][i];
-            scr_id = atoi(&script_ptr[sizeof("scr_id: "-1)]);
+            script_ptr = &current_scripts[i];
+            scr_id = atoi(&script_ptr[scr_id_prefix_len]);
 
             for (size_t el_in = 0; el_in < 3; el_in++)
             {
-                for (; i < strlen(script_ptr); i++)
+                char* candidate_scripts = scripts[el_in].scr_num[type];
+                if (!candidate_scripts) {
+                    continue;
+                }
+
+                const size_t candidate_scripts_len = strlen(candidate_scripts);
+                for (size_t check_i = 0; check_i < candidate_scripts_len; check_i++)
                 {
-                    if (scripts[el_in].scr_num[type][i] != 's') {
+                    if (candidate_scripts[check_i] != 's') {
                         continue;
                     }
-                    if (io_strncmp(&scripts[el_in].scr_num[type][i], "scr_id: ", sizeof("scr_id: ")-1) != 0) {
+                    if (io_strncmp(&candidate_scripts[check_i], "scr_id: ", scr_id_prefix_len) != 0) {
                         continue;
                     }
 
-                    uint tmp = atoi(&scripts[el_in].scr_num[type][i + sizeof("scr_id: ")-1]);
+                    uint tmp = atoi(&candidate_scripts[check_i + scr_id_prefix_len]);
                     if (max_id < tmp) {
                         max_id = tmp;
                     }
@@ -539,10 +552,14 @@ void check_char_scripts(parsed_scripts* scripts, char** objects, script_type typ
                 snprintf(tmp, 32, "%u", scr_id);
 
                 char* obj_sid =  find_str((uint8_t*)objects[el_out], tmp, strlen(tmp));
+                if (!obj_sid) {
+                    printf("ERROR Can't find object that scr_id %u is attached to.\n", scr_id);
+                    continue;
+                }
 
                 snprintf(tmp, 32, "%u", max_id);
                 memcpy(obj_sid, tmp, strlen(tmp));
-                memcpy(&script_ptr[sizeof("scr_id: "-1)], tmp, strlen(tmp));
+                memcpy(&script_ptr[scr_id_prefix_len], tmp, strlen(tmp));
             } else {
                 printf("ERROR Can't find object that scr_id %u is attached to.\n", scr_id);
             }
