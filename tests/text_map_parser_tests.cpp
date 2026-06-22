@@ -76,6 +76,25 @@ TEST_CASE("parse_text_map treats all text before first elevation as header", "[t
     CHECK_FALSE(parsed.value().elevation_view(text, 0).has_value());
 }
 
+TEST_CASE("parse_text_map ignores elevation marker text that is not at line start", "[txt][bounded]")
+{
+    constexpr std::string_view text =
+        "header mentions square_elev: 0\n\n"
+        "still header\n"
+        "square_elev: 0\n\n"
+        "tiles-0\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n";
+
+    const auto parsed = qmap::parse_text_map(text);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().header_view(text));
+    CHECK(*parsed.value().header_view(text) == "header mentions square_elev: 0\n\nstill header\n");
+    REQUIRE(parsed.value().elevation_view(text, 0));
+    CHECK(*parsed.value().elevation_view(text, 0) == "tiles-0\n");
+}
+
 TEST_CASE("parse_text_map returns section ranges", "[txt][bounded]")
 {
     const auto parsed = qmap::parse_text_map(crlf_map);

@@ -32,12 +32,24 @@ std::string_view level_marker(int elevation, bool crlf)
     return crlf ? crlf_markers[elevation] : lf_markers[elevation];
 }
 
+std::size_t find_line_start_marker(std::string_view text, std::string_view marker, std::size_t start = 0)
+{
+    auto offset = text.find(marker, start);
+    while (offset != std::string_view::npos) {
+        if (offset == 0 || text[offset - 1] == '\n') {
+            return offset;
+        }
+        offset = text.find(marker, offset + 1);
+    }
+    return std::string_view::npos;
+}
+
 std::optional<MarkerMatch> find_level_marker(std::string_view text, int elevation)
 {
     const auto crlf = level_marker(elevation, true);
     const auto lf = level_marker(elevation, false);
-    const auto crlf_offset = text.find(crlf);
-    const auto lf_offset = text.find(lf);
+    const auto crlf_offset = find_line_start_marker(text, crlf);
+    const auto lf_offset = find_line_start_marker(text, lf);
 
     if (crlf_offset == std::string_view::npos && lf_offset == std::string_view::npos) {
         return std::nullopt;
@@ -52,8 +64,8 @@ std::optional<MarkerMatch> find_level_marker(std::string_view text, int elevatio
 bool has_duplicate_level_marker(std::string_view text, int elevation, MarkerMatch first)
 {
     std::array offsets = {
-        text.find(level_marker(elevation, true), first.offset + 1),
-        text.find(level_marker(elevation, false), first.offset + 1),
+        find_line_start_marker(text, level_marker(elevation, true), first.offset + 1),
+        find_line_start_marker(text, level_marker(elevation, false), first.offset + 1),
     };
 
     for (const auto offset : offsets) {
