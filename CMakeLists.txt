@@ -92,6 +92,19 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_definitions(qmap_parsers PUBLIC LINUX)
 endif()
 
+add_library(qmap_cli_ops STATIC
+    src/cli_operations.cpp
+)
+target_link_libraries(
+    qmap_cli_ops PUBLIC
+    qmap_parsers
+)
+target_include_directories(
+    qmap_cli_ops PUBLIC
+    src
+)
+qmap_enable_coverage(qmap_cli_ops)
+
 target_sources(
     ${EXE_NAME} PRIVATE
     src/main.cpp
@@ -104,7 +117,7 @@ add_executable(qmap_cli
 )
 target_link_libraries(
     qmap_cli PRIVATE
-    qmap_parsers
+    qmap_cli_ops
     CLI11::CLI11
     spdlog::spdlog
 )
@@ -156,10 +169,12 @@ if(BUILD_TESTING)
         tests/text_map_parser_tests.cpp
         tests/text_map_export_tests.cpp
         tests/text_map_records_tests.cpp
+        tests/cli_operations_tests.cpp
     )
     target_link_libraries(
         qmap_parser_tests PRIVATE
         qmap_parsers
+        qmap_cli_ops
         Catch2::Catch2WithMain
     )
     target_compile_definitions(
