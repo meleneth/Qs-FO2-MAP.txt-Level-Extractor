@@ -240,7 +240,8 @@ Result<void> skip_script_padding_records(ByteReader& reader, BinaryScriptType ty
             return Result<void>::fail(script_next.error());
         }
 
-        const auto inferred_type = script_type_from_high_byte(script_id.value()).value_or(type);
+        const auto inferred_type =
+            script_type_from_high_byte(script_id.value()).value_or(BinaryScriptType::system);
         const auto remaining_size =
             (static_cast<std::size_t>(script_record_word_count(inferred_type)) - 2)
             * sizeof(std::int32_t);

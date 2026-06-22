@@ -154,6 +154,15 @@ void append_script_padding_record_as(
     }
 }
 
+void append_unknown_script_padding_record(std::vector<std::byte>& bytes)
+{
+    append_i32(bytes, static_cast<std::int32_t>(0xCCCCCCCCu));
+    append_i32(bytes, -1);
+    for (int index = 2; index < 16; ++index) {
+        append_i32(bytes, 0);
+    }
+}
+
 void append_script_footer(std::vector<std::byte>& bytes, int count, int next)
 {
     append_i32(bytes, count);
@@ -435,6 +444,30 @@ TEST_CASE("parse_binary_map_scripts tolerates padding records with different val
     REQUIRE(parsed);
     REQUIRE(parsed.value().by_type[1].size() == 1);
     CHECK(parsed.value().by_type[1][0].scr_id == 0x01000000);
+    CHECK(parsed.value().end_offset == bytes.size());
+}
+
+TEST_CASE("parse_binary_map_scripts treats unknown padding layouts as system-sized", "[map][binary]")
+{
+    auto bytes = example_map_with_tiles();
+    append_i32(bytes, 0);
+    append_i32(bytes, 1);
+    append_script_record(bytes, qmap::BinaryScriptType::spatial, 0x01000000, 876);
+    for (int slot = 1; slot < 16; ++slot) {
+        append_unknown_script_padding_record(bytes);
+    }
+    append_script_footer(bytes, 1, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_scripts(bytes, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().by_type[1].size() == 1);
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
