@@ -178,6 +178,7 @@ int pointer_offset(const map_lvls& map, const char* pointer)
 } // namespace
 
 char* find_str(uint8_t* map_txt, char* str, int len);
+int script_spatial(char* script_txt, int remainder, int level);
 
 TEST_CASE("binary map parser reads fixture headers and level presence", "[map]")
 {
@@ -314,6 +315,15 @@ TEST_CASE("legacy text find_str ignores partial tail matches", "[txt]")
     char marker[] = "abc";
 
     CHECK(find_str(data.data(), marker, 3) == nullptr);
+}
+
+TEST_CASE("legacy spatial script parser rejects unterminated radius lines", "[txt]")
+{
+    std::string script =
+        "built_tile: 100\n"
+        "sp.radius: 5";
+
+    CHECK(script_spatial(script.data(), static_cast<int>(script.size()), 0) == 0);
 }
 
 TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")

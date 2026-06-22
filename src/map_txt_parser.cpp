@@ -174,15 +174,23 @@ char* parse_objects(map_lvls* map, int level)
 // if on this level return length of script string
 int script_spatial(char* script_txt, int remainder, int level)
 {
+    if (!script_txt || remainder <= 0) {
+        return 0;
+    }
+
     int built_tile_len = sizeof("built_tile: ")        -1;
     int radius_len     = sizeof("sp.radius: ")         -1;
     int scr_id_len     = sizeof("scr_id: ")            -1;
     int scr_num_len    = sizeof("scr_num: ")           -1;
     int objects_len    = sizeof(">>>>>>>>>>: OBJECTS") -1;
+    const size_t script_size = static_cast<size_t>(remainder);
 
-    for (size_t i = 0; i < remainder; i++) {
+    for (size_t i = 0; i < script_size; i++) {
         if (script_txt[i] != 'b') {
             continue;
+        }
+        if (i + static_cast<size_t>(built_tile_len) > script_size) {
+            break;
         }
         if (io_strncmp(&script_txt[i], "built_tile: ", built_tile_len) != 0) {
             continue;
@@ -208,18 +216,30 @@ int script_spatial(char* script_txt, int remainder, int level)
             return 0;
         }
 
-        while (i++ < remainder) {
+        while (++i < script_size) {
             if ((script_txt[i] != 's') && (script_txt[i] != '>')) {
                 continue;
             }
-            if (io_strncmp(&script_txt[i], "sp.radius: ", radius_len) == 0) {
-                while (script_txt[i++] != '\n') {}
-                return i+2;     //want to capture trailing "/r/n"
+            const auto remaining = script_size - i;
+            if (remaining >= static_cast<size_t>(radius_len)
+                && io_strncmp(&script_txt[i], "sp.radius: ", radius_len) == 0) {
+                while (i < script_size && script_txt[i] != '\n') {
+                    ++i;
+                }
+                if (i >= script_size) {
+                    return 0;
+                }
+                ++i;
+                const auto end = i + 2; // want to capture trailing "/r/n"
+                return static_cast<int>(end > script_size ? script_size : end);
             }
-            if ((io_strncmp(&script_txt[i], "scr_id: ",            scr_id_len ) == 0)
-            ||  (io_strncmp(&script_txt[i], "scr_num: ",           scr_num_len) == 0)
-            ||  (io_strncmp(&script_txt[i], ">>>>>>>>>>: OBJECTS", objects_len) == 0)) {
-                return (i-1);
+            if ((remaining >= static_cast<size_t>(scr_id_len)
+                    && io_strncmp(&script_txt[i], "scr_id: ", scr_id_len) == 0)
+            ||  (remaining >= static_cast<size_t>(scr_num_len)
+                    && io_strncmp(&script_txt[i], "scr_num: ", scr_num_len) == 0)
+            ||  (remaining >= static_cast<size_t>(objects_len)
+                    && io_strncmp(&script_txt[i], ">>>>>>>>>>: OBJECTS", objects_len) == 0)) {
+                return static_cast<int>(i - 1);
             }
         }
     }
