@@ -141,4 +141,44 @@ Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes
     return Result<BinaryMapHeader>::ok(header);
 }
 
+Result<BinaryMapVariables> parse_binary_map_variables(
+    std::span<const std::byte> bytes,
+    const BinaryMapHeader& header
+)
+{
+    if (header.mvar_count < 0) {
+        return Result<BinaryMapVariables>::fail({"negative map variable count", 0});
+    }
+    if (header.lvar_count < 0) {
+        return Result<BinaryMapVariables>::fail({"negative local variable count", 0});
+    }
+
+    ByteReader reader(bytes);
+    auto skipped_header = reader.read_bytes(binary_map_header_size);
+    if (!skipped_header) {
+        return Result<BinaryMapVariables>::fail(skipped_header.error());
+    }
+
+    BinaryMapVariables variables;
+    variables.map_vars.reserve(static_cast<std::size_t>(header.mvar_count));
+    for (std::int32_t index = 0; index < header.mvar_count; ++index) {
+        auto value = read_i32(reader);
+        if (!value) {
+            return Result<BinaryMapVariables>::fail(value.error());
+        }
+        variables.map_vars.push_back(value.value());
+    }
+
+    variables.local_vars.reserve(static_cast<std::size_t>(header.lvar_count));
+    for (std::int32_t index = 0; index < header.lvar_count; ++index) {
+        auto value = read_i32(reader);
+        if (!value) {
+            return Result<BinaryMapVariables>::fail(value.error());
+        }
+        variables.local_vars.push_back(value.value());
+    }
+
+    return Result<BinaryMapVariables>::ok(std::move(variables));
+}
+
 } // namespace qmap

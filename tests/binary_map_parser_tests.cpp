@@ -59,6 +59,23 @@ std::vector<std::byte> example_header()
     return bytes;
 }
 
+std::vector<std::byte> example_map_with_variables()
+{
+    auto bytes = example_header();
+    append_i32(bytes, 10);
+    append_i32(bytes, -20);
+    append_i32(bytes, 21);
+    append_i32(bytes, 22);
+    append_i32(bytes, 23);
+    append_i32(bytes, 24);
+    append_i32(bytes, 70);
+    append_i32(bytes, 30);
+    append_i32(bytes, 40);
+    append_i32(bytes, -50);
+    append_i32(bytes, 60);
+    return bytes;
+}
+
 } // namespace
 
 TEST_CASE("parse_binary_map_header reads typed header fields", "[map][binary]")
@@ -97,4 +114,49 @@ TEST_CASE("parse_binary_map_header rejects short input", "[map][binary]")
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
     CHECK(parsed.error().offset == 4);
+}
+
+TEST_CASE("parse_binary_map_variables reads map and local variable blocks", "[map][binary]")
+{
+    const auto bytes = example_map_with_variables();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_variables(bytes, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().map_vars.size() == 7);
+    CHECK(parsed.value().map_vars[0] == 10);
+    CHECK(parsed.value().map_vars[1] == -20);
+    CHECK(parsed.value().map_vars[6] == 70);
+    REQUIRE(parsed.value().local_vars.size() == 4);
+    CHECK(parsed.value().local_vars[0] == 30);
+    CHECK(parsed.value().local_vars[1] == 40);
+    CHECK(parsed.value().local_vars[2] == -50);
+    CHECK(parsed.value().local_vars[3] == 60);
+}
+
+TEST_CASE("parse_binary_map_variables rejects truncated variable blocks", "[map][binary]")
+{
+    auto bytes = example_map_with_variables();
+    bytes.pop_back();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_variables(bytes, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "unexpected end of input");
+}
+
+TEST_CASE("parse_binary_map_variables rejects negative counts", "[map][binary]")
+{
+    const auto bytes = example_header();
+    qmap::BinaryMapHeader header;
+    header.mvar_count = -1;
+
+    const auto parsed = qmap::parse_binary_map_variables(bytes, header);
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "negative map variable count");
 }

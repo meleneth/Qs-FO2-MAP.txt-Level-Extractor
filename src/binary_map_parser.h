@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 
 namespace qmap {
 
@@ -33,6 +34,15 @@ struct BinaryMapHeader {
     bool has_elevation(int elevation) const;
 };
 
+struct BinaryMapVariables {
+    std::vector<std::int32_t> map_vars;
+    std::vector<std::int32_t> local_vars;
+};
+
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes);
+Result<BinaryMapVariables> parse_binary_map_variables(
+    std::span<const std::byte> bytes,
+    const BinaryMapHeader& header
+);
 
 } // namespace qmap
