@@ -379,6 +379,17 @@ void parse_map_scripts(map_lvls *map, int *offset,
       continue;
     }
 
+    const int record_size = script_record_word_count(type) * static_cast<int>(sizeof(int32_t));
+    const int bytes_left = map->file_siz - *offset;
+    const int max_records_left = (bytes_left > 0) ? (bytes_left / record_size) : 0;
+    if (scripts[type].count > max_records_left) {
+      printf("ERROR: script count exceeds remaining file size; type=%d count=%d offset=%d\n",
+             type, scripts[type].count, *offset);
+      scripts[type].count = 0;
+      scripts[type].scripts = nullptr;
+      return;
+    }
+
     scripts[type].scripts =
         (script *)calloc(scripts[type].count, sizeof(script));
 

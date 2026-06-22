@@ -281,6 +281,26 @@ TEST_CASE("binary script parser clears output for invalid input", "[map][scripts
     }
 }
 
+TEST_CASE("binary script parser rejects counts beyond remaining bytes", "[map][scripts]")
+{
+    std::vector<uint8_t> data{0x7f, 0xff, 0xff, 0xff};
+
+    map_lvls map;
+    map.file_siz = static_cast<int>(data.size());
+    map.data = data.data();
+
+    scripts_list scripts[SCRIPT_TYPE_COUNT];
+    int offset = 0;
+
+    parse_map_scripts(&map, &offset, scripts);
+
+    CHECK(offset == 4);
+    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
+        CHECK(scripts[type].count == 0);
+        CHECK(scripts[type].scripts == nullptr);
+    }
+}
+
 
 TEST_CASE("binary map script parser reads script counts and stops at objects", "[map][scripts]")
 {
