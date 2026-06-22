@@ -39,8 +39,16 @@ struct BinaryMapVariables {
     std::vector<std::int32_t> local_vars;
 };
 
+struct BinaryMapTiles {
+    std::array<std::span<const std::byte>, 3> elevations{};
+};
+
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes);
 Result<BinaryMapVariables> parse_binary_map_variables(
+    std::span<const std::byte> bytes,
+    const BinaryMapHeader& header
+);
+Result<BinaryMapTiles> parse_binary_map_tiles(
     std::span<const std::byte> bytes,
     const BinaryMapHeader& header
 );

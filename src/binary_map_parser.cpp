@@ -10,6 +10,8 @@ namespace {
 constexpr std::int32_t map_elev_0_absent = 0x2;
 constexpr std::int32_t map_elev_1_absent = 0x4;
 constexpr std::int32_t map_elev_2_absent = 0x8;
+constexpr std::size_t tile_count_per_elevation = 10000;
+constexpr std::size_t tile_bytes_per_elevation = tile_count_per_elevation * sizeof(std::uint32_t);
 
 Result<std::int32_t> read_i32(ByteReader& reader)
 {
@@ -179,6 +181,43 @@ Result<BinaryMapVariables> parse_binary_map_variables(
     }
 
     return Result<BinaryMapVariables>::ok(std::move(variables));
+}
+
+Result<BinaryMapTiles> parse_binary_map_tiles(
+    std::span<const std::byte> bytes,
+    const BinaryMapHeader& header
+)
+{
+    if (header.mvar_count < 0) {
+        return Result<BinaryMapTiles>::fail({"negative map variable count", 0});
+    }
+    if (header.lvar_count < 0) {
+        return Result<BinaryMapTiles>::fail({"negative local variable count", 0});
+    }
+
+    ByteReader reader(bytes);
+    const auto variable_bytes =
+        (static_cast<std::size_t>(header.mvar_count) + static_cast<std::size_t>(header.lvar_count))
+        * sizeof(std::int32_t);
+    auto prefix = reader.read_bytes(binary_map_header_size + variable_bytes);
+    if (!prefix) {
+        return Result<BinaryMapTiles>::fail(prefix.error());
+    }
+
+    BinaryMapTiles tiles;
+    for (int elevation = 0; elevation < 3; ++elevation) {
+        if (!header.has_elevation(elevation)) {
+            continue;
+        }
+
+        auto tile_bytes = reader.read_bytes(tile_bytes_per_elevation);
+        if (!tile_bytes) {
+            return Result<BinaryMapTiles>::fail(tile_bytes.error());
+        }
+        tiles.elevations[elevation] = tile_bytes.value();
+    }
+
+    return Result<BinaryMapTiles>::ok(tiles);
 }
 
 } // namespace qmap

@@ -76,6 +76,14 @@ std::vector<std::byte> example_map_with_variables()
     return bytes;
 }
 
+std::vector<std::byte> example_map_with_tiles()
+{
+    auto bytes = example_map_with_variables();
+    bytes.insert(bytes.end(), 10000 * 4, b(0xAA));
+    bytes.insert(bytes.end(), 10000 * 4, b(0xBB));
+    return bytes;
+}
+
 } // namespace
 
 TEST_CASE("parse_binary_map_header reads typed header fields", "[map][binary]")
@@ -159,4 +167,33 @@ TEST_CASE("parse_binary_map_variables rejects negative counts", "[map][binary]")
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "negative map variable count");
+}
+
+TEST_CASE("parse_binary_map_tiles exposes present elevation byte ranges", "[map][binary]")
+{
+    const auto bytes = example_map_with_tiles();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_tiles(bytes, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().elevations[0].size() == 40000);
+    CHECK(parsed.value().elevations[0].front() == b(0xAA));
+    CHECK(parsed.value().elevations[1].empty());
+    REQUIRE(parsed.value().elevations[2].size() == 40000);
+    CHECK(parsed.value().elevations[2].front() == b(0xBB));
+}
+
+TEST_CASE("parse_binary_map_tiles rejects truncated tile blocks", "[map][binary]")
+{
+    auto bytes = example_map_with_tiles();
+    bytes.resize(bytes.size() - 1);
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_tiles(bytes, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "unexpected end of input");
 }
