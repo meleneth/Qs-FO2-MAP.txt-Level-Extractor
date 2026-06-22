@@ -103,7 +103,7 @@ char* parse_objects(map_lvls* map, int level)
     char* begin = nullptr;
     char* end   = nullptr;
     int objects_size = map->file_siz - (map->objects - (char*)map->data);
-    char* objects_str = (char*)malloc(objects_size);
+    char* objects_str = (char*)malloc(objects_size + 1);
     char* objects_ptr = objects_str;
     for (size_t i = 0; i < objects_size; i++)
     {
