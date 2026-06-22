@@ -48,7 +48,7 @@ std::size_t variable_byte_count(const BinaryMapHeader& header)
 std::size_t tile_byte_count(const BinaryMapHeader& header)
 {
     std::size_t size = 0;
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         if (header.has_elevation(elevation)) {
             size += tile_bytes_per_elevation;
         }
@@ -693,7 +693,7 @@ Result<BinaryMapTiles> parse_binary_map_tiles(
     }
 
     BinaryMapTiles tiles;
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         if (!header.has_elevation(elevation)) {
             continue;
         }
@@ -841,7 +841,7 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
     }
     counts.total_count = total_count.value();
 
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         counts.elevation_counts[elevation] = 0;
         if (header.has_elevation(elevation)) {
             counts.first_counted_elevation = elevation;
@@ -889,7 +889,7 @@ Result<BinaryObjectBlockHeader> parse_first_binary_object_block_header(
     }
     block.total_count = total_count.value();
 
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         if (!header.has_elevation(elevation)) {
             continue;
         }
@@ -934,7 +934,7 @@ Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
         return Result<std::optional<BinaryObjectPrefix>>::fail({"negative object count", object_section_offset});
     }
 
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         if (!header.has_elevation(elevation)) {
             continue;
         }
@@ -1134,7 +1134,7 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     objects.total_count = total_count.value();
 
     std::int64_t summed_counts = 0;
-    for (int elevation = 0; elevation < 3; ++elevation) {
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         objects.elevation_counts[elevation] = 0;
         if (!header.has_elevation(elevation)) {
             continue;

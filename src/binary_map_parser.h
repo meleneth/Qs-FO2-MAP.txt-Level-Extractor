@@ -16,6 +16,7 @@ namespace qmap {
 constexpr std::size_t binary_map_filename_size = 16;
 constexpr std::size_t binary_map_unknown_header_words = 44;
 constexpr std::size_t binary_map_header_size = 236;
+constexpr int binary_map_elevation_count = 3;
 
 struct BinaryMapHeader {
     std::uint32_t version = 0;
@@ -42,7 +43,7 @@ struct BinaryMapVariables {
 };
 
 struct BinaryMapTiles {
-    std::array<std::span<const std::byte>, 3> elevations{};
+    std::array<std::span<const std::byte>, binary_map_elevation_count> elevations{};
 };
 
 enum class BinaryScriptType : int {
@@ -129,14 +130,14 @@ std::optional<BinaryObjectType> binary_object_type_from_pid(std::int32_t pid);
 
 struct BinaryMapObjectPrefixes {
     std::int32_t total_count = 0;
-    std::array<std::int32_t, 3> elevation_counts{};
+    std::array<std::int32_t, binary_map_elevation_count> elevation_counts{};
     std::vector<BinaryObjectPrefix> records;
     std::size_t end_offset = 0;
 };
 
 struct BinaryMapObjectCounts {
     std::int32_t total_count = 0;
-    std::array<std::int32_t, 3> elevation_counts{};
+    std::array<std::int32_t, binary_map_elevation_count> elevation_counts{};
     int first_counted_elevation = -1;
     std::size_t data_offset = 0;
 };
@@ -184,7 +185,7 @@ struct BinaryMiscTail {
 
 struct BinaryMapObjectRecords {
     std::int32_t total_count = 0;
-    std::array<std::int32_t, 3> elevation_counts{};
+    std::array<std::int32_t, binary_map_elevation_count> elevation_counts{};
     std::vector<BinaryObjectRecord> records;
     std::size_t end_offset = 0;
 };
