@@ -1,7 +1,14 @@
 #include "text_map_export.h"
+#include "text_map_records.h"
 
-#include <string>
+#include "map_structs.h"
+
+#include <array>
+#include <optional>
 #include <string_view>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace qmap {
 namespace {
@@ -9,16 +16,7 @@ namespace {
 constexpr std::string_view scripts_header =
     ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\r\n\r\n\r\n"
     "SCRS:\r\n";
-constexpr std::string_view empty_script_counts =
-    "scr_num: 0\r\n"
-    "scr_num: 0\r\n"
-    "scr_num: 0\r\n"
-    "scr_num: 0\r\n"
-    "scr_num: 0\r\n";
-constexpr std::string_view objects_header =
-    ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n\r\n"
-    "[[OBJECTS BEGIN]]\r\n"
-    "[[OBJECTS END]]\r\n";
+constexpr std::string_view objects_header = ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n\r\n";
 
 const ParsedTextSource& source_for_side(
     const ParsedTextSource& left,
@@ -56,6 +54,160 @@ void append_level_marker(std::string& output, int elevation)
     output += "square_elev: ";
     output += static_cast<char>('0' + elevation);
     output += "\r\n\r\n";
+}
+
+std::optional<int> source_destination(const TextMapExportPlan& plan, MapSide side, int elevation)
+{
+    for (int destination = 0; destination < elevation_count; ++destination) {
+        if (plan.elevations[destination]
+            && plan.elevations[destination]->side == side
+            && plan.elevations[destination]->elevation == elevation) {
+            return destination;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<int> spatial_elevation(int tile)
+{
+    if (tile >= 0 && tile < 40000) {
+        return 0;
+    }
+    if (tile & 0x20000000) {
+        return 1;
+    }
+    if (tile & 0x40000000) {
+        return 2;
+    }
+    return std::nullopt;
+}
+
+std::string serialize_object_with_elevation(std::string_view raw, int destination_elevation)
+{
+    constexpr std::string_view field = "obj_elev:";
+    std::string output;
+    const auto offset = raw.find(field);
+    if (offset == std::string_view::npos) {
+        append_crlf_normalized(output, raw);
+        return output;
+    }
+
+    append_crlf_normalized(output, raw.substr(0, offset + field.size()));
+    output += ' ';
+    output += static_cast<char>('0' + destination_elevation);
+
+    const auto line_end = raw.find_first_of("\r\n", offset + field.size());
+    if (line_end != std::string_view::npos) {
+        append_crlf_normalized(output, raw.substr(line_end));
+    }
+
+    return output;
+}
+
+struct ExportRecords {
+    std::array<std::vector<std::string>, SCRIPT_TYPE_COUNT> scripts;
+    std::vector<std::string> objects;
+};
+
+Result<void> append_selected_records(
+    ExportRecords& output,
+    const ParsedTextSource& source,
+    MapSide side,
+    const TextMapExportPlan& plan
+)
+{
+    const auto objects_view = source.map.objects_view(source.text);
+    const auto scripts_view = source.map.scripts_view(source.text);
+    if (!objects_view || !scripts_view) {
+        return Result<void>::fail({"invalid source section range", 0});
+    }
+
+    auto objects = parse_text_objects(*objects_view);
+    if (!objects) {
+        return Result<void>::fail(objects.error());
+    }
+    auto scripts = parse_text_scripts(*scripts_view);
+    if (!scripts) {
+        return Result<void>::fail(scripts.error());
+    }
+
+    std::unordered_set<std::uint32_t> copied_object_script_ids;
+    for (const auto& object : objects.value()) {
+        if (!object.elevation) {
+            continue;
+        }
+        const auto destination = source_destination(plan, side, *object.elevation);
+        if (!destination) {
+            continue;
+        }
+
+        if (object.script_id && *object.script_id != 0xFFFFFFFFu) {
+            copied_object_script_ids.insert(*object.script_id);
+        }
+
+        const auto raw = view_range(*objects_view, object.raw);
+        if (!raw) {
+            return Result<void>::fail({"invalid object record range", object.raw.offset});
+        }
+        output.objects.push_back(serialize_object_with_elevation(*raw, *destination));
+    }
+
+    for (const auto& script : scripts.value()) {
+        bool copy = false;
+        if (script.script_type == SCRIPT_SPATIAL && script.spatial_tile) {
+            const auto elevation = spatial_elevation(*script.spatial_tile);
+            copy = elevation && source_destination(plan, side, *elevation).has_value();
+        } else if ((script.script_type == SCRIPT_OBJECTS || script.script_type == SCRIPT_CRITTER)
+            && copied_object_script_ids.contains(script.script_id)) {
+            copy = true;
+        }
+
+        if (!copy) {
+            continue;
+        }
+
+        const auto raw = view_range(*scripts_view, script.raw);
+        if (!raw) {
+            return Result<void>::fail({"invalid script record range", script.raw.offset});
+        }
+        std::string serialized;
+        append_crlf_normalized(serialized, *raw);
+        output.scripts[script.script_type].push_back(std::move(serialized));
+    }
+
+    return Result<void>::ok();
+}
+
+void append_scripts(std::string& output, const ExportRecords& records)
+{
+    output += scripts_header;
+    for (int type = 0; type < SCRIPT_TYPE_COUNT; ++type) {
+        output += "scr_num: ";
+        output += std::to_string(records.scripts[type].size());
+        output += "\r\n";
+        for (const auto& script : records.scripts[type]) {
+            output += "\r\n";
+            output += script;
+            if (!output.ends_with("\r\n")) {
+                output += "\r\n";
+            }
+        }
+    }
+}
+
+void append_objects(std::string& output, const ExportRecords& records)
+{
+    output += objects_header;
+    output += "[[OBJECTS BEGIN]]\r\n";
+    for (const auto& object : records.objects) {
+        output += "\r\n";
+        output += object;
+        if (!output.ends_with("\r\n")) {
+            output += "\r\n";
+        }
+    }
+    output += "[[OBJECTS END]]\r\n";
 }
 
 } // namespace
@@ -102,9 +254,17 @@ Result<std::string> export_text_map(
         append_crlf_normalized(output, *level);
     }
 
-    output += scripts_header;
-    output += empty_script_counts;
-    output += objects_header;
+    ExportRecords records;
+    auto left_records = append_selected_records(records, left, MapSide::left, plan);
+    if (!left_records) {
+        return Result<std::string>::fail(left_records.error());
+    }
+    auto right_records = append_selected_records(records, right, MapSide::right, plan);
+    if (!right_records) {
+        return Result<std::string>::fail(right_records.error());
+    }
+    append_scripts(output, records);
+    append_objects(output, records);
 
     return Result<std::string>::ok(std::move(output));
 }

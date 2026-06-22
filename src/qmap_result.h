@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -59,6 +60,42 @@ private:
     explicit Result(Error error) : storage_(std::move(error)) {}
 
     std::variant<T, Error> storage_;
+};
+
+template <>
+class Result<void> {
+public:
+    static Result ok()
+    {
+        return Result();
+    }
+
+    static Result fail(Error error)
+    {
+        return Result(std::move(error));
+    }
+
+    bool has_value() const
+    {
+        return !error_.has_value();
+    }
+
+    explicit operator bool() const
+    {
+        return has_value();
+    }
+
+    const Error& error() const
+    {
+        assert(error_.has_value());
+        return *error_;
+    }
+
+private:
+    Result() = default;
+    explicit Result(Error error) : error_(std::move(error)) {}
+
+    std::optional<Error> error_;
 };
 
 } // namespace qmap
