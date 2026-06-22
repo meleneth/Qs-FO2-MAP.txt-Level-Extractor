@@ -425,6 +425,32 @@ std::size_t known_object_tail_size(BinaryObjectType type)
     return 0;
 }
 
+Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
+{
+    const auto record_start = reader.offset();
+    auto prefix = parse_object_prefix(reader);
+    if (!prefix) {
+        return Result<BinaryObjectRecord>::fail(prefix.error());
+    }
+
+    const auto object_type = binary_object_type_from_pid(prefix.value().pid);
+    if (!object_type) {
+        return Result<BinaryObjectRecord>::fail({"unsupported object pid type", prefix.value().raw.offset});
+    }
+
+    const auto tail_start = reader.offset();
+    auto tail_bytes = reader.read_bytes(known_object_tail_size(*object_type));
+    if (!tail_bytes) {
+        return Result<BinaryObjectRecord>::fail(tail_bytes.error());
+    }
+
+    BinaryObjectRecord record;
+    record.prefix = prefix.value();
+    record.tail = Range{tail_start, tail_bytes.value().size()};
+    record.raw = Range{record_start, reader.offset() - record_start};
+    return Result<BinaryObjectRecord>::ok(record);
+}
+
 Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& reader, std::size_t object_section_offset)
 {
     BinaryMapObjectRecords objects;
@@ -456,27 +482,11 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
 
     objects.records.reserve(static_cast<std::size_t>(objects.total_count));
     for (std::int32_t index = 0; index < objects.total_count; ++index) {
-        const auto record_start = reader.offset();
-        auto prefix = parse_object_prefix(reader);
-        if (!prefix) {
-            return Result<BinaryMapObjectRecords>::fail(prefix.error());
+        auto record = parse_object_record(reader);
+        if (!record) {
+            return Result<BinaryMapObjectRecords>::fail(record.error());
         }
-        const auto object_type = binary_object_type_from_pid(prefix.value().pid);
-        if (!object_type) {
-            return Result<BinaryMapObjectRecords>::fail({"unsupported object pid type", prefix.value().raw.offset});
-        }
-
-        const auto tail_start = reader.offset();
-        auto tail_bytes = reader.read_bytes(known_object_tail_size(*object_type));
-        if (!tail_bytes) {
-            return Result<BinaryMapObjectRecords>::fail(tail_bytes.error());
-        }
-
-        BinaryObjectRecord record;
-        record.prefix = prefix.value();
-        record.tail = Range{tail_start, tail_bytes.value().size()};
-        record.raw = Range{record_start, reader.offset() - record_start};
-        objects.records.push_back(record);
+        objects.records.push_back(record.value());
     }
     objects.end_offset = reader.offset();
 
@@ -1096,27 +1106,11 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
         summed_counts += block_count.value();
 
         for (std::int32_t index = 0; index < block_count.value(); ++index) {
-            const auto record_start = reader.offset();
-            auto prefix = parse_object_prefix(reader);
-            if (!prefix) {
-                return Result<BinaryMapObjectRecords>::fail(prefix.error());
+            auto record = parse_object_record(reader);
+            if (!record) {
+                return Result<BinaryMapObjectRecords>::fail(record.error());
             }
-            const auto object_type = binary_object_type_from_pid(prefix.value().pid);
-            if (!object_type) {
-                return Result<BinaryMapObjectRecords>::fail({"unsupported object pid type", prefix.value().raw.offset});
-            }
-
-            const auto tail_start = reader.offset();
-            auto tail_bytes = reader.read_bytes(known_object_tail_size(*object_type));
-            if (!tail_bytes) {
-                return Result<BinaryMapObjectRecords>::fail(tail_bytes.error());
-            }
-
-            BinaryObjectRecord record;
-            record.prefix = prefix.value();
-            record.tail = Range{tail_start, tail_bytes.value().size()};
-            record.raw = Range{record_start, reader.offset() - record_start};
-            objects.records.push_back(record);
+            objects.records.push_back(record.value());
         }
     }
 
