@@ -1125,7 +1125,6 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
         return Result<BinaryMapObjectRecords>::fail({"negative object count", object_section_offset});
     }
     objects.total_count = total_count.value();
-    objects.records.reserve(static_cast<std::size_t>(objects.total_count));
 
     std::int64_t summed_counts = 0;
     for (int elevation = 0; elevation < 3; ++elevation) {
