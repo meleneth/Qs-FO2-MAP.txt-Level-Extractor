@@ -33,6 +33,11 @@ std::optional<std::uint32_t> parse_u32(std::string_view value)
     if (result.ec != std::errc{}) {
         return std::nullopt;
     }
+    for (const auto* cursor = result.ptr; cursor != end; ++cursor) {
+        if (*cursor != ' ' && *cursor != '\t') {
+            return std::nullopt;
+        }
+    }
     return parsed;
 }
 
@@ -45,6 +50,11 @@ std::optional<int> parse_i32(std::string_view value)
     const auto result = std::from_chars(begin, end, parsed);
     if (result.ec != std::errc{}) {
         return std::nullopt;
+    }
+    for (const auto* cursor = result.ptr; cursor != end; ++cursor) {
+        if (*cursor != ' ' && *cursor != '\t') {
+            return std::nullopt;
+        }
     }
     return parsed;
 }
