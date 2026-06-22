@@ -98,7 +98,8 @@ std::optional<std::string_view> object_field_value(std::string_view record, std:
             : record.substr(line_start, line_end - line_start);
 
         auto field_offset = line_start;
-        while (field_offset < record.size()
+        const auto line_stop = line_start + line.size();
+        while (field_offset < line_stop
             && (record[field_offset] == ' ' || record[field_offset] == '\t')) {
             ++field_offset;
         }

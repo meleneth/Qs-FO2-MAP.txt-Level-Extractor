@@ -89,6 +89,24 @@ TEST_CASE("parse_text_objects ignores nested inventory fields when reading paren
     CHECK_FALSE(parsed.value()[0].script_id.has_value());
 }
 
+TEST_CASE("parse_text_objects handles whitespace-only lines while reading object fields", "[txt][records]")
+{
+    constexpr std::string_view objects =
+        "[OBJECT BEGIN]\r\n"
+        "   \r\n"
+        "\t\t\r\n"
+        "obj_elev: 1\r\n"
+        "obj_sid: 50331649\r\n"
+        "[OBJECT END]\r\n";
+
+    const auto parsed = qmap::parse_text_objects(objects);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 1);
+    CHECK(parsed.value()[0].elevation == 1);
+    CHECK(parsed.value()[0].script_id == 50331649u);
+}
+
 TEST_CASE("parse_text_objects fails on unterminated object blocks", "[txt][records]")
 {
     constexpr std::string_view objects =
