@@ -1,12 +1,25 @@
 cmake_minimum_required(VERSION 3.30)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EXE_NAME QMAP_txt_extractor)
 project(${EXE_NAME} LANGUAGES CXX)
 
+option(ENABLE_COVERAGE "Build with gcov-compatible coverage instrumentation" OFF)
+
 set(LOCAL_DEPS "${CMAKE_SOURCE_DIR}/dependencies")
 set(IO_PLATFORM_DIR "${LOCAL_DEPS}/IO_Platform")
 set(GLAD_DIR "${LOCAL_DEPS}/glad1")
+
+function(qmap_enable_coverage target_name)
+    if(ENABLE_COVERAGE)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(${target_name} PRIVATE --coverage -O0 -g)
+            target_link_options(${target_name} PRIVATE --coverage)
+        else()
+            message(WARNING "ENABLE_COVERAGE is only wired for GCC/Clang-style gcov builds")
+        endif()
+    endif()
+endfunction()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -54,6 +67,7 @@ target_include_directories(
     src
     ${IO_PLATFORM_DIR}
 )
+qmap_enable_coverage(qmap_parsers)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_compile_definitions(qmap_parsers PUBLIC WINDOWS)
@@ -66,6 +80,7 @@ target_sources(
     src/main.cpp
     src/map_txt_gui.cpp
 )
+qmap_enable_coverage(${EXE_NAME})
 
 add_library(qmap_imgui STATIC
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
@@ -78,6 +93,7 @@ add_library(qmap_imgui STATIC
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
 )
+qmap_enable_coverage(qmap_imgui)
 
 add_subdirectory(${GLAD_DIR})
 
@@ -108,6 +124,7 @@ if(BUILD_TESTING)
 
     add_executable(qmap_parser_tests
         tests/parser_tests.cpp
+        tests/foundation_tests.cpp
     )
     target_link_libraries(
         qmap_parser_tests PRIVATE
@@ -118,6 +135,7 @@ if(BUILD_TESTING)
         qmap_parser_tests PRIVATE
         TEST_MAPS_DIR="${CMAKE_SOURCE_DIR}/test_maps"
     )
+    qmap_enable_coverage(qmap_parser_tests)
     add_test(NAME qmap_parser_tests COMMAND qmap_parser_tests)
     set_tests_properties(
         qmap_parser_tests PROPERTIES
