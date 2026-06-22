@@ -1,8 +1,24 @@
 cmake_minimum_required(VERSION 3.30)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EXE_NAME QMAP_txt_extractor)
 project(${EXE_NAME} LANGUAGES CXX)
 
+set(LOCAL_DEPS "${CMAKE_SOURCE_DIR}/dependencies")
+set(IO_PLATFORM_DIR "${LOCAL_DEPS}/IO_Platform")
+set(GLAD_DIR "${LOCAL_DEPS}/glad1")
+
+include(FetchContent)
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.92.7
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(imgui)
+set(IMGUI_DIR "${imgui_SOURCE_DIR}")
+
+find_package(SDL3 CONFIG REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_executable(${EXE_NAME} WIN32)   # WIN32 makes program open without dos window
@@ -25,37 +41,18 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     )
 endif()
 
-
-include(FetchContent)
-set(DEPS "dependencies")
-option(USE_TARBALL "Use extracted tarball vendored dependencies instead of git submodules" OFF)
-
-if(USE_TARBALL)
-    set(DEPS "vendor")
-    # apparently SDL2 doesn't have drag hover
-    if (NOT EXISTS "${CMAKE_SOURCE_DIR}/vendor/SDL3/CMakeLists.txt")
-        message(SEND_ERROR "Unable to find ${CMAKE_SOURCE_DIR}/vendor/SDL3/ - Please extract from tarball")
-    endif()
-    if (NOT EXISTS "${CMAKE_SOURCE_DIR}/vendor/IO_Platform/io_Platform.cpp")
-        message(SEND_ERROR "Unable to find ${CMAKE_SOURCE_DIR}/vendor/IO_platform/ - Please extract from tarball")
-    endif()
-    if (NOT EXISTS "${CMAKE_SOURCE_DIR}/vendor/imgui/imgui.cpp")
-        message(SEND_ERROR "Unable to find ${CMAKE_SOURCE_DIR}/vendor/imgui/ - Please extract from tarball")
-    endif()
-endif()
-
 add_library(qmap_parsers STATIC)
 target_sources(
     qmap_parsers PRIVATE
     src/map_txt_parser.cpp
     src/map_map_parser.cpp
     src/B_Endian/B_Endian.cpp
-    ${DEPS}/IO_Platform/io_Platform.cpp
+    ${IO_PLATFORM_DIR}/io_Platform.cpp
 )
 target_include_directories(
     qmap_parsers PUBLIC
     src
-    ${DEPS}/IO_Platform/
+    ${IO_PLATFORM_DIR}
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -70,62 +67,44 @@ target_sources(
     src/map_txt_gui.cpp
 )
 
-add_library(ImGui
-    ${DEPS}/imgui-1.92.7/backends/imgui_impl_opengl3.h
-    ${DEPS}/imgui-1.92.7/backends/imgui_impl_opengl3.cpp
-    ${DEPS}/imgui-1.92.7/backends/imgui_impl_sdl3.h
-    ${DEPS}/imgui-1.92.7/backends/imgui_impl_sdl3.cpp
-    ${DEPS}/imgui-1.92.7/imgui.h
-    ${DEPS}/imgui-1.92.7/imgui.cpp
-    #${DEPS}/imgui-1.92.7/imgui_demo.cpp         #TODO: remove this for final compile
-    ${DEPS}/imgui-1.92.7/imgui_draw.cpp
-    ${DEPS}/imgui-1.92.7/imgui_tables.cpp
-    ${DEPS}/imgui-1.92.7/imgui_widgets.cpp
+add_library(qmap_imgui STATIC
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdl3.h
+    ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
+    ${IMGUI_DIR}/imgui.h
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
 )
 
-add_subdirectory(${DEPS}/glad1/)
+add_subdirectory(${GLAD_DIR})
 
 target_include_directories(
-    ImGui PUBLIC
-    ${DEPS}/glfw-3.4/include/
-    ${DEPS}/imgui-1.92.7/
-    ${DEPS}/imgui-1.92.7/backends/
-    ${DEPS}/IO_Platform/
+    qmap_imgui PUBLIC
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
-
-set(SDL_STATIC ON CACHE BOOL "" FORCE)
-FetchContent_Declare(
-    # apparently SDL2 doesn't have drag hover
-    SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG        683181b47cfabd293e3ea409f838915b8297a4fd
-    GIT_SHALLOW    FALSE
-)
-FetchContent_MakeAvailable(SDL3)
 
 # ImGui needs its own SDL3 links
 target_link_libraries(
-    ImGui PRIVATE
+    qmap_imgui PRIVATE
     SDL3::SDL3
 )
 find_package(OpenGL REQUIRED)
 target_link_libraries(
     ${EXE_NAME} PRIVATE
     qmap_parsers
-    ImGui
+    qmap_imgui
     glad
-    SDL3::SDL3-static
+    SDL3::SDL3
     OpenGL::GL
 )
 
 include(CTest)
 if(BUILD_TESTING)
-    FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG        v3.7.1
-    )
-    FetchContent_MakeAvailable(Catch2)
+    find_package(Catch2 3 CONFIG REQUIRED)
 
     add_executable(qmap_parser_tests
         tests/parser_tests.cpp

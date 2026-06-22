@@ -2,7 +2,3 @@
 	path = dependencies/IO_Platform
 	url = git@github.com:QuantumApprentice/IO_platform.git
 	ignore = dirty
-[submodule "dependencies/imgui-1.92.7"]
-	path = dependencies/imgui-1.92.7
-	url = git@github.com:ocornut/imgui.git
-	ignore = dirty
