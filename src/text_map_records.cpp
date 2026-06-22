@@ -224,7 +224,7 @@ std::size_t line_start_after(std::string_view text, std::size_t offset)
     return next + 1;
 }
 
-bool is_script_record_start(std::string_view text, std::size_t offset)
+bool is_line_start_marker(std::string_view text, std::size_t offset)
 {
     if (offset >= text.size()) {
         return false;
@@ -237,7 +237,31 @@ bool is_script_record_start(std::string_view text, std::size_t offset)
     while (line_start < offset && (text[line_start] == ' ' || text[line_start] == '\t')) {
         ++line_start;
     }
-    if (line_start != offset) {
+    return line_start == offset;
+}
+
+std::optional<std::size_t> find_line_start_marker(
+    std::string_view text,
+    std::string_view marker,
+    std::size_t search_offset
+)
+{
+    while (search_offset < text.size()) {
+        const auto offset = text.find(marker, search_offset);
+        if (offset == std::string_view::npos) {
+            return std::nullopt;
+        }
+        if (is_line_start_marker(text, offset)) {
+            return offset;
+        }
+        search_offset = offset + marker.size();
+    }
+    return std::nullopt;
+}
+
+bool is_script_record_start(std::string_view text, std::size_t offset)
+{
+    if (!is_line_start_marker(text, offset)) {
         return false;
     }
 
@@ -268,20 +292,20 @@ std::optional<std::size_t> object_record_end(std::string_view text, std::size_t 
     int depth = 1;
 
     while (cursor < text.size()) {
-        const auto next_begin = text.find(object_begin, cursor);
-        const auto next_end = text.find(object_end, cursor);
-        if (next_end == std::string_view::npos) {
+        const auto next_begin = find_line_start_marker(text, object_begin, cursor);
+        const auto next_end = find_line_start_marker(text, object_end, cursor);
+        if (!next_end) {
             return std::nullopt;
         }
 
-        if (next_begin != std::string_view::npos && next_begin < next_end) {
+        if (next_begin && *next_begin < *next_end) {
             ++depth;
-            cursor = next_begin + object_begin.size();
+            cursor = *next_begin + object_begin.size();
             continue;
         }
 
         --depth;
-        cursor = next_end + object_end.size();
+        cursor = *next_end + object_end.size();
         if (depth == 0) {
             return cursor;
         }
@@ -312,30 +336,30 @@ Result<std::vector<TextObjectRecord>> parse_text_objects(std::string_view object
     std::size_t search_offset = 0;
 
     while (true) {
-        const auto begin = objects_section.find(object_begin, search_offset);
-        if (begin == std::string_view::npos) {
+        const auto begin = find_line_start_marker(objects_section, object_begin, search_offset);
+        if (!begin) {
             break;
         }
 
-        const auto end = object_record_end(objects_section, begin);
+        const auto end = object_record_end(objects_section, *begin);
         if (!end) {
             return Result<std::vector<TextObjectRecord>>::fail({
                 "object record missing [OBJECT END]",
-                begin,
+                *begin,
             });
         }
 
-        const auto raw = Range{begin, *end - begin};
+        const auto raw = Range{*begin, *end - *begin};
         const auto record_text = objects_section.substr(raw.offset, raw.size);
 
         TextObjectRecord record;
         record.raw = raw;
-        auto elevation = optional_object_i32_field(record_text, "obj_elev:", begin);
+        auto elevation = optional_object_i32_field(record_text, "obj_elev:", *begin);
         if (!elevation) {
             return Result<std::vector<TextObjectRecord>>::fail(elevation.error());
         }
         record.elevation = elevation.value();
-        auto script_id = optional_object_u32_field(record_text, "obj_sid:", begin);
+        auto script_id = optional_object_u32_field(record_text, "obj_sid:", *begin);
         if (!script_id) {
             return Result<std::vector<TextObjectRecord>>::fail(script_id.error());
         }
