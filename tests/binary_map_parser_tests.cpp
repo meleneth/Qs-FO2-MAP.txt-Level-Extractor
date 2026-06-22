@@ -515,24 +515,6 @@ TEST_CASE("parse_binary_map_object_prefixes reads counts and fixed object fields
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
-TEST_CASE("parse_binary_map_object_counts reads count header without object tails", "[map][binary]")
-{
-    const auto bytes = example_map_with_object_prefixes();
-    auto header = qmap::parse_binary_map_header(bytes);
-    REQUIRE(header);
-    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
-    REQUIRE(scripts);
-
-    const auto parsed = qmap::parse_binary_map_object_counts(bytes, scripts.value().end_offset);
-
-    REQUIRE(parsed);
-    CHECK(parsed.value().total_count == 2);
-    CHECK(parsed.value().elevation_counts[0] == 1);
-    CHECK(parsed.value().elevation_counts[1] == 0);
-    CHECK(parsed.value().elevation_counts[2] == 1);
-    CHECK(parsed.value().data_offset == scripts.value().end_offset + 4 * sizeof(std::int32_t));
-}
-
 TEST_CASE("parse_binary_map_object_counts follows present elevation counts", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();

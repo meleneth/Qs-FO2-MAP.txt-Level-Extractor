@@ -186,10 +186,6 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
 );
 Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
     std::span<const std::byte> bytes,
-    std::size_t object_section_offset
-);
-Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
-    std::span<const std::byte> bytes,
     std::size_t object_section_offset,
     const BinaryMapHeader& header
 );

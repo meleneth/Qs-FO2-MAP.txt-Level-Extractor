@@ -799,48 +799,6 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
 
 Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
     std::span<const std::byte> bytes,
-    std::size_t object_section_offset
-)
-{
-    ByteReader reader(bytes);
-    auto skipped = reader.read_bytes(object_section_offset);
-    if (!skipped) {
-        return Result<BinaryMapObjectCounts>::fail(skipped.error());
-    }
-
-    BinaryMapObjectCounts counts;
-    auto total_count = read_i32(reader);
-    if (!total_count) {
-        return Result<BinaryMapObjectCounts>::fail(total_count.error());
-    }
-    if (total_count.value() < 0) {
-        return Result<BinaryMapObjectCounts>::fail({"negative object count", object_section_offset});
-    }
-    counts.total_count = total_count.value();
-
-    std::int32_t summed_counts = 0;
-    for (auto& count : counts.elevation_counts) {
-        auto parsed = read_i32(reader);
-        if (!parsed) {
-            return Result<BinaryMapObjectCounts>::fail(parsed.error());
-        }
-        if (parsed.value() < 0) {
-            return Result<BinaryMapObjectCounts>::fail({"negative elevation object count", reader.offset() - 4});
-        }
-        count = parsed.value();
-        summed_counts += count;
-    }
-
-    if (summed_counts != counts.total_count) {
-        return Result<BinaryMapObjectCounts>::fail({"object count mismatch", object_section_offset});
-    }
-
-    counts.data_offset = reader.offset();
-    return Result<BinaryMapObjectCounts>::ok(counts);
-}
-
-Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
-    std::span<const std::byte> bytes,
     std::size_t object_section_offset,
     const BinaryMapHeader& header
 )
