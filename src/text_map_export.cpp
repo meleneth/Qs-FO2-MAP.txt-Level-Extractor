@@ -19,6 +19,8 @@ constexpr std::string_view scripts_header =
 constexpr std::string_view objects_header = ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n\r\n";
 constexpr std::uint32_t script_type_bits = 0xFF000000u;
 constexpr std::uint32_t script_local_id_bits = 0x00FFFFFFu;
+constexpr std::string_view object_begin = "[OBJECT BEGIN]";
+constexpr std::string_view object_end = "[OBJECT END]";
 
 const ParsedTextSource& source_for_side(
     const ParsedTextSource& left,
@@ -125,6 +127,58 @@ std::string replace_line_value(std::string_view raw, std::string_view field, std
     return output;
 }
 
+std::string replace_object_line_value(std::string_view raw, std::string_view field, std::string_view value)
+{
+    std::string output;
+    std::optional<std::size_t> field_offset;
+    int depth = 0;
+    std::size_t line_start = 0;
+    while (line_start < raw.size()) {
+        const auto line_end = raw.find_first_of("\r\n", line_start);
+        const auto line = line_end == std::string_view::npos
+            ? raw.substr(line_start)
+            : raw.substr(line_start, line_end - line_start);
+
+        auto candidate = line_start;
+        while (candidate < raw.size() && (raw[candidate] == ' ' || raw[candidate] == '\t')) {
+            ++candidate;
+        }
+        const auto trimmed_line = raw.substr(candidate, line.size() - (candidate - line_start));
+
+        if (trimmed_line.starts_with(object_begin)) {
+            ++depth;
+        } else if (trimmed_line.starts_with(object_end)) {
+            --depth;
+        } else if (depth == 1 && trimmed_line.starts_with(field)) {
+            field_offset = candidate;
+            break;
+        }
+
+        if (line_end == std::string_view::npos) {
+            break;
+        }
+        line_start = line_end + (raw[line_end] == '\r' && line_end + 1 < raw.size()
+            && raw[line_end + 1] == '\n' ? 2 : 1);
+    }
+
+    if (!field_offset) {
+        append_crlf_normalized(output, raw);
+        return output;
+    }
+
+    const auto offset = *field_offset;
+    append_crlf_normalized(output, raw.substr(0, offset + field.size()));
+    output += ' ';
+    output += value;
+
+    const auto line_end = raw.find_first_of("\r\n", offset + field.size());
+    if (line_end != std::string_view::npos) {
+        append_crlf_normalized(output, raw.substr(line_end));
+    }
+
+    return output;
+}
+
 std::uint32_t destination_tile(std::uint32_t source_tile, int destination_elevation)
 {
     auto tile = source_tile & 0x0FFFFFFFu;
@@ -140,13 +194,13 @@ std::string serialize_object(
     std::optional<std::uint32_t> rewritten_script_id
 )
 {
-    auto serialized = replace_line_value(
+    auto serialized = replace_object_line_value(
         raw,
         "obj_elev:",
         std::string_view{&"012"[destination_elevation], 1}
     );
     if (rewritten_script_id) {
-        serialized = replace_line_value(serialized, "obj_sid:", std::to_string(*rewritten_script_id));
+        serialized = replace_object_line_value(serialized, "obj_sid:", std::to_string(*rewritten_script_id));
     }
 
     return serialized;
