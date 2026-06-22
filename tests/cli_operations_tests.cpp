@@ -97,13 +97,24 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     first_object.elevation = 1;
     first_object.script_id = 50331649;
 
+    qmap::BinaryObjectRecord first_record;
+    first_record.prefix = first_object;
+    const std::byte bytes[] = {
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{10},
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{11},
+        std::byte{0}, std::byte{0}, std::byte{0}, std::byte{12},
+    };
+    first_record.tail = qmap::Range{0, sizeof(bytes)};
+
     const auto stats = qmap::cli::format_binary_map_stats(
         header,
         variables,
         tiles,
         scripts,
         objects,
-        first_object
+        first_object,
+        first_record,
+        bytes
     );
 
     CHECK(stats.find("kind: binary map\n") != std::string::npos);
@@ -124,4 +135,6 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("    type: scenery\n") != std::string::npos);
     CHECK(stats.find("    elevation: 1\n") != std::string::npos);
     CHECK(stats.find("    script_id: 50331649\n") != std::string::npos);
+    CHECK(stats.find("    scenery_flags: 10\n") != std::string::npos);
+    CHECK(stats.find("    scenery_destination: 12\n") != std::string::npos);
 }

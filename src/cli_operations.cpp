@@ -150,7 +150,9 @@ std::string format_binary_map_stats(
     const BinaryMapTiles& tiles,
     const BinaryMapScripts& scripts,
     const BinaryMapObjectCounts& objects,
-    const std::optional<BinaryObjectPrefix>& first_object
+    const std::optional<BinaryObjectPrefix>& first_object,
+    std::optional<BinaryObjectRecord> first_record,
+    std::span<const std::byte> bytes
 )
 {
     std::ostringstream output;
@@ -192,13 +194,35 @@ std::string format_binary_map_stats(
     if (first_object) {
         output << "  first_object:\n";
         output << "    pid: " << first_object->pid << '\n';
-        if (const auto type = binary_object_type_from_pid(first_object->pid)) {
+        const auto type = binary_object_type_from_pid(first_object->pid);
+        if (type) {
             output << "    type: " << object_type_name(*type) << '\n';
         } else {
             output << "    type: unknown\n";
         }
         output << "    elevation: " << first_object->elevation << '\n';
         output << "    script_id: " << first_object->script_id << '\n';
+        if (first_record && type) {
+            if (*type == BinaryObjectType::scenery) {
+                auto tail = parse_binary_scenery_tail(bytes, first_record->tail);
+                if (tail) {
+                    output << "    scenery_flags: " << tail.value().flags << '\n';
+                    output << "    scenery_destination: " << tail.value().destination << '\n';
+                }
+            } else if (*type == BinaryObjectType::critter) {
+                auto tail = parse_binary_critter_tail(bytes, first_record->tail);
+                if (tail) {
+                    output << "    critter_team: " << tail.value().team << '\n';
+                    output << "    critter_hit_points: " << tail.value().hit_points << '\n';
+                }
+            } else if (*type == BinaryObjectType::misc) {
+                auto tail = parse_binary_misc_tail(bytes, first_record->tail);
+                if (tail) {
+                    output << "    misc_dest_map: " << tail.value().dest_map << '\n';
+                    output << "    misc_dest_elevation: " << tail.value().dest_elevation << '\n';
+                }
+            }
+        }
     }
     return output.str();
 }
@@ -341,6 +365,11 @@ int parse_stats(const std::filesystem::path& input)
                       << " at offset " << first_object.error().offset << '\n';
             return 2;
         }
+        std::optional<BinaryObjectRecord> first_record;
+        auto object_records = parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+        if (object_records && !object_records.value().records.empty()) {
+            first_record = object_records.value().records.front();
+        }
 
         std::cout << format_binary_map_stats(
             header.value(),
@@ -348,7 +377,9 @@ int parse_stats(const std::filesystem::path& input)
             tiles.value(),
             scripts.value(),
             objects.value(),
-            first_object.value()
+            first_object.value(),
+            first_record,
+            bytes
         );
         return 0;
     }

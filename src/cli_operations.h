@@ -43,7 +43,9 @@ std::string format_binary_map_stats(
     const BinaryMapTiles& tiles,
     const BinaryMapScripts& scripts,
     const BinaryMapObjectCounts& objects,
-    const std::optional<BinaryObjectPrefix>& first_object
+    const std::optional<BinaryObjectPrefix>& first_object,
+    std::optional<BinaryObjectRecord> first_record = std::nullopt,
+    std::span<const std::byte> bytes = {}
 );
 TextMapExportPlan single_elevation_plan(int elevation);
 std::filesystem::path split_output_path(
