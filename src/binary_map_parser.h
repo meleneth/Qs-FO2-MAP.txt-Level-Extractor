@@ -138,6 +138,13 @@ struct BinaryMapObjectCounts {
     std::size_t data_offset = 0;
 };
 
+struct BinaryObjectBlockHeader {
+    std::int32_t total_count = 0;
+    int elevation = -1;
+    std::int32_t block_count = 0;
+    std::size_t objects_offset = 0;
+};
+
 struct BinaryObjectRecord {
     BinaryObjectPrefix prefix;
     Range raw;
@@ -181,6 +188,11 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
     std::size_t object_section_offset
 );
 Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header
+);
+Result<BinaryObjectBlockHeader> parse_first_binary_object_block_header(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset,
     const BinaryMapHeader& header

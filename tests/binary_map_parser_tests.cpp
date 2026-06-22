@@ -556,6 +556,33 @@ TEST_CASE("parse_binary_map_object_counts follows present elevation counts", "[m
     CHECK(parsed.value().data_offset == scripts.value().end_offset + 2 * sizeof(std::int32_t));
 }
 
+TEST_CASE("parse_first_binary_object_block_header finds the first present elevation block", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 5);
+    append_i32(bytes, 0);
+    append_i32(bytes, 3);
+    append_object_prefix(bytes, 200, 2, 0x01000002, 67108865);
+
+    qmap::BinaryMapHeader only_upper = header.value();
+    only_upper.map_flags = 0x2;
+    const auto parsed = qmap::parse_first_binary_object_block_header(
+        bytes,
+        scripts.value().end_offset,
+        only_upper
+    );
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().total_count == 5);
+    CHECK(parsed.value().elevation == 1);
+    CHECK(parsed.value().block_count == 0);
+    CHECK(parsed.value().objects_offset == scripts.value().end_offset + 2 * sizeof(std::int32_t));
+}
+
 TEST_CASE("binary_object_type_from_pid rejects unknown object type bytes", "[map][binary]")
 {
     CHECK_FALSE(qmap::binary_object_type_from_pid(0x0A000001).has_value());

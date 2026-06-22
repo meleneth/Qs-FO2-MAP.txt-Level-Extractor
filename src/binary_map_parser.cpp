@@ -7,6 +7,12 @@
 namespace qmap {
 namespace {
 
+// Fallout MAP layout references:
+// - https://falloutmods.fandom.com/wiki/MAP_File_Format
+// - https://fodev.net/files/fo2/map.html
+// Object records are serialized as a total count followed by per-elevation
+// count + object-array blocks. Script blocks are serialized in groups of 16
+// with padding records and a two-word footer/check block.
 constexpr std::int32_t map_elev_0_absent = 0x2;
 constexpr std::int32_t map_elev_1_absent = 0x4;
 constexpr std::int32_t map_elev_2_absent = 0x8;
@@ -876,6 +882,50 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
 
     counts.data_offset = reader.offset();
     return Result<BinaryMapObjectCounts>::ok(counts);
+}
+
+Result<BinaryObjectBlockHeader> parse_first_binary_object_block_header(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header
+)
+{
+    ByteReader reader(bytes);
+    auto skipped = reader.read_bytes(object_section_offset);
+    if (!skipped) {
+        return Result<BinaryObjectBlockHeader>::fail(skipped.error());
+    }
+
+    BinaryObjectBlockHeader block;
+    auto total_count = read_i32(reader);
+    if (!total_count) {
+        return Result<BinaryObjectBlockHeader>::fail(total_count.error());
+    }
+    if (total_count.value() < 0) {
+        return Result<BinaryObjectBlockHeader>::fail({"negative object count", object_section_offset});
+    }
+    block.total_count = total_count.value();
+
+    for (int elevation = 0; elevation < 3; ++elevation) {
+        if (!header.has_elevation(elevation)) {
+            continue;
+        }
+
+        auto block_count = read_i32(reader);
+        if (!block_count) {
+            return Result<BinaryObjectBlockHeader>::fail(block_count.error());
+        }
+        if (block_count.value() < 0) {
+            return Result<BinaryObjectBlockHeader>::fail({"negative elevation object count", reader.offset() - 4});
+        }
+        block.elevation = elevation;
+        block.block_count = block_count.value();
+        block.objects_offset = reader.offset();
+        return Result<BinaryObjectBlockHeader>::ok(block);
+    }
+
+    block.objects_offset = reader.offset();
+    return Result<BinaryObjectBlockHeader>::ok(block);
 }
 
 Result<BinaryMapObjectRecords> parse_binary_map_object_records(
