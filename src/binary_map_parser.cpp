@@ -493,6 +493,7 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
         }
     }
 
+    scripts.end_offset = reader.offset();
     return Result<BinaryMapScripts>::ok(std::move(scripts));
 }
 

@@ -311,6 +311,7 @@ TEST_CASE("parse_binary_map_scripts reads script records and block footers", "[m
     CHECK(objects[16].scr_id == 0x03000020);
     CHECK(objects[16].scr_index == 900);
     CHECK(objects[16].raw.size == 16 * sizeof(std::int32_t));
+    CHECK(parsed.value().end_offset == bytes.size());
 }
 
 TEST_CASE("parse_binary_map_scripts rejects footer count mismatches", "[map][binary]")

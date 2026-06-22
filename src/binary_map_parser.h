@@ -80,6 +80,7 @@ struct BinaryScriptRecord {
 
 struct BinaryMapScripts {
     std::array<std::vector<BinaryScriptRecord>, binary_script_type_count> by_type;
+    std::size_t end_offset = 0;
 };
 
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes);
