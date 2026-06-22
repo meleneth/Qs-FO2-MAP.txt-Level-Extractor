@@ -428,8 +428,13 @@ void parse_map_scripts(map_lvls *map, int *offset,
 }
 
 objects_list parse_map_objects(map_lvls *map, int *offset) {
+  objects_list ol = {};
+  if (!map || !offset || !map->data || *offset < 0 ||
+      map->file_siz - *offset < 4 * static_cast<int>(sizeof(int32_t))) {
+    return ol;
+  }
+
   uint8_t *data_ptr = &map->data[*offset];
-  objects_list ol;
 
   ol.count_total = B_Endian::read_i32(&data_ptr[0x00]);
 
