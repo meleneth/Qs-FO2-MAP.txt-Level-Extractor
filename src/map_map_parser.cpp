@@ -453,7 +453,16 @@ objects_list parse_map_objects(map_lvls *map, int *offset) {
     return ol;
   }
 
+  if (ol.count_total == 0) {
+    return ol;
+  }
+
   ol.objects = (object *)malloc(sizeof(object) * ol.count_total);
+  if (!ol.objects) {
+    printf("ERROR: failed to allocate objects; count=%d\n", ol.count_total);
+    ol = {};
+    return ol;
+  }
   object *obj = ol.objects;
 
   for (int elev = 0; elev < 3; elev++) {
