@@ -69,6 +69,26 @@ TEST_CASE("parse_text_objects keeps nested inventory objects inside the parent r
     );
 }
 
+TEST_CASE("parse_text_objects ignores nested inventory fields when reading parent fields", "[txt][records]")
+{
+    constexpr std::string_view objects =
+        "[OBJECT BEGIN]\r\n"
+        "obj_pud.[BEGIN INVEN ITEMS]:\r\n"
+        "[OBJECT BEGIN]\r\n"
+        "obj_elev: 2\r\n"
+        "obj_sid: 50331650\r\n"
+        "[OBJECT END]\r\n"
+        "obj_pud.[END INVEN ITEMS]:\r\n"
+        "[OBJECT END]\r\n";
+
+    const auto parsed = qmap::parse_text_objects(objects);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 1);
+    CHECK_FALSE(parsed.value()[0].elevation.has_value());
+    CHECK_FALSE(parsed.value()[0].script_id.has_value());
+}
+
 TEST_CASE("parse_text_objects fails on unterminated object blocks", "[txt][records]")
 {
     constexpr std::string_view objects =

@@ -87,6 +87,46 @@ std::optional<std::string_view> field_value(std::string_view record, std::string
     return std::nullopt;
 }
 
+std::optional<std::string_view> object_field_value(std::string_view record, std::string_view field)
+{
+    int depth = 0;
+    std::size_t line_start = 0;
+    while (line_start < record.size()) {
+        const auto line_end = record.find_first_of("\r\n", line_start);
+        const auto line = line_end == std::string_view::npos
+            ? record.substr(line_start)
+            : record.substr(line_start, line_end - line_start);
+
+        auto field_offset = line_start;
+        while (field_offset < record.size()
+            && (record[field_offset] == ' ' || record[field_offset] == '\t')) {
+            ++field_offset;
+        }
+        const auto trimmed_line = record.substr(field_offset, line.size() - (field_offset - line_start));
+
+        if (trimmed_line.starts_with(object_begin)) {
+            ++depth;
+        } else if (trimmed_line.starts_with(object_end)) {
+            --depth;
+        } else if (depth == 1 && trimmed_line.starts_with(field)) {
+            field_offset += field.size();
+            const auto value_end = record.find_first_of("\r\n", field_offset);
+            if (value_end == std::string_view::npos) {
+                return record.substr(field_offset);
+            }
+            return record.substr(field_offset, value_end - field_offset);
+        }
+
+        if (line_end == std::string_view::npos) {
+            break;
+        }
+        line_start = line_end + (record[line_end] == '\r' && line_end + 1 < record.size()
+            && record[line_end + 1] == '\n' ? 2 : 1);
+    }
+
+    return std::nullopt;
+}
+
 Result<std::optional<std::uint32_t>> optional_u32_field(
     std::string_view record,
     std::string_view field,
@@ -114,6 +154,46 @@ Result<std::optional<int>> optional_i32_field(
 )
 {
     const auto value = field_value(record, field);
+    if (!value) {
+        return Result<std::optional<int>>::ok(std::nullopt);
+    }
+    const auto parsed = parse_i32(*value);
+    if (!parsed) {
+        return Result<std::optional<int>>::fail({
+            "record has invalid numeric field",
+            record_offset,
+        });
+    }
+    return Result<std::optional<int>>::ok(*parsed);
+}
+
+Result<std::optional<std::uint32_t>> optional_object_u32_field(
+    std::string_view record,
+    std::string_view field,
+    std::size_t record_offset
+)
+{
+    const auto value = object_field_value(record, field);
+    if (!value) {
+        return Result<std::optional<std::uint32_t>>::ok(std::nullopt);
+    }
+    const auto parsed = parse_u32(*value);
+    if (!parsed) {
+        return Result<std::optional<std::uint32_t>>::fail({
+            "record has invalid numeric field",
+            record_offset,
+        });
+    }
+    return Result<std::optional<std::uint32_t>>::ok(*parsed);
+}
+
+Result<std::optional<int>> optional_object_i32_field(
+    std::string_view record,
+    std::string_view field,
+    std::size_t record_offset
+)
+{
+    const auto value = object_field_value(record, field);
     if (!value) {
         return Result<std::optional<int>>::ok(std::nullopt);
     }
@@ -228,12 +308,12 @@ Result<std::vector<TextObjectRecord>> parse_text_objects(std::string_view object
 
         TextObjectRecord record;
         record.raw = raw;
-        auto elevation = optional_i32_field(record_text, "obj_elev:", begin);
+        auto elevation = optional_object_i32_field(record_text, "obj_elev:", begin);
         if (!elevation) {
             return Result<std::vector<TextObjectRecord>>::fail(elevation.error());
         }
         record.elevation = elevation.value();
-        auto script_id = optional_u32_field(record_text, "obj_sid:", begin);
+        auto script_id = optional_object_u32_field(record_text, "obj_sid:", begin);
         if (!script_id) {
             return Result<std::vector<TextObjectRecord>>::fail(script_id.error());
         }
