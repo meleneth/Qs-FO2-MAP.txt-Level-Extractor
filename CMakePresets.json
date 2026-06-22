@@ -1,0 +1,47 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "ucrt64-debug",
+      "displayName": "UCRT64 Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/ucrt64-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/cc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/ucrt64/bin/ninja.exe"
+      },
+      "environment": {
+        "PATH": "C:\\msys64\\ucrt64\\bin;$penv{PATH}"
+      }
+    },
+    {
+      "name": "ucrt64-release",
+      "displayName": "UCRT64 Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/ucrt64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/cc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/ucrt64/bin/ninja.exe"
+      },
+      "environment": {
+        "PATH": "C:\\msys64\\ucrt64\\bin;$penv{PATH}"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ucrt64-debug",
+      "displayName": "UCRT64 Debug",
+      "configurePreset": "ucrt64-debug"
+    },
+    {
+      "name": "ucrt64-release",
+      "displayName": "UCRT64 Release",
+      "configurePreset": "ucrt64-release"
+    }
+  ]
+}
