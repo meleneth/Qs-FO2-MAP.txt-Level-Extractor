@@ -74,6 +74,7 @@ target_sources(
     src/map_txt_parser.cpp
     src/text_map_parser.cpp
     src/text_map_export.cpp
+    src/text_map_records.cpp
     src/map_map_parser.cpp
     src/B_Endian/B_Endian.cpp
     ${IO_PLATFORM_DIR}/io_Platform.cpp
@@ -154,6 +155,7 @@ if(BUILD_TESTING)
         tests/foundation_tests.cpp
         tests/text_map_parser_tests.cpp
         tests/text_map_export_tests.cpp
+        tests/text_map_records_tests.cpp
     )
     target_link_libraries(
         qmap_parser_tests PRIVATE
