@@ -276,6 +276,27 @@ TEST_CASE("parse_text_scripts handles whitespace-only lines while reading fields
     CHECK(parsed.value()[0].spatial_radius == 5);
 }
 
+TEST_CASE("parse_text_scripts handles whitespace-only lines before record boundaries", "[txt][records]")
+{
+    constexpr std::string_view scripts =
+        "scr_id: 50331649\r\n"
+        "scr_oid: 215\r\n"
+        "scr_num_local_vars: 0\r\n"
+        "   \r\n"
+        "\t\t\r\n"
+        "scr_id: 50331650\r\n"
+        "scr_oid: 216\r\n"
+        "scr_num_local_vars: 0\r\n";
+
+    const auto parsed = qmap::parse_text_scripts(scripts);
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().size() == 2);
+    CHECK(parsed.value()[0].script_id == 50331649u);
+    CHECK(parsed.value()[1].script_id == 50331650u);
+    CHECK(parsed.value()[1].object_id == 216u);
+}
+
 TEST_CASE("parse_text_scripts rejects invalid script ids", "[txt][records]")
 {
     constexpr std::string_view scripts =

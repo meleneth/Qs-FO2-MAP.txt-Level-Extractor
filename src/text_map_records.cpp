@@ -272,13 +272,19 @@ std::size_t next_script_boundary(std::string_view text, std::size_t start)
 {
     auto cursor = line_start_after(text, start);
     while (cursor < text.size()) {
+        const auto line_end = text.find_first_of("\r\n", cursor);
+        const auto line = line_end == std::string_view::npos
+            ? text.substr(cursor)
+            : text.substr(cursor, line_end - cursor);
+
         auto field_offset = cursor;
-        while (field_offset < text.size()
+        const auto line_stop = cursor + line.size();
+        while (field_offset < line_stop
             && (text[field_offset] == ' ' || text[field_offset] == '\t')) {
             ++field_offset;
         }
-        const auto rest = text.substr(field_offset);
-        if (rest.starts_with(scr_id_field) || rest.starts_with(scr_num_field)) {
+        const auto trimmed_line = text.substr(field_offset, line.size() - (field_offset - cursor));
+        if (trimmed_line.starts_with(scr_id_field) || trimmed_line.starts_with(scr_num_field)) {
             return cursor;
         }
         cursor = line_start_after(text, cursor);
