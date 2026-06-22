@@ -404,7 +404,7 @@ parsed_scripts parse_scripts(map_lvls* map, char* objects, int level)
             scrs.scr_num[type] = nullptr;
             continue;
         }
-        scrs.scr_num[type] = (char*)malloc(scripts_size);
+        scrs.scr_num[type] = (char*)calloc(static_cast<size_t>(scripts_size) + 1, 1);
     }
     char* scr_ptr[5] = {
         scrs.scr_num[0],
