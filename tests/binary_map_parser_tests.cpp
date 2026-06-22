@@ -285,6 +285,7 @@ TEST_CASE("parse_binary_map_header reads typed header fields", "[map][binary]")
     CHECK(parsed.value().has_elevation(0));
     CHECK_FALSE(parsed.value().has_elevation(1));
     CHECK(parsed.value().has_elevation(2));
+    CHECK_FALSE(parsed.value().has_elevation(-1));
     CHECK_FALSE(parsed.value().has_elevation(3));
 }
 

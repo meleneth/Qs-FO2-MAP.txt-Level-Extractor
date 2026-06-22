@@ -3,6 +3,7 @@
 #include "byte_reader.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 namespace qmap {
@@ -14,9 +15,11 @@ namespace {
 // Object records are serialized as a total count followed by per-elevation
 // count + object-array blocks. Script blocks are serialized in groups of 16
 // with padding records and a two-word footer/check block.
-constexpr std::int32_t map_elev_0_absent = 0x2;
-constexpr std::int32_t map_elev_1_absent = 0x4;
-constexpr std::int32_t map_elev_2_absent = 0x8;
+constexpr std::array<std::int32_t, binary_map_elevation_count> map_elevation_absent_flags = {
+    0x2,
+    0x4,
+    0x8,
+};
 constexpr std::size_t tile_count_per_elevation = 10000;
 constexpr std::size_t tile_bytes_per_elevation = tile_count_per_elevation * sizeof(std::uint32_t);
 constexpr int serialized_script_block_capacity = 16;
@@ -519,16 +522,10 @@ std::string BinaryMapHeader::filename_string() const
 
 bool BinaryMapHeader::has_elevation(int elevation) const
 {
-    switch (elevation) {
-    case 0:
-        return (map_flags & map_elev_0_absent) == 0;
-    case 1:
-        return (map_flags & map_elev_1_absent) == 0;
-    case 2:
-        return (map_flags & map_elev_2_absent) == 0;
-    default:
+    if (elevation < 0 || elevation >= binary_map_elevation_count) {
         return false;
     }
+    return (map_flags & map_elevation_absent_flags[static_cast<std::size_t>(elevation)]) == 0;
 }
 
 int BinaryObjectPrefix::pid_type() const
