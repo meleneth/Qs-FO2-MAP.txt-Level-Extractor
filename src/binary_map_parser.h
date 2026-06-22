@@ -207,6 +207,11 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset
 );
+Result<BinaryMapObjectRecords> parse_binary_map_object_records(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header
+);
 Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes);
 
 } // namespace qmap

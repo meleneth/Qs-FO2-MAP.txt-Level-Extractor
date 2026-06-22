@@ -249,10 +249,9 @@ std::vector<std::byte> example_map_with_object_records()
     auto bytes = example_map_with_scripts();
     append_i32(bytes, 2);
     append_i32(bytes, 1);
-    append_i32(bytes, 0);
-    append_i32(bytes, 1);
     append_object_prefix(bytes, 100, 0, 0x02000001, 50331649);
     append_i32_repeated(bytes, 3, 9000);
+    append_i32(bytes, 1);
     append_object_prefix(bytes, 200, 2, 0x01000002, 67108865);
     append_i32_repeated(bytes, 11, 9100);
     return bytes;
@@ -518,7 +517,7 @@ TEST_CASE("parse_binary_map_object_prefixes reads counts and fixed object fields
 
 TEST_CASE("parse_binary_map_object_counts reads count header without object tails", "[map][binary]")
 {
-    const auto bytes = example_map_with_object_records();
+    const auto bytes = example_map_with_object_prefixes();
     auto header = qmap::parse_binary_map_header(bytes);
     REQUIRE(header);
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
@@ -668,7 +667,7 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
     REQUIRE(scripts);
 
-    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset);
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE(parsed);
     REQUIRE(parsed.value().records.size() == 2);
@@ -681,6 +680,31 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
+TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[map][binary]")
+{
+    const auto bytes = example_map_with_object_records();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE(parsed);
+    CHECK(parsed.value().total_count == 2);
+    CHECK(parsed.value().elevation_counts[0] == 1);
+    CHECK(parsed.value().elevation_counts[1] == 0);
+    CHECK(parsed.value().elevation_counts[2] == 1);
+    REQUIRE(parsed.value().records.size() == 2);
+    CHECK(parsed.value().records[0].prefix.obj_id == 100);
+    CHECK(parsed.value().records[0].prefix.elevation == 0);
+    CHECK(parsed.value().records[0].tail.size == 3 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].prefix.obj_id == 200);
+    CHECK(parsed.value().records[1].prefix.elevation == 2);
+    CHECK(parsed.value().records[1].tail.size == 11 * sizeof(std::int32_t));
+    CHECK(parsed.value().end_offset == bytes.size());
+}
+
 TEST_CASE("parse_binary_map_object_records rejects unknown object types", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();
@@ -690,11 +714,9 @@ TEST_CASE("parse_binary_map_object_records rejects unknown object types", "[map]
     REQUIRE(scripts);
     append_i32(bytes, 1);
     append_i32(bytes, 1);
-    append_i32(bytes, 0);
-    append_i32(bytes, 0);
     append_object_prefix(bytes, 100, 0, 0x0A000001, 50331649);
 
-    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset);
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unsupported object pid type");
@@ -709,7 +731,7 @@ TEST_CASE("parse_binary_map_object_records rejects truncated known tails", "[map
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
     REQUIRE(scripts);
 
-    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset);
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "unexpected end of input");
