@@ -26,6 +26,7 @@ constexpr int serialized_script_block_capacity = 16;
 constexpr std::size_t critter_tail_words = 11;
 constexpr std::size_t scenery_tail_words = 3;
 constexpr std::size_t misc_tail_words = 5;
+constexpr int script_type_shift = 24;
 constexpr int pid_type_shift = 24;
 constexpr std::uint32_t pid_type_mask = 0xFFu;
 
@@ -108,7 +109,7 @@ int script_record_word_count(BinaryScriptType type)
 
 std::optional<BinaryScriptType> script_type_from_high_byte(std::uint32_t script_id)
 {
-    const auto raw_type = static_cast<int>(script_id >> 24);
+    const auto raw_type = static_cast<int>(script_id >> script_type_shift);
     if (raw_type < 0 || raw_type >= binary_script_type_count) {
         return std::nullopt;
     }

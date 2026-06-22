@@ -14,6 +14,7 @@ constexpr std::string_view object_begin = "[OBJECT BEGIN]";
 constexpr std::string_view object_end = "[OBJECT END]";
 constexpr std::string_view scr_id_field = "scr_id:";
 constexpr std::string_view scr_num_field = "scr_num:";
+constexpr int script_type_shift = 24;
 
 std::string_view trim_left(std::string_view value)
 {
@@ -324,7 +325,7 @@ std::optional<std::size_t> object_record_end(std::string_view text, std::size_t 
 
 std::optional<ScriptType> script_type_from_id(std::uint32_t script_id)
 {
-    const auto raw_type = static_cast<int>(script_id >> 24);
+    const auto raw_type = static_cast<int>(script_id >> script_type_shift);
     if (raw_type < 0 || raw_type >= script_type_count) {
         return std::nullopt;
     }
