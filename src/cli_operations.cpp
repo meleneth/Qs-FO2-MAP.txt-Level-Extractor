@@ -155,8 +155,10 @@ std::string format_binary_map_stats(
     output << "  section_end: " << scripts.end_offset << '\n';
     output << "objects:\n";
     output << "  total: " << objects.total_count << '\n';
-    for (int elevation = 0; elevation < 3; ++elevation) {
-        output << "  elevation " << elevation << ": " << objects.elevation_counts[elevation] << '\n';
+    if (objects.first_counted_elevation >= 0) {
+        output << "  first_counted_elevation: " << objects.first_counted_elevation << '\n';
+        output << "  first_elevation_count: "
+               << objects.elevation_counts[objects.first_counted_elevation] << '\n';
     }
     output << "  data_offset: " << objects.data_offset << '\n';
     return output.str();

@@ -130,8 +130,26 @@ int script_record_word_count(qmap::BinaryScriptType type)
 
 void append_script_padding(std::vector<std::byte>& bytes, qmap::BinaryScriptType type, int parsed_count)
 {
-    const auto words = (16 - parsed_count) * script_record_word_count(type);
-    for (int index = 0; index < words; ++index) {
+    const auto words = script_record_word_count(type);
+    const auto script_id = static_cast<std::int32_t>(static_cast<int>(type) << 24);
+    for (int slot = parsed_count; slot < 16; ++slot) {
+        append_i32(bytes, script_id);
+        append_i32(bytes, -1);
+        for (int index = 2; index < words; ++index) {
+            append_i32(bytes, 0);
+        }
+    }
+}
+
+void append_script_padding_record_as(
+    std::vector<std::byte>& bytes,
+    qmap::BinaryScriptType stored_type
+)
+{
+    const auto words = script_record_word_count(stored_type);
+    append_i32(bytes, static_cast<std::int32_t>(static_cast<int>(stored_type) << 24));
+    append_i32(bytes, -1);
+    for (int index = 2; index < words; ++index) {
         append_i32(bytes, 0);
     }
 }
@@ -395,6 +413,31 @@ TEST_CASE("parse_binary_map_scripts rejects footer count mismatches", "[map][bin
     CHECK(parsed.error().message == "script block footer count mismatch");
 }
 
+TEST_CASE("parse_binary_map_scripts tolerates padding records with different valid layouts", "[map][binary]")
+{
+    auto bytes = example_map_with_tiles();
+    append_i32(bytes, 0);
+    append_i32(bytes, 1);
+    append_script_record(bytes, qmap::BinaryScriptType::spatial, 0x01000000, 876);
+    for (int slot = 1; slot < 16; ++slot) {
+        append_script_padding_record_as(bytes, qmap::BinaryScriptType::object);
+    }
+    append_script_footer(bytes, 1, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+
+    const auto parsed = qmap::parse_binary_map_scripts(bytes, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().by_type[1].size() == 1);
+    CHECK(parsed.value().by_type[1][0].scr_id == 0x01000000);
+    CHECK(parsed.value().end_offset == bytes.size());
+}
+
 TEST_CASE("parse_binary_map_scripts rejects truncated records", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();
@@ -467,16 +510,17 @@ TEST_CASE("parse_binary_map_object_counts follows present elevation counts", "[m
     REQUIRE(scripts);
     append_i32(bytes, 5);
     append_i32(bytes, 2);
-    append_i32(bytes, 3);
+    append_object_prefix(bytes, 100, 0, 0x02000001, 50331649);
 
     const auto parsed = qmap::parse_binary_map_object_counts(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE(parsed);
     CHECK(parsed.value().total_count == 5);
+    CHECK(parsed.value().first_counted_elevation == 0);
     CHECK(parsed.value().elevation_counts[0] == 2);
     CHECK(parsed.value().elevation_counts[1] == 0);
-    CHECK(parsed.value().elevation_counts[2] == 3);
-    CHECK(parsed.value().data_offset == scripts.value().end_offset + 3 * sizeof(std::int32_t));
+    CHECK(parsed.value().elevation_counts[2] == 0);
+    CHECK(parsed.value().data_offset == scripts.value().end_offset + 2 * sizeof(std::int32_t));
 }
 
 TEST_CASE("binary_object_type_from_pid rejects unknown object type bytes", "[map][binary]")

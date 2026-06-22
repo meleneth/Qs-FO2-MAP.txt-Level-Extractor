@@ -134,6 +134,7 @@ struct BinaryMapObjectPrefixes {
 struct BinaryMapObjectCounts {
     std::int32_t total_count = 0;
     std::array<std::int32_t, 3> elevation_counts{};
+    int first_counted_elevation = -1;
     std::size_t data_offset = 0;
 };
 

@@ -91,6 +91,15 @@ int script_record_word_count(BinaryScriptType type)
     return words;
 }
 
+std::optional<BinaryScriptType> script_type_from_high_byte(std::uint32_t script_id)
+{
+    const auto raw_type = static_cast<int>(script_id >> 24);
+    if (raw_type < 0 || raw_type >= binary_script_type_count) {
+        return std::nullopt;
+    }
+    return static_cast<BinaryScriptType>(raw_type);
+}
+
 Result<BinaryScriptRecord> parse_script_record(ByteReader& reader, BinaryScriptType type)
 {
     const auto start = reader.offset();
@@ -221,13 +230,24 @@ Result<BinaryScriptRecord> parse_script_record(ByteReader& reader, BinaryScriptT
 
 Result<void> skip_script_padding_records(ByteReader& reader, BinaryScriptType type, int parsed_in_block)
 {
-    const auto padding_count = serialized_script_block_capacity - parsed_in_block;
-    const auto padding_size = static_cast<std::size_t>(padding_count)
-        * static_cast<std::size_t>(script_record_word_count(type))
-        * sizeof(std::int32_t);
-    auto padding = reader.read_bytes(padding_size);
-    if (!padding) {
-        return Result<void>::fail(padding.error());
+    for (int slot = parsed_in_block; slot < serialized_script_block_capacity; ++slot) {
+        auto script_id = read_u32(reader);
+        if (!script_id) {
+            return Result<void>::fail(script_id.error());
+        }
+        auto script_next = read_i32(reader);
+        if (!script_next) {
+            return Result<void>::fail(script_next.error());
+        }
+
+        const auto inferred_type = script_type_from_high_byte(script_id.value()).value_or(type);
+        const auto remaining_size =
+            (static_cast<std::size_t>(script_record_word_count(inferred_type)) - 2)
+            * sizeof(std::int32_t);
+        auto remaining = reader.read_bytes(remaining_size);
+        if (!remaining) {
+            return Result<void>::fail(remaining.error());
+        }
     }
     return Result<void>::ok();
 }
@@ -834,13 +854,15 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
     }
     counts.total_count = total_count.value();
 
-    std::int32_t summed_counts = 0;
     for (int elevation = 0; elevation < 3; ++elevation) {
-        if (!header.has_elevation(elevation)) {
-            counts.elevation_counts[elevation] = 0;
-            continue;
+        counts.elevation_counts[elevation] = 0;
+        if (header.has_elevation(elevation)) {
+            counts.first_counted_elevation = elevation;
+            break;
         }
+    }
 
+    if (counts.first_counted_elevation >= 0) {
         auto parsed = read_i32(reader);
         if (!parsed) {
             return Result<BinaryMapObjectCounts>::fail(parsed.error());
@@ -848,12 +870,7 @@ Result<BinaryMapObjectCounts> parse_binary_map_object_counts(
         if (parsed.value() < 0) {
             return Result<BinaryMapObjectCounts>::fail({"negative elevation object count", reader.offset() - 4});
         }
-        counts.elevation_counts[elevation] = parsed.value();
-        summed_counts += parsed.value();
-    }
-
-    if (summed_counts != counts.total_count) {
-        return Result<BinaryMapObjectCounts>::fail({"object count mismatch", object_section_offset});
+        counts.elevation_counts[counts.first_counted_elevation] = parsed.value();
     }
 
     counts.data_offset = reader.offset();

@@ -90,6 +90,7 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     qmap::BinaryMapObjectCounts objects;
     objects.total_count = 7;
     objects.elevation_counts = {2, 3, 2};
+    objects.first_counted_elevation = 1;
     objects.data_offset = 1015;
 
     const auto stats = qmap::cli::format_binary_map_stats(header, variables, tiles, scripts, objects);
@@ -105,6 +106,7 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("  section_end: 999\n") != std::string::npos);
     CHECK(stats.find("objects:\n") != std::string::npos);
     CHECK(stats.find("  total: 7\n") != std::string::npos);
-    CHECK(stats.find("  elevation 1: 3\n") != std::string::npos);
+    CHECK(stats.find("  first_counted_elevation: 1\n") != std::string::npos);
+    CHECK(stats.find("  first_elevation_count: 3\n") != std::string::npos);
     CHECK(stats.find("  data_offset: 1015\n") != std::string::npos);
 }
