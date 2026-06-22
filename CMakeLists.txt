@@ -72,6 +72,7 @@ add_library(qmap_parsers STATIC)
 target_sources(
     qmap_parsers PRIVATE
     src/map_txt_parser.cpp
+    src/binary_map_parser.cpp
     src/text_map_parser.cpp
     src/text_map_export.cpp
     src/text_map_records.cpp
@@ -165,6 +166,7 @@ if(BUILD_TESTING)
 
     add_executable(qmap_parser_tests
         tests/parser_tests.cpp
+        tests/binary_map_parser_tests.cpp
         tests/foundation_tests.cpp
         tests/text_map_parser_tests.cpp
         tests/text_map_export_tests.cpp
