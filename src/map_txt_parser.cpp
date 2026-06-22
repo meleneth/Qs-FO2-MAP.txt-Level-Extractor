@@ -334,6 +334,12 @@ struct spatial_script
 
 parsed_scripts parse_scripts(map_lvls* map, char* objects, int level)
 {
+    parsed_scripts scrs;
+
+    if (!map || !map->scripts || !map->objects || map->objects < map->scripts) {
+        return scrs;
+    }
+
     // >>>>>>>>>>: SCRIPTS <<<<<<<<<<
 
 
@@ -395,9 +401,10 @@ parsed_scripts parse_scripts(map_lvls* map, char* objects, int level)
     //  also we need to make sure any scr_id/obj_sid pair don't overlap other pairs
 
 
-    int scripts_size = map->objects - map->scripts;
-
-    parsed_scripts scrs;
+    int scripts_size = static_cast<int>(map->objects - map->scripts);
+    if (scripts_size <= 0) {
+        return scrs;
+    }
 
     for (size_t type = 0; type < 5; type++) {
         if ((type == SCRIPT_SYSTEM) || (type == SCRIPT_TIMED)) {
