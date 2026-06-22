@@ -494,6 +494,9 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
         }
         count = parsed.value();
         summed_counts += parsed.value();
+        if (summed_counts > objects.total_count) {
+            return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
+        }
     }
 
     if (summed_counts != objects.total_count) {
@@ -798,6 +801,9 @@ Result<BinaryMapObjectPrefixes> parse_binary_map_object_prefixes(
         }
         count = parsed.value();
         summed_counts += parsed.value();
+        if (summed_counts > objects.total_count) {
+            return Result<BinaryMapObjectPrefixes>::fail({"object count mismatch", object_section_offset});
+        }
     }
 
     if (summed_counts != objects.total_count) {
