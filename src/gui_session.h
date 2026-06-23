@@ -25,6 +25,8 @@ struct GuiSession {
     char export_path[gui_export_path_size] = "/path/to/some/folder/with/long/mapname.txt";
     std::string current_error;
     bool open_error_popup = false;
+    bool is_hovering_drop_target = false;
+    int drop_target = -1;
 };
 
 enum class GuiExportAction {

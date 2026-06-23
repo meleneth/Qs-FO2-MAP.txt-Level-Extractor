@@ -15,9 +15,6 @@
 #include <string>
 #include <vector>
 
-bool is_hovering     = false;
-int list_box         = -1;
-
 namespace {
 
 constexpr int left_column = 0;
@@ -166,7 +163,7 @@ void update_labels(map_lvls* map, int target_list_box)
 void file_drop_callback(const char* full_path)
 {
     // not hovering over one of the boxes
-    if (list_box == -1) {
+    if (session.drop_target == -1) {
         return;
     }
     const std::filesystem::path file_path(full_path);
@@ -191,11 +188,14 @@ void file_drop_callback(const char* full_path)
     }
 
     map_lvls* map_ptr = nullptr;
-    if (list_box == 0) {
+    if (session.drop_target == left_column) {
         map_ptr   = &session.left;
     } else
-    if (list_box == 1) {
+    if (session.drop_target == right_column) {
         map_ptr   = &session.right;
+    }
+    if (!map_ptr) {
+        return;
     }
 
     std::vector<uint8_t> bytes;
@@ -227,9 +227,9 @@ void file_drop_callback(const char* full_path)
     if (map_ptr->map_type == qmap::MapFileKind::text) {
         parse_map_txt(map_ptr->data, map_ptr);
     }
-    update_labels(map_ptr, list_box);
+    update_labels(map_ptr, session.drop_target);
     //QTODO: is this necessary? why did I mark it in the debugger?
-    list_box = -1;
+    session.drop_target = -1;
 }
 
 void drag_file(ImVec2 pos)
@@ -238,17 +238,17 @@ void drag_file(ImVec2 pos)
     ImGuiIO& io = ImGui::GetIO();
     io.MouseDown[0] = true;
 
-    is_hovering = true;
+    session.is_hovering_drop_target = true;
 }
 void drag_dropped()
 {
     //QTODO: some cleanup might be necessary here
     //       this seems to be called multiple times from multiple places
-    is_hovering = false;
+    session.is_hovering_drop_target = false;
 
     ImGuiIO& io = ImGui::GetIO();
     io.MouseDown[0] = false;
-    // list_box = -1;
+    // session.drop_target = -1;
 }
 
 // kind of dumb, but...
@@ -262,7 +262,7 @@ void drag_dropped()
 // to use when storing the map.txt information
 bool hover_box()
 {
-    if (is_hovering) {
+    if (session.is_hovering_drop_target) {
         ImVec2 list_min  = ImGui::GetItemRectMin();
         ImVec2 list_max  = ImGui::GetItemRectMax();
         ImRect rect = ImRect{list_min.x,list_min.y,list_max.x,list_max.y};
@@ -358,7 +358,7 @@ bool map_txt_gui()
     // left third
     ImGui::ListBox("##L", &selection[left_column], left_labels, IM_COUNTOF(left_labels));
     if (hover_box()) {
-        list_box = 0;
+        session.drop_target = left_column;
     }
 
     ImGui::SetCursorPos(ImVec2{posB.x+size.x   +  5, posB.y});
@@ -412,7 +412,7 @@ bool map_txt_gui()
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2 + 120, posB.y});
     ImGui::ListBox("##R", &selection[right_column], right_labels, IM_COUNTOF(right_labels));
     if (hover_box()) {
-        list_box = 1;
+        session.drop_target = right_column;
     }
 
     ImGui::PopItemWidth();
