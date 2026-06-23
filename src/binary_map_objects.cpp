@@ -498,7 +498,11 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records_with_context(
 
         auto block_count = read_i32(reader);
         if (!block_count) {
-            return Result<BinaryMapObjectRecords>::fail(block_count.error());
+            return Result<BinaryMapObjectRecords>::fail({
+                "elevation " + std::to_string(elevation) + " object count: "
+                    + block_count.error().message,
+                block_count.error().offset,
+            });
         }
         if (block_count.value() < 0) {
             return Result<BinaryMapObjectRecords>::fail({"negative elevation object count", reader.offset() - 4});

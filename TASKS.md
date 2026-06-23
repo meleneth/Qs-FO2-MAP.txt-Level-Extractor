@@ -145,8 +145,10 @@ The next slices should move from writer preflight to guarded binary output:
 
 - [x] Return a complete patched byte stream from the binary replace-elevation writer.
 - [x] Parse the patched byte stream back through the prototype-backed binary parser before writing a CLI output file.
+- [x] Rebuild script sections with valid 16-record blocks, typed zero padding records, and footer counts instead of raw script insertion.
+- [x] Rebuild object sections as per-elevation count + record blocks, including zero-count slots for absent elevations, instead of appending copied objects at EOF.
 - [ ] Keep raw object/tail bytes authoritative until decoded typed fields have round-trip tests.
-- [ ] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
+- [x] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
 - [ ] Only then consider non-dry-run binary `replace-elevation` user-facing complete.
 
 ## Phase 5: Fix Binary `.map` Parsing
@@ -230,7 +232,7 @@ The next slices should move from writer preflight to guarded binary output:
     - [x] Cover source variable requirements exceeding destination variables.
     - [x] Cover exhausted object/script ID space.
 
-- [ ] Implement binary `replace-elevation` writing. Partial: dry-run planning and writer preflight are implemented; final output still needs parse-back validation before it is considered complete.
+- [ ] Implement binary `replace-elevation` writing. Partial: guarded non-dry-run output works for fixture-backed whole-elevation replacement; broader hard-error and round-trip coverage still needs expansion before calling it complete.
   - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.
   - [x] Require output path even in dry-run so the command is the same as future write mode.
   - [x] Keep non-dry-run guarded: output bytes are only written after writer success and prototype-backed parse-back validation.
@@ -266,7 +268,9 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Return the complete patched byte vector from the writer after header, tile, count, deletion, insertion, and source-record rewrite operations.
   - [x] In CLI non-dry-run mode, parse the patched byte vector back with the same prototype database before writing the output file.
   - [x] Add a clear parse-back failure diagnostic that includes the parser error and offset.
-  - [ ] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.
+  - [x] Rebuild script sections from parsed destination/source scripts so count blocks, padding, and footer words remain valid after delete-then-copy.
+  - [x] Rebuild object sections from parsed destination/source objects so records stay grouped under their elevation counts and absent elevations still serialize zero counts.
+  - [x] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.
   - [ ] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
     - [x] Implement current hard errors for absent source elevation, missing copied object scripts, copied scripts referencing outside copied objects, invalid spatial elevation bits, missing copied scenery prototype metadata, copied stairs/elevator/ladder scenery links, copied script local-variable ranges unavailable in the destination, exhausted object/script ID namespaces, and undecodable exit-grid tails.
   - [x] Add tests around the pure planner before wiring the CLI command.

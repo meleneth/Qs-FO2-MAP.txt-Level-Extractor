@@ -18,6 +18,8 @@ constexpr std::size_t object_count_word_size = sizeof(std::int32_t);
 constexpr std::uint32_t elevation_one_tile_flag = 0x20000000u;
 constexpr std::uint32_t elevation_two_tile_flag = 0x40000000u;
 constexpr std::uint32_t tile_elevation_mask = elevation_one_tile_flag | elevation_two_tile_flag;
+constexpr int serialized_script_block_capacity = 16;
+constexpr int base_script_record_words = 16;
 constexpr std::array<std::int32_t, binary_map_elevation_count> map_elevation_absent_flags = {
     0x2,
     0x4,
@@ -45,6 +47,15 @@ void write_i32_be(std::vector<std::byte>& bytes, std::size_t offset, std::int32_
     bytes[offset + 1] = static_cast<std::byte>((unsigned_value >> 16) & 0xFF);
     bytes[offset + 2] = static_cast<std::byte>((unsigned_value >> 8) & 0xFF);
     bytes[offset + 3] = static_cast<std::byte>(unsigned_value & 0xFF);
+}
+
+void append_i32_be(std::vector<std::byte>& bytes, std::int32_t value)
+{
+    const auto unsigned_value = static_cast<std::uint32_t>(value);
+    bytes.push_back(static_cast<std::byte>((unsigned_value >> 24) & 0xFF));
+    bytes.push_back(static_cast<std::byte>((unsigned_value >> 16) & 0xFF));
+    bytes.push_back(static_cast<std::byte>((unsigned_value >> 8) & 0xFF));
+    bytes.push_back(static_cast<std::byte>(unsigned_value & 0xFF));
 }
 
 bool range_contains(Range outer, Range inner)
@@ -111,6 +122,63 @@ std::int32_t rewrite_encoded_tile_elevation(std::int32_t tile, int destination_e
     encoded &= ~tile_elevation_mask;
     encoded |= tile_elevation_flag(destination_elevation);
     return static_cast<std::int32_t>(encoded);
+}
+
+bool same_range(Range left, Range right)
+{
+    return left.offset == right.offset && left.size == right.size;
+}
+
+bool deleted_script_contains(const BinaryReplaceElevationPlan& plan, const BinaryScriptRecord& script)
+{
+    for (const auto& deleted : plan.deleted_scripts) {
+        if (same_range(deleted.raw, script.raw)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool deleted_object_contains(const BinaryReplaceElevationPlan& plan, const BinaryObjectRecord& object)
+{
+    for (const auto& deleted : plan.deleted_objects) {
+        if (same_range(deleted.raw, object.raw)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int script_record_word_count(BinaryScriptType type)
+{
+    int words = base_script_record_words;
+    if (type == BinaryScriptType::spatial) {
+        words += 2;
+    }
+    if (type == BinaryScriptType::timed) {
+        words += 1;
+    }
+    return words;
+}
+
+std::vector<std::byte> zero_script_padding_record(BinaryScriptType type)
+{
+    std::vector<std::byte> bytes(
+        static_cast<std::size_t>(script_record_word_count(type)) * sizeof(std::int32_t),
+        std::byte{0}
+    );
+    write_i32_be(bytes, 0, static_cast<std::int32_t>(type) << 24);
+    return bytes;
+}
+
+bool destination_elevation_present_after(
+    const BinaryReplaceElevationWriteRequest& request,
+    int elevation
+)
+{
+    return request.destination_header != nullptr
+        && (request.destination_header->has_elevation(elevation)
+            || elevation == request.plan.destination_elevation);
 }
 
 } // namespace
@@ -644,6 +712,189 @@ Result<std::vector<std::byte>> patch_binary_replace_elevation_tiles(
     return replace_binary_range(destination_bytes, plan.destination_tile_range, replacement);
 }
 
+Result<std::vector<std::byte>> rebuild_binary_replace_elevation_script_section(
+    const BinaryReplaceElevationWriteRequest& request,
+    std::span<const BinaryI32Patch> rewrite_patches
+)
+{
+    if (request.source_scripts == nullptr || request.destination_scripts == nullptr) {
+        return Result<std::vector<std::byte>>::fail({
+            "script section rebuild requires parsed source and destination scripts",
+            request.destination_object_section_offset,
+        });
+    }
+    if (request.destination_script_count_offsets[0] > request.destination_object_section_offset) {
+        return Result<std::vector<std::byte>>::fail({
+            "destination script section start is after the object section",
+            request.destination_script_count_offsets[0],
+        });
+    }
+
+    std::vector<std::byte> section;
+    for (std::size_t type_index = 0; type_index < binary_script_type_count; ++type_index) {
+        const auto type = static_cast<BinaryScriptType>(type_index);
+        std::vector<std::vector<std::byte>> record_bytes;
+
+        for (const auto& script : request.destination_scripts->by_type[type_index]) {
+            if (deleted_script_contains(request.plan, script)) {
+                continue;
+            }
+            if (!range_is_valid(request.destination_bytes, script.raw)) {
+                return Result<std::vector<std::byte>>::fail({
+                    "preserved destination script range is outside the destination map buffer",
+                    script.raw.offset,
+                });
+            }
+            record_bytes.emplace_back(
+                request.destination_bytes.begin() + static_cast<std::ptrdiff_t>(script.raw.offset),
+                request.destination_bytes.begin() + static_cast<std::ptrdiff_t>(script.raw.end())
+            );
+        }
+
+        for (const auto& copied : request.plan.copied_scripts) {
+            if (copied.script_type != type) {
+                continue;
+            }
+            const std::vector<Range> copied_range{copied.raw};
+            const auto script_patches = i32_patches_inside_ranges(rewrite_patches, copied_range);
+            auto copied_bytes = copy_binary_ranges_with_i32_patches(
+                request.source_bytes,
+                copied_range,
+                script_patches
+            );
+            if (!copied_bytes) {
+                return Result<std::vector<std::byte>>::fail(copied_bytes.error());
+            }
+            record_bytes.push_back(std::move(copied_bytes.value()));
+        }
+
+        if (record_bytes.size() > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) {
+            return Result<std::vector<std::byte>>::fail({
+                "rebuilt script count exceeds int32 range",
+                request.destination_script_count_offsets[type_index],
+            });
+        }
+
+        append_i32_be(section, static_cast<std::int32_t>(record_bytes.size()));
+        std::size_t index = 0;
+        while (index < record_bytes.size()) {
+            const auto remaining = record_bytes.size() - index;
+            const auto block_count = std::min<std::size_t>(
+                remaining,
+                serialized_script_block_capacity
+            );
+            for (std::size_t slot = 0; slot < block_count; ++slot) {
+                section.insert(
+                    section.end(),
+                    record_bytes[index + slot].begin(),
+                    record_bytes[index + slot].end()
+                );
+            }
+            if (block_count < serialized_script_block_capacity) {
+                const auto padding = zero_script_padding_record(type);
+                for (std::size_t slot = block_count; slot < serialized_script_block_capacity; ++slot) {
+                    section.insert(section.end(), padding.begin(), padding.end());
+                }
+            }
+            append_i32_be(section, static_cast<std::int32_t>(block_count));
+            append_i32_be(section, 0);
+            index += block_count;
+        }
+    }
+
+    return Result<std::vector<std::byte>>::ok(std::move(section));
+}
+
+Result<std::vector<std::byte>> rebuild_binary_replace_elevation_object_section(
+    const BinaryReplaceElevationWriteRequest& request,
+    std::span<const BinaryI32Patch> rewrite_patches
+)
+{
+    if (request.destination_header == nullptr
+        || request.source_objects == nullptr
+        || request.destination_objects == nullptr) {
+        return Result<std::vector<std::byte>>::fail({
+            "object section rebuild requires parsed destination header and source/destination objects",
+            request.destination_object_section_offset,
+        });
+    }
+
+    std::vector<std::byte> section;
+    append_i32_be(section, request.plan.destination_total_objects_after);
+
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
+        const auto expected_count =
+            request.plan.destination_object_counts_after[static_cast<std::size_t>(elevation)];
+        if (!destination_elevation_present_after(request, elevation)) {
+            if (expected_count != 0) {
+                return Result<std::vector<std::byte>>::fail({
+                    "absent rebuilt elevation has planned object records",
+                    request.destination_object_section_offset,
+                });
+            }
+            append_i32_be(section, 0);
+            continue;
+        }
+
+        std::vector<std::vector<std::byte>> record_bytes;
+        for (const auto& object : request.destination_objects->records) {
+            if (object.prefix.elevation != elevation || deleted_object_contains(request.plan, object)) {
+                continue;
+            }
+            if (!range_is_valid(request.destination_bytes, object.raw)) {
+                return Result<std::vector<std::byte>>::fail({
+                    "preserved destination object range is outside the destination map buffer",
+                    object.raw.offset,
+                });
+            }
+            record_bytes.emplace_back(
+                request.destination_bytes.begin() + static_cast<std::ptrdiff_t>(object.raw.offset),
+                request.destination_bytes.begin() + static_cast<std::ptrdiff_t>(object.raw.end())
+            );
+        }
+
+        if (elevation == request.plan.destination_elevation) {
+            std::vector<Range> copied_object_ranges;
+            for (const auto& copied : request.plan.copied_objects) {
+                if (copied.elevation == request.plan.source_elevation) {
+                    copied_object_ranges.push_back(copied.raw);
+                }
+            }
+            copied_object_ranges = remove_contained_ranges(std::move(copied_object_ranges));
+            for (const auto range : copied_object_ranges) {
+                const std::vector<Range> copied_range{range};
+                const auto object_patches = i32_patches_inside_ranges(
+                    rewrite_patches,
+                    copied_range
+                );
+                auto copied_bytes = copy_binary_ranges_with_i32_patches(
+                    request.source_bytes,
+                    copied_range,
+                    object_patches
+                );
+                if (!copied_bytes) {
+                    return Result<std::vector<std::byte>>::fail(copied_bytes.error());
+                }
+                record_bytes.push_back(std::move(copied_bytes.value()));
+            }
+        }
+
+        if (record_bytes.size() != static_cast<std::size_t>(expected_count)) {
+            return Result<std::vector<std::byte>>::fail({
+                "rebuilt object count does not match planned elevation count",
+                request.destination_object_section_offset,
+            });
+        }
+
+        append_i32_be(section, expected_count);
+        for (const auto& record : record_bytes) {
+            section.insert(section.end(), record.begin(), record.end());
+        }
+    }
+
+    return Result<std::vector<std::byte>>::ok(std::move(section));
+}
+
 Result<std::vector<std::byte>> write_binary_replace_elevation_patch(
     const BinaryReplaceElevationWriteRequest& request
 )
@@ -663,6 +914,50 @@ Result<std::vector<std::byte>> write_binary_replace_elevation_patch(
     );
     if (!tiles_patched) {
         return Result<std::vector<std::byte>>::fail(tiles_patched.error());
+    }
+
+    if (request.source_scripts != nullptr && request.destination_scripts != nullptr) {
+        auto rewrite_patches = build_binary_replace_elevation_source_rewrite_patches(request.plan);
+        if (!rewrite_patches) {
+            return Result<std::vector<std::byte>>::fail(rewrite_patches.error());
+        }
+
+        auto rebuilt_scripts = rebuild_binary_replace_elevation_script_section(
+            request,
+            rewrite_patches.value()
+        );
+        if (!rebuilt_scripts) {
+            return Result<std::vector<std::byte>>::fail(rebuilt_scripts.error());
+        }
+
+        const Range destination_script_section{
+            request.destination_script_count_offsets[0],
+            request.destination_object_section_offset - request.destination_script_count_offsets[0],
+        };
+        auto scripts_replaced = replace_binary_range(
+            tiles_patched.value(),
+            destination_script_section,
+            rebuilt_scripts.value()
+        );
+        if (!scripts_replaced) {
+            return Result<std::vector<std::byte>>::fail(scripts_replaced.error());
+        }
+
+        const auto shifted_object_section_offset =
+            request.destination_script_count_offsets[0] + rebuilt_scripts.value().size();
+        auto rebuilt_objects = rebuild_binary_replace_elevation_object_section(
+            request,
+            rewrite_patches.value()
+        );
+        if (!rebuilt_objects) {
+            return Result<std::vector<std::byte>>::fail(rebuilt_objects.error());
+        }
+
+        return replace_binary_range(
+            scripts_replaced.value(),
+            Range{shifted_object_section_offset, scripts_replaced.value().size() - shifted_object_section_offset},
+            rebuilt_objects.value()
+        );
     }
 
     auto script_counts_patched = patch_binary_replace_elevation_script_counts(

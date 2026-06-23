@@ -17,6 +17,11 @@ struct BinaryReplaceElevationWriteRequest {
     BinaryReplaceElevationPlan plan;
     std::size_t destination_object_section_offset = 0;
     std::array<std::size_t, binary_script_type_count> destination_script_count_offsets{};
+    const BinaryMapHeader* destination_header = nullptr;
+    const BinaryMapScripts* source_scripts = nullptr;
+    const BinaryMapScripts* destination_scripts = nullptr;
+    const BinaryMapObjectRecords* source_objects = nullptr;
+    const BinaryMapObjectRecords* destination_objects = nullptr;
 };
 
 struct BinaryI32Patch {

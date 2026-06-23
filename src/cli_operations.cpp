@@ -437,6 +437,11 @@ int replace_elevation(const ReplaceElevationOptions& options)
         planned.value(),
         destination.value().scripts.end_offset,
         destination.value().scripts.count_offsets,
+        &destination.value().header,
+        &source.value().scripts,
+        &destination.value().scripts,
+        &source.value().objects,
+        &destination.value().objects,
     });
     if (!written) {
         std::cout << "kind: binary replace-elevation\n";

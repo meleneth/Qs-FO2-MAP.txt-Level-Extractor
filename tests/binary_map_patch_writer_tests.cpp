@@ -1,14 +1,48 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "binary_map_patch_writer.h"
+#include "prototype_metadata.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <limits>
+#include <iterator>
+#include <string_view>
 #include <vector>
 
 namespace {
+
+std::filesystem::path fixture_path(std::string_view name)
+{
+    return std::filesystem::path(TEST_MAPS_DIR) / std::filesystem::path(name);
+}
+
+std::filesystem::path local_proto_root()
+{
+    return std::filesystem::path(TEST_MAPS_DIR).parent_path()
+        / ".local_fallout2_data"
+        / "proto";
+}
+
+std::vector<std::byte> load_binary_fixture(std::string_view name)
+{
+    std::ifstream file(fixture_path(name), std::ios::binary);
+    REQUIRE(file.is_open());
+
+    std::vector<char> chars(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
+    std::vector<std::byte> bytes;
+    bytes.reserve(chars.size());
+    for (const auto value : chars) {
+        bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(value)));
+    }
+    return bytes;
+}
 
 void write_i32_be(std::vector<std::byte>& bytes, std::size_t offset, std::int32_t value)
 {
@@ -1139,4 +1173,54 @@ TEST_CASE("write_binary_replace_elevation_patch returns patched bytes for an emp
     CHECK(written.value()[41] == std::byte{0x00});
     CHECK(written.value()[42] == std::byte{0x00});
     CHECK(written.value()[43] == std::byte{0x0A});
+}
+
+TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections parseably", "[map][binary][patch][fixture]")
+{
+    const auto proto_root = local_proto_root();
+    if (!std::filesystem::exists(proto_root)) {
+        SKIP("requires extracted Fallout proto data under .local_fallout2_data/proto");
+    }
+
+    const auto prototypes = qmap::load_prototype_database(proto_root);
+    REQUIRE(prototypes);
+    const auto source_bytes = load_binary_fixture("ARVILL2.map");
+    const auto destination_bytes = load_binary_fixture("BROKEN1.map");
+    auto source = qmap::parse_binary_map(source_bytes, prototypes.value());
+    auto destination = qmap::parse_binary_map(destination_bytes, prototypes.value());
+    REQUIRE(source);
+    REQUIRE(destination);
+
+    auto plan = qmap::plan_binary_replace_elevation(
+        source_bytes,
+        destination_bytes,
+        source.value(),
+        destination.value(),
+        prototypes.value(),
+        qmap::BinaryReplaceElevationRequest{0, 1}
+    );
+    REQUIRE(plan);
+
+    auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan.value(),
+        destination.value().scripts.end_offset,
+        destination.value().scripts.count_offsets,
+        &destination.value().header,
+        &source.value().scripts,
+        &destination.value().scripts,
+        &source.value().objects,
+        &destination.value().objects,
+    });
+    REQUIRE(written);
+
+    auto reparsed = qmap::parse_binary_map(written.value(), prototypes.value());
+    REQUIRE(reparsed);
+    CHECK(reparsed.value().scripts.by_type[3].size() == plan.value().destination_script_counts_after[3]);
+    CHECK(reparsed.value().scripts.by_type[4].size() == plan.value().destination_script_counts_after[4]);
+    CHECK(reparsed.value().objects.total_count == plan.value().destination_total_objects_after);
+    CHECK(reparsed.value().objects.elevation_counts == plan.value().destination_object_counts_after);
+    CHECK(reparsed.value().header.has_elevation(1));
+    CHECK_FALSE(reparsed.value().header.has_elevation(2));
 }
