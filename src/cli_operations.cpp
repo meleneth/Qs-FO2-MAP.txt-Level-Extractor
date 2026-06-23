@@ -460,7 +460,7 @@ int replace_elevation(const ReplaceElevationOptions& options)
         return 2;
     }
 
-    write_binary_output_file(options.output, written.value(), false);
+    write_binary_output_file(options.output, written.value(), options.force);
     return 0;
 }
 

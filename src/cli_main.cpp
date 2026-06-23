@@ -132,6 +132,7 @@ int main(int argc, char** argv)
         "Extracted Fallout 2 proto root, e.g. .local_fallout2_data/proto"
     )->required();
     replace_elevation_command->add_flag("--dry-run", replace_elevation_options.dry_run, "Print the replacement plan without writing output");
+    replace_elevation_command->add_flag("-f,--force", replace_elevation_options.force, "Overwrite output if it exists");
 
     CLI11_PARSE(app, argc, argv);
 

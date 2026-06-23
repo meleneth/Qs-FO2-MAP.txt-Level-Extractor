@@ -47,6 +47,7 @@ struct ReplaceElevationOptions {
     int source_elevation = 0;
     int destination_elevation = 0;
     bool dry_run = false;
+    bool force = false;
 };
 
 std::string format_replace_elevation_plan(

@@ -237,6 +237,7 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.
   - [x] Require output path even in dry-run so the command is the same as future write mode.
   - [x] Keep non-dry-run guarded: output bytes are only written after writer success and prototype-backed parse-back validation.
+  - [x] Support `--force` for non-dry-run binary output overwrites, matching the text-output CLI workflows.
   - [x] Load both maps with prototype metadata and fail without `--proto-root`.
   - [x] Produce human-readable dry-run output first; JSON can come later.
   - [x] Echo source/destination/output/proto/elevation arguments in dry-run output.
