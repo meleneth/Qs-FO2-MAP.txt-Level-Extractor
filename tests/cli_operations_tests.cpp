@@ -104,6 +104,17 @@ TEST_CASE("write_binary_output_file writes bytes and rejects accidental overwrit
     const auto overwritten = qmap::cli::write_binary_output_file(output, replacement, true);
     REQUIRE(overwritten);
 
+    {
+        std::ifstream file(output, std::ios::binary);
+        REQUIRE(file);
+        std::vector<unsigned char> bytes;
+        char ch = 0;
+        while (file.get(ch)) {
+            bytes.push_back(static_cast<unsigned char>(ch));
+        }
+        CHECK(bytes == std::vector<unsigned char>{0x40});
+    }
+
     std::filesystem::remove(output);
 }
 
