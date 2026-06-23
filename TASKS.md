@@ -278,7 +278,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 - [ ] Remove raw owning pointers.
   - [x] No `malloc`/`free` in project code except when forced by third-party APIs.
   - [x] Use `std::unique_ptr` only for polymorphism or incomplete types.
-  - [ ] Prefer values, vectors, arrays, strings, and spans.
+  - [x] Prefer values, vectors, arrays, strings, and spans.
 
 - [x] Remove C macros where scoped constants or enums work.
   - [x] `NAME_LENGTH`

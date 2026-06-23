@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -78,9 +79,7 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
             REQUIRE(static_cast<int>(data.size()) == expected.file_size + 1);
 
             map_lvls map;
-            map.file_siz = expected.file_size;
-
-            parse_map_txt(data.data(), &map);
+            parse_map_txt(std::span<uint8_t>{data.data(), static_cast<std::size_t>(expected.file_size)}, &map);
 
             CHECK(pointer_offset(map, map.scripts) == expected.scripts_offset);
             CHECK(pointer_offset(map, map.objects) == expected.objects_offset);
@@ -119,38 +118,13 @@ TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]
     std::vector<uint8_t> data{'h', 'e', 'a', 'd', 'e', 'r', '\n', '\0'};
 
     map_lvls map;
-    map.file_siz = static_cast<int>(data.size() - 1);
     map.header_size = 123;
     map.level[0] = reinterpret_cast<char*>(data.data());
     map.lvl_sizes[0] = 456;
     map.scripts = reinterpret_cast<char*>(data.data());
     map.objects = reinterpret_cast<char*>(data.data());
 
-    parse_map_txt(data.data(), &map);
-
-    CHECK(map.data == data.data());
-    CHECK(map.header_size == 0);
-    for (int level = 0; level < 3; ++level) {
-        CHECK(map.level[level] == nullptr);
-        CHECK(map.lvl_sizes[level] == 0);
-    }
-    CHECK(map.scripts == nullptr);
-    CHECK(map.objects == nullptr);
-}
-
-TEST_CASE("text map parser rejects negative legacy file sizes", "[txt]")
-{
-    std::vector<uint8_t> data{'h', '\0'};
-
-    map_lvls map;
-    map.file_siz = -1;
-    map.header_size = 123;
-    map.level[0] = reinterpret_cast<char*>(data.data());
-    map.lvl_sizes[0] = 456;
-    map.scripts = reinterpret_cast<char*>(data.data());
-    map.objects = reinterpret_cast<char*>(data.data());
-
-    parse_map_txt(data.data(), &map);
+    parse_map_txt(std::span<uint8_t>{data.data(), data.size() - 1}, &map);
 
     CHECK(map.data == data.data());
     CHECK(map.header_size == 0);

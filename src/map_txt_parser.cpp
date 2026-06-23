@@ -20,7 +20,7 @@ struct LegacyTextSource {
 
 std::optional<LegacyTextSource> parse_source(const map_lvls* map)
 {
-    if (!map || map->map_type == qmap::MapFileKind::empty || !map->data || map->file_siz <= 0) {
+    if (!map || map->map_type == qmap::MapFileKind::empty || !map->data || map->data_size == 0) {
         auto parsed = qmap::parse_text_map(empty_text_map);
         if (!parsed) {
             return std::nullopt;
@@ -30,7 +30,7 @@ std::optional<LegacyTextSource> parse_source(const map_lvls* map)
 
     std::string_view text{
         reinterpret_cast<const char*>(map->data),
-        static_cast<std::size_t>(map->file_siz),
+        map->data_size,
     };
     auto parsed = qmap::parse_text_map(text);
     if (!parsed) {
@@ -41,13 +41,14 @@ std::optional<LegacyTextSource> parse_source(const map_lvls* map)
 
 } // namespace
 
-void parse_map_txt(uint8_t* map_data, map_lvls* map)
+void parse_map_txt(std::span<uint8_t> map_data, map_lvls* map)
 {
-    if (!map_data || !map) {
+    if (!map) {
         return;
     }
 
-    map->data = map_data;
+    map->data = map_data.data();
+    map->data_size = map_data.size();
     map->header_size = 0;
     for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
         map->level[elevation] = nullptr;
@@ -57,15 +58,10 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
     map->objects = nullptr;
     map->parse_error.clear();
 
-    if (map->file_siz < 0) {
-        map->parse_error = "negative file size";
-        return;
-    }
-
     auto parsed = qmap::parse_text_map(
         std::string_view{
-            reinterpret_cast<const char*>(map_data),
-            static_cast<std::size_t>(map->file_siz),
+            reinterpret_cast<const char*>(map_data.data()),
+            map_data.size(),
         }
     );
     if (!parsed) {
@@ -73,7 +69,7 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
         return;
     }
 
-    auto* base = reinterpret_cast<char*>(map_data);
+    auto* base = reinterpret_cast<char*>(map_data.data());
     map->header_size = static_cast<int>(parsed.value().header.size);
     for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
         if (!parsed.value().elevations[elevation]) {

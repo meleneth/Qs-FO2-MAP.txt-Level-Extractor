@@ -37,7 +37,7 @@ void clear_loaded_map(map_lvls& map)
     map.map_name_storage.clear();
     map.parse_error.clear();
     map.owned_data.clear();
-    map.file_siz = 0;
+    map.data_size = 0;
     map.data = nullptr;
     map.header_size = 0;
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
@@ -79,13 +79,13 @@ void parse_binary_map_for_gui(map_lvls& map)
         map.lvl_sizes[level] = 0;
     }
 
-    if (!map.data || map.file_siz <= 0) {
+    if (!map.data || map.data_size == 0) {
         return;
     }
 
     const auto bytes = std::span<const std::byte>(
         reinterpret_cast<const std::byte*>(map.data),
-        static_cast<std::size_t>(map.file_siz)
+        map.data_size
     );
     const auto header = parse_binary_map_header(bytes);
     if (!header) {
@@ -305,14 +305,14 @@ bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_pa
     map.file_path_storage = file_path.string();
     map.map_name_storage = file_path.filename().string();
     map.owned_data = std::move(bytes);
-    map.file_siz = static_cast<int>(map.owned_data.size());
+    map.data_size = map.owned_data.size();
     map.data = map.owned_data.data();
     map.map_type = map_type;
 
     if (map.map_type == MapFileKind::binary) {
         parse_binary_map_for_gui(map);
     } else if (map.map_type == MapFileKind::text) {
-        parse_map_txt(map.data, &map);
+        parse_map_txt(std::span<uint8_t>{map.owned_data.data(), map.owned_data.size()}, &map);
     }
 
     update_loaded_map_labels(session, map, *session.drop_target);

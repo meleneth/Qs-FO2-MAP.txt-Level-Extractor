@@ -1,6 +1,7 @@
 #pragma once
 #include "qmap_types.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ struct map_lvls
     std::string map_name_storage;
     std::string parse_error;
     std::vector<uint8_t> owned_data;
-    int   file_siz   = 0;     //should not be more than a couple MBs ever
+    std::size_t data_size = 0;
     uint8_t* data    = nullptr;
 
     int header_size  = 0;
