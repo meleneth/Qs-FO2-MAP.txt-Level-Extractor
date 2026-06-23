@@ -262,69 +262,6 @@ Result<std::vector<std::byte>> remove_binary_ranges(
     return Result<std::vector<std::byte>>::ok(std::move(output));
 }
 
-Result<std::size_t> adjust_binary_offset_after_removing_ranges(
-    std::size_t offset,
-    std::span<const Range> removed_ranges
-)
-{
-    std::vector<Range> sorted(removed_ranges.begin(), removed_ranges.end());
-    std::sort(sorted.begin(), sorted.end(), [](Range left, Range right) {
-        return left.offset < right.offset;
-    });
-
-    std::size_t adjusted = offset;
-    for (const auto range : sorted) {
-        if (range.contains(offset)) {
-            return Result<std::size_t>::fail({
-                "offset falls inside a removed range",
-                offset,
-            });
-        }
-        if (range.offset >= offset) {
-            continue;
-        }
-        adjusted -= range.size;
-    }
-    return Result<std::size_t>::ok(adjusted);
-}
-
-Result<std::vector<std::byte>> insert_binary_ranges(
-    std::span<const std::byte> bytes,
-    std::size_t offset,
-    std::span<const std::byte> source_bytes,
-    std::span<const Range> source_ranges
-)
-{
-    if (offset > bytes.size()) {
-        return Result<std::vector<std::byte>>::fail({
-            "insertion offset is outside the byte buffer",
-            offset,
-        });
-    }
-
-    std::vector<std::byte> inserted;
-    std::size_t inserted_size = 0;
-    for (const auto range : source_ranges) {
-        if (!range_is_valid(source_bytes, range)) {
-            return Result<std::vector<std::byte>>::fail({
-                "source insertion range is outside the source byte buffer",
-                range.offset,
-            });
-        }
-        inserted_size += range.size;
-    }
-    inserted.reserve(inserted_size);
-    for (const auto range : source_ranges) {
-        inserted.insert(
-            inserted.end(),
-            source_bytes.begin() + static_cast<std::ptrdiff_t>(range.offset),
-            source_bytes.begin() + static_cast<std::ptrdiff_t>(range.end())
-        );
-    }
-
-    return replace_binary_range(bytes, Range{offset, 0}, inserted);
-}
-
 Result<std::vector<std::byte>> copy_binary_ranges_with_i32_patches(
     std::span<const std::byte> source_bytes,
     std::span<const Range> source_ranges,
@@ -384,47 +321,6 @@ Result<std::vector<std::byte>> copy_binary_ranges_with_i32_patches(
     }
 
     return patch_binary_i32_be_all(copied, translated_patches);
-}
-
-Result<void> validate_binary_ranges(
-    std::span<const std::byte> bytes,
-    std::span<const Range> ranges,
-    std::string error_message
-)
-{
-    for (const auto range : ranges) {
-        if (!range_is_valid(bytes, range)) {
-            return Result<void>::fail({
-                error_message,
-                range.offset,
-            });
-        }
-    }
-    return Result<void>::ok();
-}
-
-Result<void> validate_i32_patches_inside_ranges(
-    std::span<const BinaryI32Patch> patches,
-    std::span<const Range> ranges
-)
-{
-    for (const auto patch : patches) {
-        const Range patch_range{patch.offset, sizeof(std::int32_t)};
-        bool covered = false;
-        for (const auto range : ranges) {
-            if (range_contains(range, patch_range)) {
-                covered = true;
-                break;
-            }
-        }
-        if (!covered) {
-            return Result<void>::fail({
-                "rewrite patch is outside copied source ranges",
-                patch.offset,
-            });
-        }
-    }
-    return Result<void>::ok();
 }
 
 std::vector<BinaryI32Patch> i32_patches_inside_ranges(

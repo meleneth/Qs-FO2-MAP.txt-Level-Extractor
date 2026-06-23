@@ -40,18 +40,6 @@ Result<std::vector<std::byte>> remove_binary_ranges(
     std::span<const Range> ranges
 );
 
-Result<std::size_t> adjust_binary_offset_after_removing_ranges(
-    std::size_t offset,
-    std::span<const Range> removed_ranges
-);
-
-Result<std::vector<std::byte>> insert_binary_ranges(
-    std::span<const std::byte> bytes,
-    std::size_t offset,
-    std::span<const std::byte> source_bytes,
-    std::span<const Range> source_ranges
-);
-
 Result<std::vector<std::byte>> copy_binary_ranges_with_i32_patches(
     std::span<const std::byte> source_bytes,
     std::span<const Range> source_ranges,
