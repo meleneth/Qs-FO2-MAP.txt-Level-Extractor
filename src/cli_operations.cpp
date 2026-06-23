@@ -108,6 +108,24 @@ std::string object_type_name(BinaryObjectType type)
     return "unknown";
 }
 
+std::size_t count_inventory_records(const BinaryObjectRecord& record)
+{
+    std::size_t count = 0;
+    for (const auto& inventory_record : record.inventory) {
+        count += 1 + count_inventory_records(inventory_record);
+    }
+    return count;
+}
+
+std::size_t count_object_records_including_inventory(const BinaryMapObjectRecords& objects)
+{
+    std::size_t count = objects.records.size();
+    for (const auto& record : objects.records) {
+        count += count_inventory_records(record);
+    }
+    return count;
+}
+
 } // namespace
 
 std::string read_text_file(const std::filesystem::path& path)
@@ -229,6 +247,7 @@ std::string format_binary_map_stats(
     std::optional<BinaryObjectRecord> first_record,
     std::span<const std::byte> bytes,
     std::optional<std::size_t> parsed_object_records_count,
+    std::optional<std::size_t> parsed_object_records_total_count,
     std::optional<Error> object_records_error
 )
 {
@@ -275,6 +294,10 @@ std::string format_binary_map_stats(
     } else if (parsed_object_records_count) {
         output << "  object_records_status: parsed\n";
         output << "  object_records_parsed: " << *parsed_object_records_count << '\n';
+        if (parsed_object_records_total_count) {
+            output << "  object_records_parsed_with_inventory: "
+                   << *parsed_object_records_total_count << '\n';
+        }
     } else {
         output << "  object_records_status: not_attempted\n";
     }
@@ -469,10 +492,12 @@ int parse_stats(const std::filesystem::path& input)
         }
         std::optional<BinaryObjectRecord> first_record;
         std::optional<std::size_t> parsed_object_records_count;
+        std::optional<std::size_t> parsed_object_records_total_count;
         std::optional<Error> object_records_error;
         auto object_records = parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
         if (object_records) {
             parsed_object_records_count = object_records.value().records.size();
+            parsed_object_records_total_count = count_object_records_including_inventory(object_records.value());
             if (!object_records.value().records.empty()) {
                 first_record = object_records.value().records.front();
             }
@@ -490,6 +515,7 @@ int parse_stats(const std::filesystem::path& input)
             first_record,
             bytes,
             parsed_object_records_count,
+            parsed_object_records_total_count,
             object_records_error
         );
         return 0;

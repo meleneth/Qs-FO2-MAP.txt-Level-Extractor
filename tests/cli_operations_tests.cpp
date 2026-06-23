@@ -171,7 +171,8 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
         first_object,
         first_record,
         bytes,
-        7
+        7,
+        8
     );
 
     CHECK(stats.find("kind: binary map\n") != std::string::npos);
@@ -190,6 +191,7 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("  data_offset: 1015\n") != std::string::npos);
     CHECK(stats.find("  object_records_status: parsed\n") != std::string::npos);
     CHECK(stats.find("  object_records_parsed: 7\n") != std::string::npos);
+    CHECK(stats.find("  object_records_parsed_with_inventory: 8\n") != std::string::npos);
     CHECK(stats.find("  first_object:\n") != std::string::npos);
     CHECK(stats.find("    type: scenery\n") != std::string::npos);
     CHECK(stats.find("    elevation: 1\n") != std::string::npos);
@@ -224,6 +226,7 @@ TEST_CASE("format_binary_map_stats reports incomplete object record parsing", "[
         std::nullopt,
         std::nullopt,
         {},
+        std::nullopt,
         std::nullopt,
         qmap::Error{"unsupported object pid type", 1234}
     );
