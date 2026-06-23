@@ -152,8 +152,8 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Do not overwrite indexes per elevation.
 
 - [ ] Parse the rest of the Fallout `.map` file format. Partial: header, variables, tiles, scripts, object prefixes, and several object tails are modeled; complete object variants and inventories remain.
-  - [ ] Use published Fallout/Fallout 2 MAP format references to identify sections and record layouts that are not implemented yet.
-  - [ ] Cite the references used for format decisions in comments or docs near the relevant parser code.
+  - [x] Use published Fallout/Fallout 2 MAP format references to identify sections and record layouts that are not implemented yet.
+  - [x] Cite the references used for format decisions in comments or docs near the relevant parser code.
   - [x] Capture map variables and local variables as modeled data.
   - [x] Parse tile/elevation blocks into explicit structures.
   - [x] Parse scripts, script padding, and script footers completely.
@@ -161,7 +161,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Parse inventories and nested inventory objects.
   - [x] Preserve raw byte ranges for fields or object variants that are still unknown so round-trip/export work is not blocked.
   - [x] Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
-  - [ ] Document every still-unknown field with offset, observed values, and fixture coverage.
+  - [x] Document every still-unknown field with offset, observed values, and fixture coverage.
 
 - [x] Remove or isolate placeholder object structs that imply unsupported parsing.
   - [x] Unknown fields are acceptable.

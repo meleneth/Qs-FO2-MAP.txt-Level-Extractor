@@ -12,6 +12,7 @@ namespace {
 // Fallout MAP layout references:
 // - https://falloutmods.fandom.com/wiki/MAP_File_Format
 // - https://fodev.net/files/fo2/map.html
+// See docs/BINARY_MAP_FORMAT_NOTES.md for unknown-field notes and fixture coverage.
 // Object records are serialized as a total count followed by per-elevation
 // count + object-array blocks. Script blocks are serialized in groups of 16
 // with padding records and a two-word footer/check block.
