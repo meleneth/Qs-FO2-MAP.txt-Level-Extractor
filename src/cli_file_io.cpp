@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
+#include <utility>
 
 namespace qmap::cli {
 

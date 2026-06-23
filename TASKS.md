@@ -279,6 +279,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
   - [x] Cover copied raw object and script byte preservation so only planned object/script/elevation fields are rewritten before typed tail round-trip support exists.
   - [x] Cover preserved destination raw object/script byte preservation for records outside the replaced elevation.
   - [x] Hard-error if preserved destination raw object/script ranges are not backed by the destination map bytes.
+  - [x] Surface source/destination binary input read failures from the binary replace CLI path.
   - [x] Surface output-file write failures from the non-dry-run CLI path.
   - [x] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.
   - [x] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
