@@ -22,11 +22,14 @@ std::string read_text_file(const std::filesystem::path& path)
     };
 }
 
-std::vector<std::byte> read_binary_file(const std::filesystem::path& path)
+Result<std::vector<std::byte>> read_binary_file_result(const std::filesystem::path& path)
 {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        throw std::runtime_error("unable to open input file: " + path.string());
+        return Result<std::vector<std::byte>>::fail({
+            "unable to open input file: " + path.string(),
+            0,
+        });
     }
 
     std::vector<std::byte> bytes;
@@ -34,6 +37,22 @@ std::vector<std::byte> read_binary_file(const std::filesystem::path& path)
     while (file.get(ch)) {
         bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(ch)));
     }
+    if (file.bad()) {
+        return Result<std::vector<std::byte>>::fail({
+            "unable to read input file: " + path.string(),
+            bytes.size(),
+        });
+    }
+    return Result<std::vector<std::byte>>::ok(std::move(bytes));
+}
+
+std::vector<std::byte> read_binary_file(const std::filesystem::path& path)
+{
+    auto read = read_binary_file_result(path);
+    if (!read) {
+        throw std::runtime_error(read.error().message);
+    }
+    auto bytes = std::move(read.value());
     return bytes;
 }
 

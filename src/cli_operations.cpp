@@ -418,7 +418,15 @@ int replace_elevation(const ReplaceElevationOptions& options)
         return 2;
     }
 
-    const auto source_bytes = read_binary_file(options.source);
+    auto source_bytes_result = read_binary_file_result(options.source);
+    if (!source_bytes_result) {
+        std::cout << format_replace_elevation_failure(
+            "source read failed: " + source_bytes_result.error().message,
+            source_bytes_result.error().offset
+        );
+        return 2;
+    }
+    const auto& source_bytes = source_bytes_result.value();
     auto source = parse_binary_map(source_bytes, loaded.value());
     if (!source) {
         std::cout << format_replace_elevation_failure(
@@ -428,7 +436,15 @@ int replace_elevation(const ReplaceElevationOptions& options)
         return 2;
     }
 
-    const auto destination_bytes = read_binary_file(options.destination);
+    auto destination_bytes_result = read_binary_file_result(options.destination);
+    if (!destination_bytes_result) {
+        std::cout << format_replace_elevation_failure(
+            "destination read failed: " + destination_bytes_result.error().message,
+            destination_bytes_result.error().offset
+        );
+        return 2;
+    }
+    const auto& destination_bytes = destination_bytes_result.value();
     auto destination = parse_binary_map(destination_bytes, loaded.value());
     if (!destination) {
         std::cout << format_replace_elevation_failure(

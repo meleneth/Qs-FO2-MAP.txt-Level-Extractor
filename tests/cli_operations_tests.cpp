@@ -118,6 +118,42 @@ TEST_CASE("write_binary_output_file writes bytes and rejects accidental overwrit
     std::filesystem::remove(output);
 }
 
+TEST_CASE("read_binary_file_result reports missing input files", "[cli]")
+{
+    const auto missing =
+        std::filesystem::temp_directory_path() / "qmap-missing-binary-input-test.map";
+    std::filesystem::remove(missing);
+
+    const auto read = qmap::cli::read_binary_file_result(missing);
+
+    REQUIRE_FALSE(read);
+    CHECK(read.error().message.find("unable to open input file:") == 0);
+    CHECK(read.error().offset == 0);
+}
+
+TEST_CASE("read_binary_file_result reads binary bytes", "[cli]")
+{
+    const auto input =
+        std::filesystem::temp_directory_path() / "qmap-read-binary-input-test.map";
+    std::filesystem::remove(input);
+    {
+        std::ofstream file(input, std::ios::binary);
+        REQUIRE(file);
+        const unsigned char bytes[] = {0x10, 0x20, 0xFF};
+        file.write(reinterpret_cast<const char*>(bytes), sizeof(bytes));
+    }
+
+    const auto read = qmap::cli::read_binary_file_result(input);
+
+    REQUIRE(read);
+    REQUIRE(read.value().size() == 3);
+    CHECK(read.value()[0] == std::byte{0x10});
+    CHECK(read.value()[1] == std::byte{0x20});
+    CHECK(read.value()[2] == std::byte{0xFF});
+
+    std::filesystem::remove(input);
+}
+
 TEST_CASE("format_text_map_stats summarizes ranges and record counts", "[cli][stats]")
 {
     constexpr std::string_view text =

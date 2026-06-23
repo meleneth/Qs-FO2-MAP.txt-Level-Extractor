@@ -11,6 +11,7 @@
 namespace qmap::cli {
 
 std::string read_text_file(const std::filesystem::path& path);
+Result<std::vector<std::byte>> read_binary_file_result(const std::filesystem::path& path);
 std::vector<std::byte> read_binary_file(const std::filesystem::path& path);
 void write_output_file(const std::filesystem::path& path, std::string_view content, bool force);
 Result<void> write_binary_output_file(
