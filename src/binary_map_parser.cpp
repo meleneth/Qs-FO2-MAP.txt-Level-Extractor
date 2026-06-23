@@ -481,6 +481,18 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
     return Result<BinaryObjectRecord>::ok(record);
 }
 
+Error object_record_error_context(const Error& error, std::optional<int> elevation, std::int32_t object_index)
+{
+    std::string message;
+    if (elevation) {
+        message = "elevation " + std::to_string(*elevation) + " object ";
+    } else {
+        message = "object ";
+    }
+    message += std::to_string(object_index) + ": " + error.message;
+    return Error{message, error.offset};
+}
+
 Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& reader, std::size_t object_section_offset)
 {
     BinaryMapObjectRecords objects;
@@ -516,7 +528,9 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
     for (std::int32_t index = 0; index < objects.total_count; ++index) {
         auto record = parse_object_record(reader);
         if (!record) {
-            return Result<BinaryMapObjectRecords>::fail(record.error());
+            return Result<BinaryMapObjectRecords>::fail(
+                object_record_error_context(record.error(), std::nullopt, index)
+            );
         }
         objects.records.push_back(record.value());
     }
@@ -1196,7 +1210,9 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
         for (std::int32_t index = 0; index < block_count.value(); ++index) {
             auto record = parse_object_record(reader);
             if (!record) {
-                return Result<BinaryMapObjectRecords>::fail(record.error());
+                return Result<BinaryMapObjectRecords>::fail(
+                    object_record_error_context(record.error(), elevation, index)
+                );
             }
             objects.records.push_back(record.value());
         }

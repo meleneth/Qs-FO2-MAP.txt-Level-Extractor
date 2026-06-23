@@ -896,7 +896,7 @@ TEST_CASE("parse_binary_map_object_records rejects negative inventory counts", "
     const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE_FALSE(parsed);
-    CHECK(parsed.error().message == "negative inventory object count");
+    CHECK(parsed.error().message == "elevation 0 object 0: negative inventory object count");
 }
 
 TEST_CASE("parse_binary_scenery_tail decodes preserved scenery tail fields", "[map][binary]")
@@ -985,7 +985,7 @@ TEST_CASE("parse_binary_map_object_records rejects unknown object types", "[map]
     const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE_FALSE(parsed);
-    CHECK(parsed.error().message == "unsupported object pid type 10 from pid 167772161");
+    CHECK(parsed.error().message == "elevation 0 object 0: unsupported object pid type 10 from pid 167772161");
 }
 
 TEST_CASE("parse_binary_map_object_records rejects truncated known tails", "[map][binary]")
@@ -1000,7 +1000,7 @@ TEST_CASE("parse_binary_map_object_records rejects truncated known tails", "[map
     const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
     REQUIRE_FALSE(parsed);
-    CHECK(parsed.error().message == "unexpected end of input");
+    CHECK(parsed.error().message == "elevation 2 object 0: unexpected end of input");
 }
 
 TEST_CASE("parse_binary_map composes header variables tiles scripts and objects", "[map][binary]")
