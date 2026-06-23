@@ -12,9 +12,7 @@ struct map_lvls
     std::string map_name_storage;
     std::string parse_error;
     std::vector<uint8_t> owned_data;
-    char* file_str   = nullptr;
     int   file_siz   = 0;     //should not be more than a couple MBs ever
-    char* map_name   = nullptr;
     uint8_t* data    = nullptr;
 
     int header_size  = 0;

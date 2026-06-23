@@ -17,8 +17,8 @@ map_lvls loaded_map(const char* name, const char* path)
     static unsigned char data = 0;
 
     map_lvls map;
-    map.map_name = const_cast<char*>(name);
-    map.file_str = const_cast<char*>(path);
+    map.map_name_storage = name;
+    map.file_path_storage = path;
     map.data = &data;
     map.level[0] = reinterpret_cast<char*>(&data);
     map.level[2] = reinterpret_cast<char*>(&data);

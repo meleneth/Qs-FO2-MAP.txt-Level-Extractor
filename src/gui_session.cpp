@@ -27,9 +27,7 @@ void clear_loaded_map(map_lvls& map)
     map.map_name_storage.clear();
     map.parse_error.clear();
     map.owned_data.clear();
-    map.file_str = nullptr;
     map.file_siz = 0;
-    map.map_name = nullptr;
     map.data = nullptr;
     map.header_size = 0;
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
@@ -143,16 +141,16 @@ void reset_output_selection(GuiSession& session)
 void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide side)
 {
     if (side == MapSide::left) {
-        session.left_head = map.map_name;
+        session.left_head = map.map_name_storage;
     } else {
-        session.right_head = map.map_name;
+        session.right_head = map.map_name_storage;
     }
 
     reset_output_selection(session);
     auto& labels = labels_for_side(session, side);
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
         labels[elevation] = map.level[elevation]
-            ? std::to_string(elevation) + ":" + map.map_name
+            ? std::to_string(elevation) + ":" + map.map_name_storage
             : "empty";
     }
 }
@@ -194,8 +192,8 @@ void choose_output_header(GuiSession& session, MapSide side)
         return;
     }
 
-    session.middle_head = std::string{map.map_name} + "##";
-    std::snprintf(session.export_path, gui_export_path_size, "%s.Q.txt", map.file_str);
+    session.middle_head = map.map_name_storage + "##";
+    std::snprintf(session.export_path, gui_export_path_size, "%s.Q.txt", map.file_path_storage.c_str());
     session.header = side == MapSide::left ? 0 : 1;
 }
 
@@ -302,10 +300,8 @@ bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_pa
     map.file_path_storage = file_path.string();
     map.map_name_storage = file_path.filename().string();
     map.owned_data = std::move(bytes);
-    map.file_str = map.file_path_storage.data();
     map.file_siz = static_cast<int>(map.owned_data.size());
     map.data = map.owned_data.data();
-    map.map_name = map.map_name_storage.data();
     map.map_type = map_type;
 
     if (map.map_type == MapFileKind::binary) {
