@@ -105,12 +105,13 @@ int parse_stats(const std::filesystem::path& input)
 int parse_stats(const ParseStatsOptions& options)
 {
     const auto ext = lowercase_extension(options.input);
-    const auto text = read_text_file(options.input);
-
-    std::cout << "file: " << options.input.string() << '\n';
-    std::cout << "bytes: " << text.size() << '\n';
 
     if (ext == ".txt") {
+        const auto text = read_text_file(options.input);
+
+        std::cout << "file: " << options.input.string() << '\n';
+        std::cout << "bytes: " << text.size() << '\n';
+
         auto parsed = parse_text_map(text);
         if (!parsed) {
             std::cout << "kind: map txt\n";
@@ -125,7 +126,19 @@ int parse_stats(const ParseStatsOptions& options)
     }
 
     if (ext == ".map") {
-        const auto bytes = read_binary_file(options.input);
+        auto bytes_result = read_binary_file_result(options.input);
+        if (!bytes_result) {
+            std::cout << "file: " << options.input.string() << '\n';
+            std::cout << "kind: binary map\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: input read failed: " << bytes_result.error().message
+                      << " at offset " << bytes_result.error().offset << '\n';
+            return 2;
+        }
+        const auto& bytes = bytes_result.value();
+        std::cout << "file: " << options.input.string() << '\n';
+        std::cout << "bytes: " << bytes.size() << '\n';
+
         if (options.proto_root.empty()) {
             std::cout << "kind: binary map\n";
             std::cout << "status: parse failed\n";
@@ -230,6 +243,9 @@ int parse_stats(const ParseStatsOptions& options)
         return 0;
     }
 
+    const auto text = read_text_file(options.input);
+    std::cout << "file: " << options.input.string() << '\n';
+    std::cout << "bytes: " << text.size() << '\n';
     std::cout << "kind: unknown\n";
     std::cout << "status: unsupported extension\n";
     return 2;

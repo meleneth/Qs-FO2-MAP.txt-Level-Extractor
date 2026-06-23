@@ -6,9 +6,30 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
+
+namespace {
+
+struct CoutCapture {
+    std::ostringstream output;
+    std::streambuf* old_buffer = std::cout.rdbuf(output.rdbuf());
+
+    ~CoutCapture()
+    {
+        std::cout.rdbuf(old_buffer);
+    }
+
+    std::string str() const
+    {
+        return output.str();
+    }
+};
+
+} // namespace
 
 TEST_CASE("single_elevation_plan selects one matching source elevation", "[cli]")
 {
@@ -174,6 +195,27 @@ TEST_CASE("read_binary_file_result reads binary bytes", "[cli]")
     CHECK(read.value()[2] == std::byte{0xFF});
 
     std::filesystem::remove(input);
+}
+
+TEST_CASE("parse_stats reports missing binary input as structured output", "[cli][stats]")
+{
+    const auto missing =
+        std::filesystem::temp_directory_path() / "qmap-missing-parse-stats-input.map";
+    std::filesystem::remove(missing);
+
+    qmap::cli::ParseStatsOptions options;
+    options.input = missing;
+    options.proto_root = "unused-proto-root";
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::parse_stats(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("file: " + missing.string() + "\n") != std::string::npos);
+    CHECK(capture.str().find("kind: binary map\n") != std::string::npos);
+    CHECK(capture.str().find("status: parse failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: input read failed: unable to open input file:") != std::string::npos);
+    CHECK(capture.str().find(" at offset 0\n") != std::string::npos);
 }
 
 TEST_CASE("format_text_map_stats summarizes ranges and record counts", "[cli][stats]")
