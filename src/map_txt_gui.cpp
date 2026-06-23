@@ -43,7 +43,7 @@ void clear_loaded_map(map_lvls& map)
     map.map_name = nullptr;
     map.data = nullptr;
     map.header_size = 0;
-    for (int elevation = 0; elevation < qmap::binary_map_elevation_count; ++elevation) {
+    for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
         map.lvl_sizes[elevation] = 0;
         map.level[elevation] = nullptr;
     }
@@ -481,11 +481,11 @@ bool map_txt_gui()
 
     // middle third - output listbox
     // this uses listbox internals so I can clear an entry on double-click
-    char* label_ptr_M[] = {label_M[0],label_M[1],label_M[2]};
+    const char* output_labels[] = {label_M[0], label_M[1], label_M[2]};
     ImGui::SetCursorPos(ImVec2{posB.x+size.x+20   + 40, posB.y});
     if (ImGui::BeginListBox("##M", {size.x,ImGui::GetItemRectSize().y}))
     {
-        for (int n = 0; n < IM_COUNTOF(label_ptr_M); n++)
+        for (int n = 0; n < IM_COUNTOF(output_labels); n++)
         {
             const bool item_selected = (n == selection[middle_column]);
             if (ImGui::Selectable(label_M[n], item_selected))
