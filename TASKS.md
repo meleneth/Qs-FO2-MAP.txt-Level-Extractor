@@ -151,7 +151,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Preserve raw object ranges if variable-size records are not fully modeled yet.
   - [x] Do not overwrite indexes per elevation.
 
-- [ ] Parse the rest of the Fallout `.map` file format. Partial: header, variables, tiles, scripts, object prefixes, and several object tails are modeled; complete object variants and inventories remain.
+- [ ] Parse the rest of the Fallout `.map` file format. Partial: header, variables, tiles, scripts, object prefixes, inventories, and several object tails are modeled; complete object variants remain.
   - [x] Use published Fallout/Fallout 2 MAP format references to identify sections and record layouts that are not implemented yet.
   - [x] Cite the references used for format decisions in comments or docs near the relevant parser code.
   - [x] Capture map variables and local variables as modeled data.

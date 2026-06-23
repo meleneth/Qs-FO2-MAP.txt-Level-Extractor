@@ -1,10 +1,13 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "binary_map_parser.h"
 #include "text_map_parser.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -49,6 +52,15 @@ constexpr TextFixtureExpectation txt_fixtures[] = {
     {"NEWR1.txt",   2603917, {299, 268914, 538676}, 808400, 837091},
     {"NEWR2.txt",   3260051, {299, 268743, 538362}, 808031, 840105},
     {"test16.txt",  836274, {282, 270306, 540330}, 810354, 818686},
+};
+
+constexpr std::string_view binary_fixtures[] = {
+    "ARVILL2.map",
+    "BROKEN1.map",
+    "BROKEN2.map",
+    "Newr1.map",
+    "Newr2.map",
+    "test16.map",
 };
 
 int level_marker_size(const std::vector<uint8_t>& data, int marker_offset)
@@ -106,6 +118,37 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
                 CHECK(parsed.value().elevations[level]->size == static_cast<std::size_t>(end_offset - (marker_offset + marker_size)));
                 previous_level = level;
             }
+        }
+    }
+}
+
+TEST_CASE("binary map staged parser accepts shipped fixture maps", "[map][binary]")
+{
+    for (const auto fixture : binary_fixtures) {
+        DYNAMIC_SECTION(fixture) {
+            const auto data = load_binary_fixture(fixture);
+            const auto bytes = std::span<const std::byte>{
+                reinterpret_cast<const std::byte*>(data.data()),
+                data.size(),
+            };
+
+            const auto header = qmap::parse_binary_map_header(bytes);
+            REQUIRE(header);
+            const auto variables = qmap::parse_binary_map_variables(bytes, header.value());
+            REQUIRE(variables);
+            const auto tiles = qmap::parse_binary_map_tiles(bytes, header.value());
+            REQUIRE(tiles);
+            const auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+            REQUIRE(scripts);
+            const auto object_counts =
+                qmap::parse_binary_map_object_counts(bytes, scripts.value().end_offset, header.value());
+            REQUIRE(object_counts);
+            const auto first_object =
+                qmap::parse_first_binary_object_prefix(bytes, scripts.value().end_offset, header.value());
+            REQUIRE(first_object);
+
+            CHECK(object_counts.value().total_count >= 0);
+            CHECK(scripts.value().end_offset < data.size());
         }
     }
 }
