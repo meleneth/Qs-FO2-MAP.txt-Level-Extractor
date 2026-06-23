@@ -338,6 +338,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
   - [x] Combine selected elevations from source maps into a new output file.
   - [x] Write outputs to explicit paths and fail before overwriting unless requested.
   - [x] Surface text output write failures from extract/split/combine as command failures with stable text output.
+  - [x] Surface text input read/parse, invalid argument, selection, and export-planning failures from extract/split/combine as command failures with stable text output.
   - [x] Add a separate `qmap_weird_scan` executable for scanning binary `.map` files for suspicious object/script/inventory/exit-grid data.
   - [x] Surface missing binary input as structured parse-failed output instead of an unstructured exception.
     - [x] Require `--proto-root` and parse through the prototype-backed binary map parser.
