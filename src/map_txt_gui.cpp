@@ -14,9 +14,9 @@ qmap::GuiSession session;
 
 } // namespace
 
-void show_map_status(const char* side, const map_lvls& map)
+void show_map_status(const char* side, const qmap::GuiSession::MapSlot& slot)
 {
-    if (map.owned_data.empty()) {
+    if (slot.owned_data.empty()) {
         ImGui::Text("%s: empty", side);
         return;
     }
@@ -24,15 +24,15 @@ void show_map_status(const char* side, const map_lvls& map)
     ImGui::Text(
         "%s: %s %s",
         side,
-        qmap::map_parse_succeeded(map) ? "file parsed" : "parse failed",
-        qmap::map_type_name(map.map_type)
+        qmap::map_parse_succeeded(slot) ? "file parsed" : "parse failed",
+        qmap::map_type_name(slot.map_type)
     );
-    if (map.map_type == qmap::MapFileKind::binary) {
+    if (slot.map_type == qmap::MapFileKind::binary) {
         ImGui::SameLine();
         ImGui::TextDisabled("export not implemented");
     }
-    if (!qmap::map_parse_succeeded(map) && !map.parse_error.empty()) {
-        ImGui::TextDisabled("%s: %s", side, map.parse_error.c_str());
+    if (!qmap::map_parse_succeeded(slot) && !slot.parse_error.empty()) {
+        ImGui::TextDisabled("%s: %s", side, slot.parse_error.c_str());
     }
 }
 
@@ -123,8 +123,8 @@ bool map_txt_gui()
     ImGui::PushItemWidth(size.x);
 
     ImGui::Text("Map Names:");
-    show_map_status("Left", session.left.map);
-    show_map_status("Right", session.right.map);
+    show_map_status("Left", session.left);
+    show_map_status("Right", session.right);
 
 
     ImVec2 posA = ImGui::GetCursorPos();
@@ -165,7 +165,7 @@ bool map_txt_gui()
         qmap::select_output_elevation(
             session,
             session.selected_elevations[middle_column],
-            session.left.map,
+            session.left,
             session.left.labels[session.selected_elevations[left_column]],
             qmap::MapSide::left,
             session.selected_elevations[left_column]
@@ -200,7 +200,7 @@ bool map_txt_gui()
         qmap::select_output_elevation(
             session,
             session.selected_elevations[middle_column],
-            session.right.map,
+            session.right,
             session.right.labels[session.selected_elevations[right_column]],
             qmap::MapSide::right,
             session.selected_elevations[right_column]

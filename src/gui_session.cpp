@@ -1,7 +1,7 @@
 #include "gui_session.h"
 
 #include "binary_map_parser.h"
-#include "map_txt_parser.h"
+#include "text_map_parser.h"
 
 #include <algorithm>
 #include <cctype>
@@ -15,6 +15,10 @@
 namespace qmap {
 namespace {
 
+constexpr std::string_view empty_text_map =
+    ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+    ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n";
+
 GuiSession::MapSlot& slot_for_side(GuiSession& session, MapSide side)
 {
     return side == MapSide::left ? session.left : session.right;
@@ -25,22 +29,16 @@ const GuiSession::MapSlot& slot_for_side(const GuiSession& session, MapSide side
     return side == MapSide::left ? session.left : session.right;
 }
 
-map_lvls& map_for_side(GuiSession& session, MapSide side)
+void clear_loaded_slot(GuiSession::MapSlot& slot)
 {
-    return slot_for_side(session, side).map;
-}
-
-void clear_loaded_map(map_lvls& map)
-{
-    map.map_type = MapFileKind::empty;
-    map.file_path_storage.clear();
-    map.map_name_storage.clear();
-    map.parse_error.clear();
-    map.owned_data.clear();
-    map.header_size = 0;
-    map.elevations = {};
-    map.scripts = std::nullopt;
-    map.objects = std::nullopt;
+    slot.map_type = MapFileKind::empty;
+    slot.file_path.clear();
+    slot.map_name.clear();
+    slot.parse_error.clear();
+    slot.owned_data.clear();
+    slot.header_size = 0;
+    slot.elevations = {};
+    slot.parsed_text = std::nullopt;
 }
 
 bool load_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>& bytes)
@@ -66,33 +64,54 @@ std::string lower_extension(const std::filesystem::path& path)
     return extension;
 }
 
-void parse_binary_map_for_gui(map_lvls& map)
+void parse_binary_map_for_gui(GuiSession::MapSlot& slot)
 {
-    map.header_size = 0;
+    slot.header_size = 0;
     for (int level = 0; level < binary_map_elevation_count; ++level) {
-        map.elevations[level] = std::nullopt;
+        slot.elevations[level] = std::nullopt;
     }
 
-    if (map.owned_data.empty()) {
+    if (slot.owned_data.empty()) {
         return;
     }
 
     const auto bytes = std::span<const std::byte>(
-        reinterpret_cast<const std::byte*>(map.owned_data.data()),
-        map.owned_data.size()
+        reinterpret_cast<const std::byte*>(slot.owned_data.data()),
+        slot.owned_data.size()
     );
     const auto header = parse_binary_map_header(bytes);
     if (!header) {
-        map.parse_error = header.error().message;
+        slot.parse_error = header.error().message;
         return;
     }
 
-    map.header_size = static_cast<int>(binary_map_header_size);
+    slot.header_size = static_cast<int>(binary_map_header_size);
     for (int level = 0; level < binary_map_elevation_count; ++level) {
         if (header.value().has_elevation(level)) {
-            map.elevations[level] = Range{0, map.owned_data.size()};
+            slot.elevations[level] = Range{0, slot.owned_data.size()};
         }
     }
+}
+
+std::optional<ParsedTextSource> text_source_for_slot(const GuiSession::MapSlot& slot)
+{
+    if (slot.map_type == MapFileKind::empty || slot.owned_data.empty()) {
+        auto parsed = parse_text_map(empty_text_map);
+        if (!parsed) {
+            return std::nullopt;
+        }
+        return ParsedTextSource{empty_text_map, parsed.value()};
+    }
+
+    if (!slot.parsed_text) {
+        return std::nullopt;
+    }
+
+    const auto text = std::string_view{
+        reinterpret_cast<const char*>(slot.owned_data.data()),
+        slot.owned_data.size(),
+    };
+    return ParsedTextSource{text, *slot.parsed_text};
 }
 
 } // namespace
@@ -121,16 +140,16 @@ const char* map_type_name(MapFileKind map_type)
     return "empty";
 }
 
-bool map_parse_succeeded(const map_lvls& map)
+bool map_parse_succeeded(const GuiSession::MapSlot& slot)
 {
-    if (map.owned_data.empty() || map.map_type == MapFileKind::empty) {
+    if (slot.owned_data.empty() || slot.map_type == MapFileKind::empty) {
         return false;
     }
-    if (map.map_type == MapFileKind::text) {
-        return map.scripts.has_value() && map.objects.has_value();
+    if (slot.map_type == MapFileKind::text) {
+        return slot.parsed_text.has_value();
     }
-    if (map.map_type == MapFileKind::binary) {
-        return map.header_size == static_cast<int>(binary_map_header_size);
+    if (slot.map_type == MapFileKind::binary) {
+        return slot.header_size == static_cast<int>(binary_map_header_size);
     }
 
     return false;
@@ -142,14 +161,15 @@ void reset_output_selection(GuiSession& session)
     session.output_labels = {"empty", "##1", "##2"};
 }
 
-void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide side)
+void update_loaded_map_labels(GuiSession& session, MapSide side)
 {
-    slot_for_side(session, side).heading = map.map_name_storage;
+    auto& slot = slot_for_side(session, side);
+    slot.heading = slot.map_name;
     reset_output_selection(session);
     auto& labels = labels_for_side(session, side);
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
-        labels[elevation] = map.elevations[elevation]
-            ? std::to_string(elevation) + ":" + map.map_name_storage
+        labels[elevation] = slot.elevations[elevation]
+            ? std::to_string(elevation) + ":" + slot.map_name
             : "empty";
     }
 }
@@ -157,7 +177,7 @@ void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide 
 void select_output_elevation(
     GuiSession& session,
     int destination,
-    const map_lvls& source_map,
+    const GuiSession::MapSlot& source_slot,
     const std::string& source_label,
     MapSide side,
     int source_elevation
@@ -165,7 +185,7 @@ void select_output_elevation(
 {
     if (destination < 0 || destination >= elevation_count
         || source_elevation < 0 || source_elevation >= elevation_count
-        || !source_map.elevations[source_elevation]) {
+        || !source_slot.elevations[source_elevation]) {
         return;
     }
 
@@ -185,14 +205,14 @@ void clear_output_elevation(GuiSession& session, int destination)
 
 void choose_output_header(GuiSession& session, MapSide side)
 {
-    const map_lvls& map = slot_for_side(session, side).map;
-    if (map.owned_data.empty()) {
+    const auto& slot = slot_for_side(session, side);
+    if (slot.owned_data.empty()) {
         session.middle_head = side == MapSide::left ? "HeaderL##" : "HeaderR##";
         return;
     }
 
-    session.middle_head = map.map_name_storage + "##";
-    std::snprintf(session.export_path, gui_export_path_size, "%s.Q.txt", map.file_path_storage.c_str());
+    session.middle_head = slot.map_name + "##";
+    std::snprintf(session.export_path, gui_export_path_size, "%s.Q.txt", slot.file_path.c_str());
     session.header = side == MapSide::left ? 0 : 1;
 }
 
@@ -218,15 +238,15 @@ TextMapExportPlan make_text_export_plan(const GuiSession& session)
 
 GuiExportAction prepare_export(GuiSession& session)
 {
-    if (session.left.map.owned_data.empty() && session.right.map.owned_data.empty()) {
+    if (session.left.owned_data.empty() && session.right.owned_data.empty()) {
         return GuiExportAction::none;
     }
-    if (session.left.map.map_type == MapFileKind::empty && session.right.map.map_type == MapFileKind::empty) {
+    if (session.left.map_type == MapFileKind::empty && session.right.map_type == MapFileKind::empty) {
         return GuiExportAction::none;
     }
 
-    if ((session.left.map.map_type == MapFileKind::binary || session.left.map.map_type == MapFileKind::empty)
-        && (session.right.map.map_type == MapFileKind::binary || session.right.map.map_type == MapFileKind::empty)) {
+    if ((session.left.map_type == MapFileKind::binary || session.left.map_type == MapFileKind::empty)
+        && (session.right.map_type == MapFileKind::binary || session.right.map_type == MapFileKind::empty)) {
         session.open_error_popup = true;
         session.current_error =
             ".MAP export is not implemented yet.\n"
@@ -235,8 +255,8 @@ GuiExportAction prepare_export(GuiSession& session)
         return GuiExportAction::none;
     }
 
-    if ((session.left.map.map_type == MapFileKind::text || session.left.map.map_type == MapFileKind::empty)
-        && (session.right.map.map_type == MapFileKind::text || session.right.map.map_type == MapFileKind::empty)) {
+    if ((session.left.map_type == MapFileKind::text || session.left.map_type == MapFileKind::empty)
+        && (session.right.map_type == MapFileKind::text || session.right.map_type == MapFileKind::empty)) {
         return GuiExportAction::export_text;
     }
 
@@ -253,7 +273,22 @@ GuiExportAction prepare_export(GuiSession& session)
 void export_session_map(GuiSession& session, char* path)
 {
     if (prepare_export(session) == GuiExportAction::export_text) {
-        export_map_txt(make_text_export_plan(session), &session.left.map, &session.right.map, path);
+        auto left = text_source_for_slot(session.left);
+        auto right = text_source_for_slot(session.right);
+        if (!left || !right) {
+            return;
+        }
+
+        auto exported = export_text_map(*left, *right, make_text_export_plan(session));
+        if (!exported) {
+            return;
+        }
+
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        if (!output) {
+            return;
+        }
+        output.write(exported.value().data(), static_cast<std::streamsize>(exported.value().size()));
     }
 }
 
@@ -288,26 +323,37 @@ bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_pa
         return false;
     }
 
-    map_lvls& map = map_for_side(session, *session.drop_target);
-    clear_loaded_map(map);
+    auto& slot = slot_for_side(session, *session.drop_target);
+    clear_loaded_slot(slot);
     if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         session.current_error = std::string{"File is too large:\n"} + file_path.string();
         session.open_error_popup = true;
         return false;
     }
 
-    map.file_path_storage = file_path.string();
-    map.map_name_storage = file_path.filename().string();
-    map.owned_data = std::move(bytes);
-    map.map_type = map_type;
+    slot.file_path = file_path.string();
+    slot.map_name = file_path.filename().string();
+    slot.owned_data = std::move(bytes);
+    slot.map_type = map_type;
 
-    if (map.map_type == MapFileKind::binary) {
-        parse_binary_map_for_gui(map);
-    } else if (map.map_type == MapFileKind::text) {
-        parse_map_txt(std::span<uint8_t>{map.owned_data.data(), map.owned_data.size()}, &map);
+    if (slot.map_type == MapFileKind::binary) {
+        parse_binary_map_for_gui(slot);
+    } else if (slot.map_type == MapFileKind::text) {
+        const auto text = std::string_view{
+            reinterpret_cast<const char*>(slot.owned_data.data()),
+            slot.owned_data.size(),
+        };
+        auto parsed = parse_text_map(text);
+        if (!parsed) {
+            slot.parse_error = parsed.error().message;
+        } else {
+            slot.parsed_text = parsed.value();
+            slot.header_size = static_cast<int>(slot.parsed_text->header.size);
+            slot.elevations = slot.parsed_text->elevations;
+        }
     }
 
-    update_loaded_map_labels(session, map, *session.drop_target);
+    update_loaded_map_labels(session, *session.drop_target);
     session.drop_target = std::nullopt;
     return true;
 }

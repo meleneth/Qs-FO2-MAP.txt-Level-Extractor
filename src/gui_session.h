@@ -1,12 +1,12 @@
 #pragma once
 
-#include "map_structs.h"
 #include "text_map_export.h"
 
 #include <array>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace qmap {
 
@@ -14,7 +14,14 @@ inline constexpr int gui_export_path_size = 4096;
 
 struct GuiSession {
     struct MapSlot {
-        map_lvls map;
+        MapFileKind map_type = MapFileKind::empty;
+        std::string file_path;
+        std::string map_name;
+        std::string parse_error;
+        std::vector<uint8_t> owned_data;
+        int header_size = 0;
+        std::array<std::optional<Range>, elevation_count> elevations = {};
+        std::optional<ParsedTextMap> parsed_text;
         std::array<std::string, elevation_count> labels = {"Level 1", "Level 2", "Level 3"};
         std::string heading;
     };
@@ -42,13 +49,13 @@ std::array<std::string, elevation_count>& labels_for_side(GuiSession& session, M
 const std::array<std::string, elevation_count>& labels_for_side(const GuiSession& session, MapSide side);
 
 const char* map_type_name(MapFileKind map_type);
-bool map_parse_succeeded(const map_lvls& map);
+bool map_parse_succeeded(const GuiSession::MapSlot& slot);
 void reset_output_selection(GuiSession& session);
-void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide side);
+void update_loaded_map_labels(GuiSession& session, MapSide side);
 void select_output_elevation(
     GuiSession& session,
     int destination,
-    const map_lvls& source_map,
+    const GuiSession::MapSlot& source_slot,
     const std::string& source_label,
     MapSide side,
     int source_elevation
