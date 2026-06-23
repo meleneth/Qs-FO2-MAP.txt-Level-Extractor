@@ -202,7 +202,7 @@ int main(int, char**)
         {
             ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
             ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-            ImGui::Begin("MAP.txt GUI", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+            ImGui::Begin("MAP.txt GUI", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
 
             map_txt_gui();
 

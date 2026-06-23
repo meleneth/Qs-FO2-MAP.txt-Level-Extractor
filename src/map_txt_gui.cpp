@@ -21,8 +21,8 @@
 
 bool is_hovering     = false;
 int list_box         = -1;
-#define ERR_TXT_LEN     (256)
-char error_text[ERR_TXT_LEN] = {};
+constexpr int error_text_length = 256;
+char error_text[error_text_length] = {};
 bool open_err_popup = false;
 
 namespace {
@@ -207,7 +207,7 @@ void file_drop_callback(const char* full_path)
     if (extension == ".map") {
         map_type = qmap::MapFileKind::binary;
     } else {
-        snprintf(error_text, ERR_TXT_LEN,
+        snprintf(error_text, error_text_length,
         "Wrong file type.\n"
         "Should be Fallout 2 'map.txt'.\n"
         "You can export a single map.txt\n"
@@ -219,7 +219,7 @@ void file_drop_callback(const char* full_path)
         return;
     }
 
-    map_lvls* map_ptr = NULL;
+    map_lvls* map_ptr = nullptr;
     if (list_box == 0) {
         map_ptr   = &map_L;
     } else
@@ -229,14 +229,14 @@ void file_drop_callback(const char* full_path)
 
     std::vector<uint8_t> bytes;
     if (!load_file_bytes(file_path, bytes)) {
-        snprintf(error_text, ERR_TXT_LEN, "Unable to read file:\n%s", full_path);
+        snprintf(error_text, error_text_length, "Unable to read file:\n%s", full_path);
         open_err_popup = true;
         return;
     }
 
     clear_loaded_map(*map_ptr);
     if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        snprintf(error_text, ERR_TXT_LEN, "File is too large:\n%s", full_path);
+        snprintf(error_text, error_text_length, "File is too large:\n%s", full_path);
         open_err_popup = true;
         return;
     }
@@ -366,7 +366,7 @@ void export_map(int header, char* path_buff)
         open_err_popup = true;
         snprintf(
             error_text,
-            ERR_TXT_LEN,
+            error_text_length,
             ".MAP export is not implemented yet.\n"
             "The file can be parsed, but binary export\n"
             "is disabled until the full format is modeled."
@@ -378,7 +378,7 @@ void export_map(int header, char* path_buff)
         export_map_txt(make_text_export_plan(header), &map_L, &map_R, path_buff);
     } else {
         open_err_popup = true;
-        snprintf(error_text, ERR_TXT_LEN,
+        snprintf(error_text, error_text_length,
             "Sorry, can't mix .MAP and .TXT yet.\n"
             "It's just a pain in the butt to\n"
             "combine these two filetypes,\n"
