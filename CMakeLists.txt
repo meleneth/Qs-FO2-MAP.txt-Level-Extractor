@@ -7,7 +7,6 @@ project(${EXE_NAME} LANGUAGES CXX)
 option(ENABLE_COVERAGE "Build with gcov-compatible coverage instrumentation" OFF)
 
 set(LOCAL_DEPS "${CMAKE_SOURCE_DIR}/dependencies")
-set(IO_PLATFORM_DIR "${LOCAL_DEPS}/IO_Platform")
 set(GLAD_DIR "${LOCAL_DEPS}/glad1")
 
 function(qmap_enable_coverage target_name)
@@ -76,20 +75,12 @@ target_sources(
     src/text_map_parser.cpp
     src/text_map_export.cpp
     src/text_map_records.cpp
-    ${IO_PLATFORM_DIR}/io_Platform.cpp
 )
 target_include_directories(
     qmap_parsers PUBLIC
     src
-    ${IO_PLATFORM_DIR}
 )
 qmap_enable_coverage(qmap_parsers)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_compile_definitions(qmap_parsers PUBLIC WINDOWS)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_compile_definitions(qmap_parsers PUBLIC LINUX)
-endif()
 
 add_library(qmap_cli_ops STATIC
     src/cli_operations.cpp
