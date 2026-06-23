@@ -472,6 +472,10 @@ int replace_elevation(const ReplaceElevationOptions& options)
                   << " at offset " << saved.error().offset << '\n';
         return 2;
     }
+    std::cout << "kind: binary replace-elevation\n";
+    std::cout << "status: written\n";
+    std::cout << "output: " << options.output.string() << '\n';
+    std::cout << "bytes: " << written.value().size() << '\n';
     return 0;
 }
 
