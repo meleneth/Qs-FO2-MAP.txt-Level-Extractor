@@ -154,6 +154,7 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
 
     qmap::BinaryObjectRecord first_record;
     first_record.prefix = first_object;
+    first_record.object_type = qmap::BinaryObjectType::scenery;
     const std::byte bytes[] = {
         std::byte{0}, std::byte{0}, std::byte{0}, std::byte{10},
         std::byte{0}, std::byte{0}, std::byte{0}, std::byte{11},

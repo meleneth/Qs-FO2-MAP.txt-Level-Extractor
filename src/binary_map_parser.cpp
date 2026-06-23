@@ -474,6 +474,7 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
 
     BinaryObjectRecord record;
     record.prefix = prefix.value();
+    record.object_type = *object_type;
     record.tail = Range{tail_start, tail_bytes.value().size()};
 
     if (record.prefix.inventory_count < 0) {

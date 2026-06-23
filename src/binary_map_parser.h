@@ -151,6 +151,7 @@ struct BinaryObjectBlockHeader {
 
 struct BinaryObjectRecord {
     BinaryObjectPrefix prefix;
+    BinaryObjectType object_type = BinaryObjectType::item;
     Range raw;
     Range tail;
     std::vector<std::int32_t> inventory_quantities;

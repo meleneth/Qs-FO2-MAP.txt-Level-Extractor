@@ -804,9 +804,11 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     REQUIRE(parsed);
     REQUIRE(parsed.value().records.size() == 2);
     CHECK(parsed.value().records[0].prefix.pid == 0x02000001);
+    CHECK(parsed.value().records[0].object_type == qmap::BinaryObjectType::scenery);
     CHECK(parsed.value().records[0].tail.size == 3 * sizeof(std::int32_t));
     CHECK(parsed.value().records[0].raw.size == 25 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].prefix.pid == 0x01000002);
+    CHECK(parsed.value().records[1].object_type == qmap::BinaryObjectType::critter);
     CHECK(parsed.value().records[1].tail.size == 11 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].raw.size == 33 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
@@ -857,6 +859,7 @@ TEST_CASE("parse_binary_map_object_records parses inventory object records", "[m
     CHECK(parent.inventory_quantities == std::vector<std::int32_t>{3});
     REQUIRE(parent.inventory.size() == 1);
     CHECK(parent.inventory[0].prefix.obj_id == 101);
+    CHECK(parent.inventory[0].object_type == qmap::BinaryObjectType::item);
     CHECK(parent.inventory[0].prefix.tile == -1);
     CHECK(parent.inventory[0].prefix.pid == 0x00000002);
     CHECK(parent.inventory[0].tail.empty());

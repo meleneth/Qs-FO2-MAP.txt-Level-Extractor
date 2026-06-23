@@ -304,12 +304,10 @@ std::string format_binary_map_stats(
     if (first_object) {
         output << "  first_object:\n";
         output << "    pid: " << first_object->pid << '\n';
-        const auto type = binary_object_type_from_pid(first_object->pid);
-        if (type) {
-            output << "    type: " << object_type_name(*type) << '\n';
-        } else {
-            output << "    type: unknown\n";
-        }
+        const auto type = first_record
+            ? std::optional<BinaryObjectType>{first_record->object_type}
+            : binary_object_type_from_pid(first_object->pid);
+        output << "    type: " << (type ? object_type_name(*type) : "unknown") << '\n';
         output << "    elevation: " << first_object->elevation << '\n';
         output << "    script_id: " << first_object->script_id << '\n';
         output << "    inventory_count: " << first_object->inventory_count << '\n';
