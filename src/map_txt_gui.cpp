@@ -142,7 +142,6 @@ bool map_txt_gui()
 
 
     ImVec2 posB = ImGui::GetCursorPos();
-    static int selection[3] = { 0, 1, 2 };
     const char* left_labels[] = {
         session.left_labels[0].c_str(),
         session.left_labels[1].c_str(),
@@ -156,7 +155,7 @@ bool map_txt_gui()
 
 
     // left third
-    ImGui::ListBox("##L", &selection[left_column], left_labels, IM_COUNTOF(left_labels));
+    ImGui::ListBox("##L", &session.selected_elevations[left_column], left_labels, IM_COUNTOF(left_labels));
     if (hover_box()) {
         session.drop_target = qmap::MapSide::left;
     }
@@ -165,11 +164,11 @@ bool map_txt_gui()
     if (ImGui::Button(">##L->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
         qmap::select_output_elevation(
             session,
-            selection[middle_column],
+            session.selected_elevations[middle_column],
             session.left,
-            session.left_labels[selection[left_column]],
+            session.left_labels[session.selected_elevations[left_column]],
             qmap::MapSide::left,
-            selection[left_column]
+            session.selected_elevations[left_column]
         );
     }
 
@@ -185,12 +184,12 @@ bool map_txt_gui()
     {
         for (int n = 0; n < IM_COUNTOF(output_labels); n++)
         {
-            const bool item_selected = (n == selection[middle_column]);
+            const bool item_selected = (n == session.selected_elevations[middle_column]);
             if (ImGui::Selectable(output_labels[n], item_selected))
-                selection[middle_column] = n;
+                session.selected_elevations[middle_column] = n;
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                qmap::clear_output_elevation(session, selection[middle_column]);
+                qmap::clear_output_elevation(session, session.selected_elevations[middle_column]);
             }
         }
         ImGui::EndListBox();
@@ -200,17 +199,17 @@ bool map_txt_gui()
     if (ImGui::Button("<##R->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
         qmap::select_output_elevation(
             session,
-            selection[middle_column],
+            session.selected_elevations[middle_column],
             session.right,
-            session.right_labels[selection[right_column]],
+            session.right_labels[session.selected_elevations[right_column]],
             qmap::MapSide::right,
-            selection[right_column]
+            session.selected_elevations[right_column]
         );
     }
 
     // right third
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2 + 120, posB.y});
-    ImGui::ListBox("##R", &selection[right_column], right_labels, IM_COUNTOF(right_labels));
+    ImGui::ListBox("##R", &session.selected_elevations[right_column], right_labels, IM_COUNTOF(right_labels));
     if (hover_box()) {
         session.drop_target = qmap::MapSide::right;
     }

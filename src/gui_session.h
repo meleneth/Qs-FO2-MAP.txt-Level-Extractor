@@ -19,6 +19,7 @@ struct GuiSession {
     std::array<std::string, elevation_count> right_labels = {"Level 1", "Level 2", "Level 3"};
     std::array<std::string, elevation_count> output_labels = {"empty", "##1", "##2"};
     std::array<std::optional<ElevationSource>, elevation_count> output_selection = {};
+    std::array<int, elevation_count> selected_elevations = {0, 1, 2};
     std::string left_head = "empty##1";
     std::string middle_head = "empty##2";
     std::string right_head = "empty##3";
