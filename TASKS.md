@@ -158,7 +158,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Parse tile/elevation blocks into explicit structures.
   - [x] Parse scripts, script padding, and script footers completely.
   - [ ] Parse objects by PID/object kind, including type-specific tails.
-  - [ ] Parse inventories and nested inventory objects.
+  - [x] Parse inventories and nested inventory objects.
   - [x] Preserve raw byte ranges for fields or object variants that are still unknown so round-trip/export work is not blocked.
   - [x] Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
   - [ ] Document every still-unknown field with offset, observed values, and fixture coverage.
@@ -175,7 +175,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] object cursor advances across multiple objects.
   - [x] malformed object section rejected.
   - [x] representative object kind records.
-  - [ ] inventory/nested object records.
+  - [x] inventory/nested object records.
   - [x] unknown fields are preserved in raw ranges.
 
 ## Phase 6: Stop Exposing Unfinished `.map` Export

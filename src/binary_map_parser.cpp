@@ -474,6 +474,28 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
     BinaryObjectRecord record;
     record.prefix = prefix.value();
     record.tail = Range{tail_start, tail_bytes.value().size()};
+
+    if (record.prefix.inventory_count < 0) {
+        return Result<BinaryObjectRecord>::fail({"negative inventory object count", record.prefix.raw.offset + 0x48});
+    }
+
+    // MAP object inventory entries are stored immediately after the owner:
+    // a 4-byte quantity followed by another full map object record.
+    for (std::int32_t index = 0; index < record.prefix.inventory_count; ++index) {
+        auto quantity = read_i32(reader);
+        if (!quantity) {
+            return Result<BinaryObjectRecord>::fail(quantity.error());
+        }
+
+        auto inventory_object = parse_object_record(reader);
+        if (!inventory_object) {
+            return Result<BinaryObjectRecord>::fail(inventory_object.error());
+        }
+
+        record.inventory_quantities.push_back(quantity.value());
+        record.inventory.push_back(std::move(inventory_object.value()));
+    }
+
     record.raw = Range{record_start, reader.offset() - record_start};
     return Result<BinaryObjectRecord>::ok(record);
 }

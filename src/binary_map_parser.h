@@ -153,6 +153,8 @@ struct BinaryObjectRecord {
     BinaryObjectPrefix prefix;
     Range raw;
     Range tail;
+    std::vector<std::int32_t> inventory_quantities;
+    std::vector<BinaryObjectRecord> inventory;
 };
 
 struct BinarySceneryTail {
