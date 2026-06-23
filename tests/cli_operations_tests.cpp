@@ -118,6 +118,28 @@ TEST_CASE("write_binary_output_file writes bytes and rejects accidental overwrit
     std::filesystem::remove(output);
 }
 
+TEST_CASE("write_binary_output_file creates parent directories", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-write-binary-output-dir-test";
+    const auto output = directory / "nested" / "out.map";
+    std::filesystem::remove_all(directory);
+
+    const std::vector<std::byte> content{std::byte{0x7A}};
+
+    const auto saved = qmap::cli::write_binary_output_file(output, content, false);
+
+    REQUIRE(saved);
+    CHECK(std::filesystem::exists(output));
+
+    const auto read = qmap::cli::read_binary_file_result(output);
+    REQUIRE(read);
+    REQUIRE(read.value().size() == 1);
+    CHECK(read.value()[0] == std::byte{0x7A});
+
+    std::filesystem::remove_all(directory);
+}
+
 TEST_CASE("read_binary_file_result reports missing input files", "[cli]")
 {
     const auto missing =
