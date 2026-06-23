@@ -900,6 +900,67 @@ TEST_CASE("write_binary_replace_elevation_patch validates copied object ranges i
     CHECK(written.error().offset == 3);
 }
 
+TEST_CASE("write_binary_replace_elevation_patch preserves copied raw object bytes except planned field rewrites", "[map][binary][patch]")
+{
+    std::vector<std::byte> source_bytes(32);
+    for (std::size_t index = 0; index < source_bytes.size(); ++index) {
+        source_bytes[index] = static_cast<std::byte>(0x30 + index);
+    }
+    std::vector<std::byte> destination_bytes(64, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xE);
+    write_i32_be(source_bytes, 8, 10);
+    write_i32_be(source_bytes, 12, 0);
+
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_elevation = 0;
+    plan.destination_elevation = 1;
+    plan.source_tile_range = qmap::Range{0, 4};
+    plan.destination_tile_range = qmap::Range{0, 4};
+    plan.destination_total_objects_after = 1;
+    plan.destination_object_counts_after = {0, 1, 0};
+    plan.object_id_mappings.push_back({10, 100});
+
+    qmap::BinaryPlannedObjectCopy copied_object;
+    copied_object.object_id = 10;
+    copied_object.elevation = 0;
+    copied_object.raw = qmap::Range{8, 24};
+    copied_object.offsets.obj_id = 8;
+    copied_object.offsets.elevation = 12;
+    plan.copied_objects.push_back(copied_object);
+
+    qmap::BinaryMapHeader destination_header;
+    destination_header.map_flags = 0xE;
+    qmap::BinaryMapScripts source_scripts;
+    qmap::BinaryMapScripts destination_scripts;
+    qmap::BinaryMapObjectRecords source_objects;
+    qmap::BinaryMapObjectRecords destination_objects;
+
+    const auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan,
+        44,
+        {44, 48, 52, 56, 60},
+        &destination_header,
+        &source_scripts,
+        &destination_scripts,
+        &source_objects,
+        &destination_objects,
+    });
+
+    REQUIRE(written);
+    REQUIRE(written.value().size() == 104);
+    CHECK(written.value()[76] == std::byte{0x00});
+    CHECK(written.value()[79] == std::byte{0x64});
+    CHECK(written.value()[80] == std::byte{0x00});
+    CHECK(written.value()[83] == std::byte{0x01});
+    for (std::size_t index = 8; index < copied_object.raw.size; ++index) {
+        CHECK(written.value()[76 + index] == source_bytes[copied_object.raw.offset + index]);
+    }
+    CHECK(written.value()[100] == std::byte{0x00});
+    CHECK(written.value()[103] == std::byte{0x00});
+}
+
 TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections parseably", "[map][binary][patch][fixture]")
 {
     const auto proto_root = local_proto_root();
