@@ -272,7 +272,7 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Rebuild script sections from parsed destination/source scripts so count blocks, padding, and footer words remain valid after delete-then-copy.
   - [x] Rebuild object sections from parsed destination/source objects so records stay grouped under their elevation counts and absent elevations still serialize zero counts.
   - [x] Hard-error if the writer is called without parsed source/destination scripts, objects, and destination header; do not fall back to raw section surgery.
-  - [x] Cover copied raw object byte preservation so only planned object/script/elevation fields are rewritten before typed tail round-trip support exists.
+  - [x] Cover copied raw object and script byte preservation so only planned object/script/elevation fields are rewritten before typed tail round-trip support exists.
   - [x] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.
   - [ ] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
     - [x] Implement current hard errors for absent source elevation, missing copied object scripts, copied scripts referencing outside copied objects, invalid spatial elevation bits, missing copied scenery prototype metadata, copied stairs/elevator/ladder scenery links, copied script local-variable ranges unavailable in the destination, exhausted object/script ID namespaces, and undecodable exit-grid tails.
