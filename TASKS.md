@@ -179,7 +179,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
     - [x] Thread optional prototype metadata through binary object parsing entry points for callers that provide a `PrototypeDatabase`.
     - [x] Add a prototype-backed top-level `parse_binary_map` overload so callers do not duplicate the staged parse pipeline.
     - [x] Add `parse-stats --proto-root` so CLI parsing can load and carry extracted prototype metadata.
-    - [x] Surface missing binary `parse-stats` input as structured parse-failed output instead of an unstructured exception.
+    - [x] Surface missing `parse-stats` input as structured parse-failed output for binary, text, and unsupported extensions instead of an unstructured exception.
     - [x] Require `--proto-root` for CLI binary `.map` object parsing instead of pretending prototype metadata is optional.
     - [ ] Require prototype metadata in binary GUI/workflow entry points before exposing binary object parsing beyond diagnostics.
     - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated. Partial: item subtype tails, scenery subtype tails, and misc exit-grid PID tails are enabled.
