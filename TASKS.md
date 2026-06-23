@@ -271,6 +271,7 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Add a clear parse-back failure diagnostic that includes the parser error and offset.
   - [x] Rebuild script sections from parsed destination/source scripts so count blocks, padding, and footer words remain valid after delete-then-copy.
   - [x] Rebuild object sections from parsed destination/source objects so records stay grouped under their elevation counts and absent elevations still serialize zero counts.
+  - [x] Hard-error if rebuilt script or object counts do not match the planned post-replacement counts.
   - [x] Hard-error if the writer is called without parsed source/destination scripts, objects, and destination header; do not fall back to raw section surgery.
   - [x] Cover copied raw object and script byte preservation so only planned object/script/elevation fields are rewritten before typed tail round-trip support exists.
   - [x] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.

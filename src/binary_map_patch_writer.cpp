@@ -679,6 +679,13 @@ Result<std::vector<std::byte>> rebuild_binary_replace_elevation_script_section(
             record_bytes.push_back(std::move(copied_bytes.value()));
         }
 
+        const auto expected_count = request.plan.destination_script_counts_after[type_index];
+        if (record_bytes.size() != expected_count) {
+            return Result<std::vector<std::byte>>::fail({
+                "rebuilt script count does not match planned type count",
+                request.destination_script_count_offsets[type_index],
+            });
+        }
         if (record_bytes.size() > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) {
             return Result<std::vector<std::byte>>::fail({
                 "rebuilt script count exceeds int32 range",
