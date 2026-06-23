@@ -373,41 +373,68 @@ std::string format_replace_elevation_plan(
     return output.str();
 }
 
+std::string format_replace_elevation_write_success(
+    const ReplaceElevationOptions& options,
+    std::size_t byte_count
+)
+{
+    std::ostringstream output;
+    output << "kind: binary replace-elevation\n";
+    output << "status: written\n";
+    output << "output: " << options.output.string() << '\n';
+    output << "bytes: " << byte_count << '\n';
+    return output.str();
+}
+
+std::string format_replace_elevation_failure(
+    std::string_view message,
+    std::optional<std::size_t> offset
+)
+{
+    std::ostringstream output;
+    output << "kind: binary replace-elevation\n";
+    output << "status: failed\n";
+    output << "error: " << message;
+    if (offset) {
+        output << " at offset " << *offset;
+    }
+    output << '\n';
+    return output.str();
+}
+
 int replace_elevation(const ReplaceElevationOptions& options)
 {
     if (options.proto_root.empty()) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: replace-elevation requires --proto-root\n";
+        std::cout << format_replace_elevation_failure("replace-elevation requires --proto-root");
         return 2;
     }
 
     auto loaded = load_prototype_database(options.proto_root);
     if (!loaded) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: " << loaded.error().message
-                  << " at offset " << loaded.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            loaded.error().message,
+            loaded.error().offset
+        );
         return 2;
     }
 
     const auto source_bytes = read_binary_file(options.source);
     auto source = parse_binary_map(source_bytes, loaded.value());
     if (!source) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: source parse failed: " << source.error().message
-                  << " at offset " << source.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            "source parse failed: " + source.error().message,
+            source.error().offset
+        );
         return 2;
     }
 
     const auto destination_bytes = read_binary_file(options.destination);
     auto destination = parse_binary_map(destination_bytes, loaded.value());
     if (!destination) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: destination parse failed: " << destination.error().message
-                  << " at offset " << destination.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            "destination parse failed: " + destination.error().message,
+            destination.error().offset
+        );
         return 2;
     }
 
@@ -423,10 +450,10 @@ int replace_elevation(const ReplaceElevationOptions& options)
         }
     );
     if (!planned) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: " << planned.error().message
-                  << " at offset " << planned.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            planned.error().message,
+            planned.error().offset
+        );
         return 2;
     }
 
@@ -448,34 +475,31 @@ int replace_elevation(const ReplaceElevationOptions& options)
         &destination.value().objects,
     });
     if (!written) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: " << written.error().message
-                  << " at offset " << written.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            written.error().message,
+            written.error().offset
+        );
         return 2;
     }
 
     auto validated = parse_binary_map(written.value(), loaded.value());
     if (!validated) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: patched output parse failed: " << validated.error().message
-                  << " at offset " << validated.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            "patched output parse failed: " + validated.error().message,
+            validated.error().offset
+        );
         return 2;
     }
 
     auto saved = write_binary_output_file(options.output, written.value(), options.force);
     if (!saved) {
-        std::cout << "kind: binary replace-elevation\n";
-        std::cout << "status: failed\n";
-        std::cout << "error: " << saved.error().message
-                  << " at offset " << saved.error().offset << '\n';
+        std::cout << format_replace_elevation_failure(
+            saved.error().message,
+            saved.error().offset
+        );
         return 2;
     }
-    std::cout << "kind: binary replace-elevation\n";
-    std::cout << "status: written\n";
-    std::cout << "output: " << options.output.string() << '\n';
-    std::cout << "bytes: " << written.value().size() << '\n';
+    std::cout << format_replace_elevation_write_success(options, written.value().size());
     return 0;
 }
 

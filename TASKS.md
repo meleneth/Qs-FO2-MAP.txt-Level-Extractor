@@ -247,6 +247,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
   - [x] Report object ID and script ID reassignment counts.
   - [x] Report bounded previews of object/script ID reassignment mappings.
   - [x] Report preserved exit grids as external links with destination map/tile/elevation/rotation.
+  - [x] Report successful non-dry-run binary writes with output path and byte count.
   - [x] Preserve source and destination tile byte ranges so the writer can replace the exact destination elevation tile block.
   - [x] Preserve source raw ranges for planned copied objects and scripts so the writer can copy exact records before applying rewrites.
   - [x] Preserve destination raw ranges for planned deleted objects and scripts so the writer can remove exact records.

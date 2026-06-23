@@ -437,3 +437,29 @@ TEST_CASE("format_replace_elevation_plan echoes force in the reproducible comman
 
     CHECK(formatted.find("replace-elevation source.map destination.map output.map --source-elevation 0 --dest-elevation 2 --proto-root .local_fallout2_data/proto --dry-run --force\n") != std::string::npos);
 }
+
+TEST_CASE("format_replace_elevation_write_success reports output path and bytes", "[cli][patch]")
+{
+    qmap::cli::ReplaceElevationOptions options;
+    options.output = "output.map";
+
+    const auto formatted = qmap::cli::format_replace_elevation_write_success(options, 490608);
+
+    CHECK(formatted == "kind: binary replace-elevation\n"
+                       "status: written\n"
+                       "output: output.map\n"
+                       "bytes: 490608\n");
+}
+
+TEST_CASE("format_replace_elevation_failure reports optional offsets", "[cli][patch]")
+{
+    CHECK(qmap::cli::format_replace_elevation_failure("replace-elevation requires --proto-root")
+        == "kind: binary replace-elevation\n"
+           "status: failed\n"
+           "error: replace-elevation requires --proto-root\n");
+
+    CHECK(qmap::cli::format_replace_elevation_failure("source parse failed: bad map", 44)
+        == "kind: binary replace-elevation\n"
+           "status: failed\n"
+           "error: source parse failed: bad map at offset 44\n");
+}

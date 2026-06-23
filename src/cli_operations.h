@@ -7,7 +7,9 @@
 #include "text_map_export.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace qmap::cli {
@@ -53,6 +55,14 @@ struct ReplaceElevationOptions {
 std::string format_replace_elevation_plan(
     const ReplaceElevationOptions& options,
     const BinaryReplaceElevationPlan& plan
+);
+std::string format_replace_elevation_write_success(
+    const ReplaceElevationOptions& options,
+    std::size_t byte_count
+);
+std::string format_replace_elevation_failure(
+    std::string_view message,
+    std::optional<std::size_t> offset = std::nullopt
 );
 
 int parse_stats(const std::filesystem::path& input);
