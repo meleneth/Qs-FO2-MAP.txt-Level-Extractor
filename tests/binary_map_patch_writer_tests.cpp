@@ -937,6 +937,44 @@ TEST_CASE("write_binary_replace_elevation_patch rejects rebuilt script count mis
     CHECK(written.error().offset == 56);
 }
 
+TEST_CASE("write_binary_replace_elevation_patch rejects rebuilt object count mismatches", "[map][binary][patch]")
+{
+    const std::vector<std::byte> source_bytes(4);
+    std::vector<std::byte> destination_bytes(64, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xE);
+
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_tile_range = qmap::Range{0, 4};
+    plan.destination_tile_range = qmap::Range{0, 4};
+    plan.destination_elevation = 1;
+    plan.destination_total_objects_after = 1;
+    plan.destination_object_counts_after = {0, 1, 0};
+
+    qmap::BinaryMapHeader destination_header;
+    destination_header.map_flags = 0xE;
+    qmap::BinaryMapScripts source_scripts;
+    qmap::BinaryMapScripts destination_scripts;
+    qmap::BinaryMapObjectRecords source_objects;
+    qmap::BinaryMapObjectRecords destination_objects;
+
+    const auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan,
+        44,
+        {44, 48, 52, 56, 60},
+        &destination_header,
+        &source_scripts,
+        &destination_scripts,
+        &source_objects,
+        &destination_objects,
+    });
+
+    REQUIRE_FALSE(written);
+    CHECK(written.error().message == "rebuilt object count does not match planned elevation count");
+    CHECK(written.error().offset == 44);
+}
+
 TEST_CASE("write_binary_replace_elevation_patch preserves copied raw object bytes except planned field rewrites", "[map][binary][patch]")
 {
     std::vector<std::byte> source_bytes(32);
