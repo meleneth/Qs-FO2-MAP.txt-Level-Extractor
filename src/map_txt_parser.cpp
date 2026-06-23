@@ -3,7 +3,6 @@
 #include "text_map_export.h"
 #include "text_map_parser.h"
 
-#include <cstring>
 #include <fstream>
 #include <optional>
 #include <string_view>
@@ -38,19 +37,6 @@ std::optional<LegacyTextSource> parse_source(const map_lvls* map)
         return std::nullopt;
     }
     return LegacyTextSource{text, parsed.value()};
-}
-
-bool label_is_empty(const char* label)
-{
-    return !label
-        || label[0] == '\0'
-        || std::strncmp(label, "empty", sizeof("empty") - 1) == 0
-        || std::strncmp(label, "##", sizeof("##") - 1) == 0;
-}
-
-bool label_matches(const char* left, const char* right)
-{
-    return left && right && std::strncmp(left, right, NAME_LENGTH) == 0;
 }
 
 } // namespace
@@ -99,9 +85,14 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
     map->objects = base + parsed.value().objects.offset;
 }
 
-void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int header, char* path)
+void export_map_txt(
+    const qmap::TextMapExportPlan& plan,
+    map_lvls* map_L,
+    map_lvls* map_R,
+    char* path
+)
 {
-    if (!label_ptr_M || !map_L || !map_R || !path) {
+    if (!map_L || !map_R || !path) {
         return;
     }
 
@@ -109,32 +100,6 @@ void export_map_txt(char** label_ptr_M, map_lvls* map_L, map_lvls* map_R, int he
     auto right = parse_source(map_R);
     if (!left || !right) {
         return;
-    }
-
-    qmap::TextMapExportPlan plan;
-    if (header == 0) {
-        plan.header_side = qmap::MapSide::left;
-    } else if (header == 1) {
-        plan.header_side = qmap::MapSide::right;
-    } else {
-        plan.header_side = std::nullopt;
-    }
-
-    for (int destination = 0; destination < qmap::elevation_count; ++destination) {
-        if (label_is_empty(label_ptr_M[destination])) {
-            continue;
-        }
-
-        for (int source = 0; source < qmap::elevation_count; ++source) {
-            if (label_matches(label_ptr_M[destination], map_L->label_ptr[source])) {
-                plan.elevations[destination] = qmap::ElevationSource{qmap::MapSide::left, source};
-                break;
-            }
-            if (label_matches(label_ptr_M[destination], map_R->label_ptr[source])) {
-                plan.elevations[destination] = qmap::ElevationSource{qmap::MapSide::right, source};
-                break;
-            }
-        }
     }
 
     const qmap::ParsedTextSource left_source{left->text, left->parsed};

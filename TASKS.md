@@ -88,8 +88,8 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] No file paths.
   - [x] No global state.
 
-- [ ] Replace label-string matching with stable source references. Partial: modern export uses `{side, elevation}`; legacy GUI still uses `char[16]` labels as identity.
-  - [ ] Avoid using `char[16]` labels as identity.
+- [x] Replace label-string matching with stable source references.
+  - [x] Avoid using `char[16]` labels as identity.
   - [x] Use `{side, elevation}` or similar explicit selection data.
 
 - [x] Rewrite text export around `std::string`.
@@ -246,7 +246,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 - [ ] Replace `char[16]` label identity with display-only strings.
   - [ ] Labels may truncate for UI.
-  - [ ] They must not drive export behavior.
+  - [x] They must not drive export behavior.
 
 - [ ] Add non-UI tests for session behavior.
   - [ ] load left/right map updates available elevations.

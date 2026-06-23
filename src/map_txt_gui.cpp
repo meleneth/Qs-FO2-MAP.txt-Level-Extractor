@@ -4,6 +4,7 @@
 #include "map_txt_parser.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdio>
@@ -12,6 +13,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -107,9 +109,19 @@ void parse_binary_map_for_gui(map_lvls& map)
 map_lvls map_L;
 map_lvls map_R;
 char label_M[3][16] = {"empty", "##1", "##2"};
+std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
 char head_L[NAME_LENGTH] = {"empty##1"};
 char head_M[NAME_LENGTH] = {"empty##2"};
 char head_R[NAME_LENGTH] = {"empty##3"};
+
+void reset_output_labels()
+{
+    output_selection = {};
+    memset(label_M, 0, sizeof(label_M));
+    strncpy(label_M[0], "empty", sizeof("empty"));
+    strncpy(label_M[1], "##1", sizeof("##1"));
+    strncpy(label_M[2], "##2", sizeof("##2"));
+}
 
 const char* map_type_name(qmap::MapFileKind map_type)
 {
@@ -166,10 +178,7 @@ void update_labels(map_lvls* map, int list_box)
     }
 
     snprintf((list_box == 0) ? head_L : head_R, NAME_LENGTH, "%s", map->map_name);
-    memset(label_M,0,sizeof(label_M));
-    strncpy(label_M[0],"empty",sizeof("empty"));
-    strncpy(label_M[1],"##1",  sizeof("##1"));
-    strncpy(label_M[2],"##2",  sizeof("##2"));
+    reset_output_labels();
 
     for (size_t i = 0; i < 3; i++) {
         map->label_ptr[i] = map->label[i];
@@ -301,7 +310,48 @@ bool hover_box()
     return false;
 }
 
-void export_map(char** label_ptr_M, int header, char* path_buff)
+qmap::TextMapExportPlan make_text_export_plan(int header)
+{
+    qmap::TextMapExportPlan plan;
+    if (header == left_column) {
+        plan.header_side = qmap::MapSide::left;
+    } else if (header == 1) {
+        plan.header_side = qmap::MapSide::right;
+    } else {
+        plan.header_side = std::nullopt;
+    }
+    plan.elevations = output_selection;
+    return plan;
+}
+
+void select_output_elevation(
+    int destination,
+    const map_lvls& source_map,
+    qmap::MapSide side,
+    int source_elevation
+)
+{
+    if (destination < 0 || destination >= qmap::elevation_count
+        || source_elevation < 0 || source_elevation >= qmap::elevation_count
+        || !source_map.level[source_elevation]) {
+        return;
+    }
+
+    snprintf(label_M[destination], NAME_LENGTH, "%s", source_map.label_ptr[source_elevation]);
+    output_selection[destination] = qmap::ElevationSource{side, source_elevation};
+}
+
+void clear_output_elevation(int destination)
+{
+    if (destination < 0 || destination >= qmap::elevation_count) {
+        return;
+    }
+
+    snprintf(label_M[destination], NAME_LENGTH, "##%d", destination);
+    output_selection[destination] = std::nullopt;
+}
+
+void export_map(int header, char* path_buff)
 {
     if (map_L.data == nullptr && map_R.data == nullptr) {
         return;
@@ -325,7 +375,7 @@ void export_map(char** label_ptr_M, int header, char* path_buff)
     // .txt file extension for both maps or one .txt and one empty
     if ((map_L.map_type == qmap::MapFileKind::text || map_L.map_type == qmap::MapFileKind::empty)
     &&  (map_R.map_type == qmap::MapFileKind::text || map_R.map_type == qmap::MapFileKind::empty)) {
-        export_map_txt(label_ptr_M, &map_L, &map_R, header, path_buff);
+        export_map_txt(make_text_export_plan(header), &map_L, &map_R, path_buff);
     } else {
         open_err_popup = true;
         snprintf(error_text, ERR_TXT_LEN,
@@ -347,7 +397,7 @@ void error_popup()
         ImGui::CloseCurrentPopup();
     }
 }
-void overwrite_popup(char** label_ptr_M, int header, char* path_buff)
+void overwrite_popup(int header, char* path_buff)
 {
     ImGui::Text("Don't save over the original files\n"
                 "for now, I'm not sure they would\n"
@@ -355,8 +405,7 @@ void overwrite_popup(char** label_ptr_M, int header, char* path_buff)
     ImGui::Text("File already exists, overwrite?");
     if (ImGui::Button("Overwrite")) {
         //QTODO: this needs to work for both types
-        export_map(label_ptr_M, header, path_buff);
-        // export_map_txt(label_ptr_M, &map_L, &map_R, header, path_buff);
+        export_map(header, path_buff);
         ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
@@ -419,8 +468,12 @@ bool map_txt_gui()
 
     ImGui::SetCursorPos(ImVec2{posB.x+size.x   +  5, posB.y});
     if (ImGui::Button(">##L->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
-        // replace middle selection with selection on left
-        strncpy(label_M[selection[middle_column]],map_L.label_ptr[selection[left_column]],NAME_LENGTH);
+        select_output_elevation(
+            selection[middle_column],
+            map_L,
+            qmap::MapSide::left,
+            selection[left_column]
+        );
     }
 
     // middle third - output listbox
@@ -436,7 +489,7 @@ bool map_txt_gui()
                 selection[middle_column] = n;
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                snprintf(label_M[selection[middle_column]], NAME_LENGTH, "##%d", n);
+                clear_output_elevation(selection[middle_column]);
             }
         }
         ImGui::EndListBox();
@@ -444,8 +497,12 @@ bool map_txt_gui()
 
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2+20 + 45, posB.y});
     if (ImGui::Button("<##R->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
-        // replace middle selection with selection on right
-        strncpy(label_M[selection[middle_column]],map_R.label_ptr[selection[right_column]],NAME_LENGTH);
+        select_output_elevation(
+            selection[middle_column],
+            map_R,
+            qmap::MapSide::right,
+            selection[right_column]
+        );
     }
 
     // right third
@@ -468,7 +525,7 @@ bool map_txt_gui()
     }
 
     if (ImGui::BeginPopup("Overwrite?")) {
-        overwrite_popup(label_ptr_M, header, path_buff);
+        overwrite_popup(header, path_buff);
         ImGui::EndPopup();
     }
 
@@ -476,7 +533,7 @@ bool map_txt_gui()
         if (std::filesystem::exists(path_buff)) {
             ImGui::OpenPopup("Overwrite?");
         } else {
-            export_map(label_ptr_M, header, path_buff);
+            export_map(header, path_buff);
         }
     }
     if (header == -1) {
