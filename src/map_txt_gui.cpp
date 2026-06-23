@@ -29,6 +29,8 @@ constexpr int right_column = 2;
 constexpr int path_size = 4096;
 
 struct GuiSession {
+    map_lvls left;
+    map_lvls right;
     std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
     int header = -1;
     char export_path[path_size] = "/path/to/some/folder/with/long/mapname.txt";
@@ -111,8 +113,6 @@ void parse_binary_map_for_gui(map_lvls& map)
 
 } // namespace
 
-map_lvls map_L;
-map_lvls map_R;
 char label_M[3][16] = {"empty", "##1", "##2"};
 char head_L[NAME_LENGTH] = {"empty##1"};
 char head_M[NAME_LENGTH] = {"empty##2"};
@@ -226,10 +226,10 @@ void file_drop_callback(const char* full_path)
 
     map_lvls* map_ptr = nullptr;
     if (list_box == 0) {
-        map_ptr   = &map_L;
+        map_ptr   = &session.left;
     } else
     if (list_box == 1) {
-        map_ptr   = &map_R;
+        map_ptr   = &session.right;
     }
 
     std::vector<uint8_t> bytes;
@@ -358,16 +358,16 @@ void clear_output_elevation(int destination)
 
 void export_map(int header, char* path_buff)
 {
-    if (map_L.data == nullptr && map_R.data == nullptr) {
+    if (session.left.data == nullptr && session.right.data == nullptr) {
         return;
     }
-    if (map_L.map_type == qmap::MapFileKind::empty && map_R.map_type == qmap::MapFileKind::empty) {
+    if (session.left.map_type == qmap::MapFileKind::empty && session.right.map_type == qmap::MapFileKind::empty) {
         return;
     }
 
     // .map file extension for both maps or one .map and one empty
-    if ((map_L.map_type == qmap::MapFileKind::binary || map_L.map_type == qmap::MapFileKind::empty)
-    &&  (map_R.map_type == qmap::MapFileKind::binary || map_R.map_type == qmap::MapFileKind::empty)) {
+    if ((session.left.map_type == qmap::MapFileKind::binary || session.left.map_type == qmap::MapFileKind::empty)
+    &&  (session.right.map_type == qmap::MapFileKind::binary || session.right.map_type == qmap::MapFileKind::empty)) {
         session.open_error_popup = true;
         session.current_error =
             ".MAP export is not implemented yet.\n"
@@ -375,9 +375,9 @@ void export_map(int header, char* path_buff)
             "is disabled until the full format is modeled.";
     } else
     // .txt file extension for both maps or one .txt and one empty
-    if ((map_L.map_type == qmap::MapFileKind::text || map_L.map_type == qmap::MapFileKind::empty)
-    &&  (map_R.map_type == qmap::MapFileKind::text || map_R.map_type == qmap::MapFileKind::empty)) {
-        export_map_txt(make_text_export_plan(header), &map_L, &map_R, path_buff);
+    if ((session.left.map_type == qmap::MapFileKind::text || session.left.map_type == qmap::MapFileKind::empty)
+    &&  (session.right.map_type == qmap::MapFileKind::text || session.right.map_type == qmap::MapFileKind::empty)) {
+        export_map_txt(make_text_export_plan(header), &session.left, &session.right, path_buff);
     } else {
         session.open_error_popup = true;
         session.current_error =
@@ -424,15 +424,15 @@ bool map_txt_gui()
     ImGui::PushItemWidth(size.x);
 
     ImGui::Text("Map Names:");
-    show_map_status("Left", map_L);
-    show_map_status("Right", map_R);
+    show_map_status("Left", session.left);
+    show_map_status("Right", session.right);
 
 
     ImVec2 posA = ImGui::GetCursorPos();
     if (ImGui::Button(head_L, ImVec2{size.x,0})) {
-        if (map_L.data) {
-            snprintf(head_M, NAME_LENGTH, "%s##", map_L.map_name);
-            snprintf(session.export_path, path_size, "%s.Q.txt", map_L.file_str);
+        if (session.left.data) {
+            snprintf(head_M, NAME_LENGTH, "%s##", session.left.map_name);
+            snprintf(session.export_path, path_size, "%s.Q.txt", session.left.file_str);
             session.header = 0;
         } else {
             snprintf(head_M, NAME_LENGTH, "HeaderL##");
@@ -445,9 +445,9 @@ bool map_txt_gui()
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x*2 + 120, posA.y});
     if (ImGui::Button(head_R, ImVec2{size.x,0})) {
-        if (map_R.data) {
-            snprintf(head_M, NAME_LENGTH, "%s##", map_R.map_name);
-            snprintf(session.export_path, path_size, "%s.Q.txt", map_R.file_str);
+        if (session.right.data) {
+            snprintf(head_M, NAME_LENGTH, "%s##", session.right.map_name);
+            snprintf(session.export_path, path_size, "%s.Q.txt", session.right.file_str);
             session.header = 1;
         } else {
             snprintf(head_M, NAME_LENGTH, "HeaderR##");
@@ -457,8 +457,8 @@ bool map_txt_gui()
 
     ImVec2 posB = ImGui::GetCursorPos();
     static int selection[3] = { 0, 1, 2 };
-    const char* left_labels[] = {map_L.label[0], map_L.label[1], map_L.label[2]};
-    const char* right_labels[] = {map_R.label[0], map_R.label[1], map_R.label[2]};
+    const char* left_labels[] = {session.left.label[0], session.left.label[1], session.left.label[2]};
+    const char* right_labels[] = {session.right.label[0], session.right.label[1], session.right.label[2]};
 
 
     // left third
@@ -471,7 +471,7 @@ bool map_txt_gui()
     if (ImGui::Button(">##L->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
         select_output_elevation(
             selection[middle_column],
-            map_L,
+            session.left,
             qmap::MapSide::left,
             selection[left_column]
         );
@@ -500,7 +500,7 @@ bool map_txt_gui()
     if (ImGui::Button("<##R->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
         select_output_elevation(
             selection[middle_column],
-            map_R,
+            session.right,
             qmap::MapSide::right,
             selection[right_column]
         );

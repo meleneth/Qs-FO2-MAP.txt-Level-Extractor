@@ -232,8 +232,8 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 ## Phase 8: Move GUI State Behind A Plain Model
 
 - [ ] Introduce an application/session state struct.
-  - [ ] Left loaded map.
-  - [ ] Right loaded map.
+  - [x] Left loaded map.
+  - [x] Right loaded map.
   - [x] Output selections.
   - [x] Header selection.
   - [x] Export path.
@@ -269,7 +269,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 ## Phase 10: Retire Legacy Structures
 
 - [ ] Replace `map_lvls` with separate concepts. Partial: parsed text/binary concepts exist; GUI still uses `map_lvls`.
-  - [ ] Loaded file ownership.
+  - [x] Loaded file ownership.
   - [x] Parsed text map.
   - [x] Parsed binary map.
   - [ ] GUI/session display model.
