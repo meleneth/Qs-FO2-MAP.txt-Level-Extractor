@@ -20,9 +20,6 @@
 
 bool is_hovering     = false;
 int list_box         = -1;
-constexpr int error_text_length = 256;
-char error_text[error_text_length] = {};
-bool open_err_popup = false;
 
 namespace {
 
@@ -35,6 +32,8 @@ struct GuiSession {
     std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
     int header = -1;
     char export_path[path_size] = "/path/to/some/folder/with/long/mapname.txt";
+    std::string current_error;
+    bool open_error_popup = false;
 };
 
 void clear_loaded_map(map_lvls& map)
@@ -214,15 +213,14 @@ void file_drop_callback(const char* full_path)
     if (extension == ".map") {
         map_type = qmap::MapFileKind::binary;
     } else {
-        snprintf(error_text, error_text_length,
-        "Wrong file type.\n"
-        "Should be Fallout 2 'map.txt'.\n"
-        "You can export a single map.txt\n"
-        "from the Fallout 2 Mapper\n"
-        "by opening the map you want\n"
-        "to export and pressing 'Alt + P'."
-        );
-        open_err_popup = true;
+        session.current_error =
+            "Wrong file type.\n"
+            "Should be Fallout 2 'map.txt'.\n"
+            "You can export a single map.txt\n"
+            "from the Fallout 2 Mapper\n"
+            "by opening the map you want\n"
+            "to export and pressing 'Alt + P'.";
+        session.open_error_popup = true;
         return;
     }
 
@@ -236,15 +234,15 @@ void file_drop_callback(const char* full_path)
 
     std::vector<uint8_t> bytes;
     if (!load_file_bytes(file_path, bytes)) {
-        snprintf(error_text, error_text_length, "Unable to read file:\n%s", full_path);
-        open_err_popup = true;
+        session.current_error = std::string{"Unable to read file:\n"} + full_path;
+        session.open_error_popup = true;
         return;
     }
 
     clear_loaded_map(*map_ptr);
     if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        snprintf(error_text, error_text_length, "File is too large:\n%s", full_path);
-        open_err_popup = true;
+        session.current_error = std::string{"File is too large:\n"} + full_path;
+        session.open_error_popup = true;
         return;
     }
     map_ptr->file_path_storage = file_path.string();
@@ -370,35 +368,31 @@ void export_map(int header, char* path_buff)
     // .map file extension for both maps or one .map and one empty
     if ((map_L.map_type == qmap::MapFileKind::binary || map_L.map_type == qmap::MapFileKind::empty)
     &&  (map_R.map_type == qmap::MapFileKind::binary || map_R.map_type == qmap::MapFileKind::empty)) {
-        open_err_popup = true;
-        snprintf(
-            error_text,
-            error_text_length,
+        session.open_error_popup = true;
+        session.current_error =
             ".MAP export is not implemented yet.\n"
             "The file can be parsed, but binary export\n"
-            "is disabled until the full format is modeled."
-        );
+            "is disabled until the full format is modeled.";
     } else
     // .txt file extension for both maps or one .txt and one empty
     if ((map_L.map_type == qmap::MapFileKind::text || map_L.map_type == qmap::MapFileKind::empty)
     &&  (map_R.map_type == qmap::MapFileKind::text || map_R.map_type == qmap::MapFileKind::empty)) {
         export_map_txt(make_text_export_plan(header), &map_L, &map_R, path_buff);
     } else {
-        open_err_popup = true;
-        snprintf(error_text, error_text_length,
+        session.open_error_popup = true;
+        session.current_error =
             "Sorry, can't mix .MAP and .TXT yet.\n"
             "It's just a pain in the butt to\n"
             "combine these two filetypes,\n"
             "so I'm leaving this out for now.\n"
-            "Let me know if you want this!"
-        );
+            "Let me know if you want this!";
     }
 }
 
 
 void error_popup()
 {
-    ImGui::Text("%s", error_text);
+    ImGui::Text("%s", session.current_error.c_str());
 
     if (ImGui::Button("Close")) {
         ImGui::CloseCurrentPopup();
@@ -521,9 +515,9 @@ bool map_txt_gui()
 
     ImGui::PopItemWidth();
 
-    if (open_err_popup) {
+    if (session.open_error_popup) {
         ImGui::OpenPopup("Error");
-        open_err_popup = false;
+        session.open_error_popup = false;
     }
 
     if (ImGui::BeginPopup("Error")) {

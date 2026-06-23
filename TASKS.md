@@ -237,7 +237,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Output selections.
   - [x] Header selection.
   - [x] Export path.
-  - [ ] Current error.
+  - [x] Current error.
 
 - [ ] Keep ImGui code as rendering and event forwarding.
   - [ ] No parser internals in UI rendering code.
