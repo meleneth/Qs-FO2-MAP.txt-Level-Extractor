@@ -84,6 +84,51 @@ TEST_CASE("export_text_map can place selected elevations in new positions", "[tx
     CHECK(exported.value().find("square_elev: 2\r\n\r\nleft-zero\r\n") != std::string::npos);
 }
 
+TEST_CASE("build_text_map_transform exposes selected output model", "[txt][export]")
+{
+    const auto left = parse_fixture(
+        "left-header\n"
+        "square_elev: 0\n\n"
+        "left-zero\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        "SCRS:\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 0\n"
+        "scr_num: 1\n"
+        "scr_id: 50331649\n"
+        "scr_oid: 215\n"
+        "scr_num_local_vars: 0\n"
+        "scr_num: 0\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+        "[[OBJECTS BEGIN]]\n"
+        "[OBJECT BEGIN]\n"
+        "obj_elev: 0\n"
+        "obj_sid: 50331649\n"
+        "[OBJECT END]\n"
+        "[[OBJECTS END]]\n"
+    );
+    const auto right = parse_fixture(
+        "right-header\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\n"
+    );
+    qmap::TextMapExportPlan plan;
+    plan.header_side = qmap::MapSide::right;
+    plan.elevations[2] = qmap::ElevationSource{qmap::MapSide::left, 0};
+
+    const auto transform = qmap::build_text_map_transform(source_from(left), source_from(right), plan);
+
+    REQUIRE(transform);
+    CHECK(transform.value().header == "right-header\n");
+    REQUIRE(transform.value().elevations[2]);
+    CHECK(*transform.value().elevations[2] == "left-zero\n");
+    CHECK_FALSE(transform.value().elevations[0]);
+    CHECK(transform.value().scripts[qmap::script_type_index(qmap::ScriptType::object)].size() == 1);
+    CHECK(transform.value().objects.size() == 1);
+    CHECK(transform.value().objects[0].find("obj_elev: 2\r\n") != std::string::npos);
+}
+
 TEST_CASE("export_text_map rejects absent source elevations", "[txt][export]")
 {
     const auto left = parse_fixture(

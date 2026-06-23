@@ -81,9 +81,9 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 ## Phase 3: Separate Text Transform From Export
 
-- [ ] Extract a pure transform layer. Partial: `export_text_map()` takes parsed sources and an output plan without ImGui/paths/globals, but it exports directly instead of returning a separate transform model.
+- [x] Extract a pure transform layer.
   - [x] Input: parsed left/right text maps and an output plan.
-  - [ ] Output: a model describing selected elevations, scripts, objects, and chosen header.
+  - [x] Output: a model describing selected elevations, scripts, objects, and chosen header.
   - [x] No ImGui.
   - [x] No file paths.
   - [x] No global state.

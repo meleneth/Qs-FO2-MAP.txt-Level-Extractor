@@ -245,9 +245,8 @@ std::string serialize_script(
     return serialized;
 }
 
-struct ExportRecords {
-    std::array<std::vector<std::string>, script_type_count> scripts;
-    std::vector<std::string> objects;
+struct TransformBuilder {
+    TextMapTransform transform;
     std::unordered_set<std::uint32_t> used_script_ids;
 
     Result<std::uint32_t> reserve_script_id(std::uint32_t preferred)
@@ -279,7 +278,7 @@ struct ExportRecords {
 };
 
 Result<void> append_selected_records(
-    ExportRecords& output,
+    TransformBuilder& builder,
     const ParsedTextSource& source,
     MapSide side,
     const TextMapExportPlan& plan
@@ -312,7 +311,7 @@ Result<void> append_selected_records(
 
         std::optional<std::uint32_t> rewritten_script_id;
         if (object.script_id && *object.script_id != no_script_id) {
-            auto reserved = output.reserve_script_id(*object.script_id);
+            auto reserved = builder.reserve_script_id(*object.script_id);
             if (!reserved) {
                 return Result<void>::fail(reserved.error());
             }
@@ -324,7 +323,7 @@ Result<void> append_selected_records(
         if (!raw) {
             return Result<void>::fail({"invalid object record range", object.raw.offset});
         }
-        output.objects.push_back(serialize_object(*raw, *destination, rewritten_script_id));
+        builder.transform.objects.push_back(serialize_object(*raw, *destination, rewritten_script_id));
     }
 
     for (const auto& script : scripts.value()) {
@@ -340,7 +339,7 @@ Result<void> append_selected_records(
                 copy = destination.has_value();
             }
             if (copy) {
-                auto reserved = output.reserve_script_id(script.script_id);
+                auto reserved = builder.reserve_script_id(script.script_id);
                 if (!reserved) {
                     return Result<void>::fail(reserved.error());
                 }
@@ -364,7 +363,7 @@ Result<void> append_selected_records(
         if (!raw) {
             return Result<void>::fail({"invalid script record range", script.raw.offset});
         }
-        output.scripts[script_type_index(script.script_type)].push_back(
+        builder.transform.scripts[script_type_index(script.script_type)].push_back(
             serialize_script(*raw, rewritten_script_id, rewritten_spatial_tile)
         );
     }
@@ -372,14 +371,14 @@ Result<void> append_selected_records(
     return Result<void>::ok();
 }
 
-void append_scripts(std::string& output, const ExportRecords& records)
+void append_scripts(std::string& output, const TextMapTransform& transform)
 {
     output += scripts_header;
     for (int type = 0; type < script_type_count; ++type) {
         output += "scr_num: ";
-        output += std::to_string(records.scripts[type].size());
+        output += std::to_string(transform.scripts[type].size());
         output += "\r\n";
-        for (const auto& script : records.scripts[type]) {
+        for (const auto& script : transform.scripts[type]) {
             output += "\r\n";
             output += script;
             if (!output.ends_with("\r\n")) {
@@ -389,11 +388,11 @@ void append_scripts(std::string& output, const ExportRecords& records)
     }
 }
 
-void append_objects(std::string& output, const ExportRecords& records)
+void append_objects(std::string& output, const TextMapTransform& transform)
 {
     output += objects_header;
     output += "[[OBJECTS BEGIN]]\r\n";
-    for (const auto& object : records.objects) {
+    for (const auto& object : transform.objects) {
         output += "\r\n";
         output += object;
         if (!output.ends_with("\r\n")) {
@@ -405,25 +404,24 @@ void append_objects(std::string& output, const ExportRecords& records)
 
 } // namespace
 
-Result<std::string> export_text_map(
+Result<TextMapTransform> build_text_map_transform(
     const ParsedTextSource& left,
     const ParsedTextSource& right,
     const TextMapExportPlan& plan
 )
 {
     if (!plan.header_side) {
-        return Result<std::string>::fail({"missing header selection", 0});
+        return Result<TextMapTransform>::fail({"missing header selection", 0});
     }
 
     const auto& header_source = source_for_side(left, right, *plan.header_side);
     auto header = header_source.map.header_view(header_source.text);
     if (!header) {
-        return Result<std::string>::fail({"invalid header range", 0});
+        return Result<TextMapTransform>::fail({"invalid header range", 0});
     }
 
-    std::string output;
-    output.reserve(left.text.size() + right.text.size());
-    append_crlf_normalized(output, *header);
+    TransformBuilder builder;
+    builder.transform.header = std::string{*header};
 
     for (int destination = 0; destination < elevation_count; ++destination) {
         if (!plan.elevations[destination]) {
@@ -432,7 +430,7 @@ Result<std::string> export_text_map(
 
         const auto source = *plan.elevations[destination];
         if (!is_valid_elevation(source.elevation)) {
-            return Result<std::string>::fail({
+            return Result<TextMapTransform>::fail({
                 "invalid source elevation",
                 static_cast<std::size_t>(destination),
             });
@@ -441,29 +439,59 @@ Result<std::string> export_text_map(
         const auto& map_source = source_for_side(left, right, source.side);
         const auto level = map_source.map.elevation_view(map_source.text, source.elevation.value);
         if (!level) {
-            return Result<std::string>::fail({
+            return Result<TextMapTransform>::fail({
                 "selected source elevation is absent",
                 static_cast<std::size_t>(destination),
             });
         }
 
-        append_level_marker(output, destination);
-        append_crlf_normalized(output, *level);
+        builder.transform.elevations[destination] = std::string{*level};
     }
 
-    ExportRecords records;
-    auto left_records = append_selected_records(records, left, MapSide::left, plan);
+    auto left_records = append_selected_records(builder, left, MapSide::left, plan);
     if (!left_records) {
-        return Result<std::string>::fail(left_records.error());
+        return Result<TextMapTransform>::fail(left_records.error());
     }
-    auto right_records = append_selected_records(records, right, MapSide::right, plan);
+    auto right_records = append_selected_records(builder, right, MapSide::right, plan);
     if (!right_records) {
-        return Result<std::string>::fail(right_records.error());
+        return Result<TextMapTransform>::fail(right_records.error());
     }
-    append_scripts(output, records);
-    append_objects(output, records);
+
+    return Result<TextMapTransform>::ok(std::move(builder.transform));
+}
+
+Result<std::string> serialize_text_map_transform(const TextMapTransform& transform)
+{
+    std::string output;
+    append_crlf_normalized(output, transform.header);
+
+    for (int destination = 0; destination < elevation_count; ++destination) {
+        if (!transform.elevations[destination]) {
+            continue;
+        }
+
+        append_level_marker(output, destination);
+        append_crlf_normalized(output, *transform.elevations[destination]);
+    }
+
+    append_scripts(output, transform);
+    append_objects(output, transform);
 
     return Result<std::string>::ok(std::move(output));
+}
+
+Result<std::string> export_text_map(
+    const ParsedTextSource& left,
+    const ParsedTextSource& right,
+    const TextMapExportPlan& plan
+)
+{
+    auto transform = build_text_map_transform(left, right, plan);
+    if (!transform) {
+        return Result<std::string>::fail(transform.error());
+    }
+
+    return serialize_text_map_transform(transform.value());
 }
 
 } // namespace qmap
