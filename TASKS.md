@@ -216,7 +216,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] `--log-format <human|plain|json>` if JSON output becomes useful for tooling.
   - [x] Default CLI behavior should be human-readable and concise.
 
-- [ ] CLI output should be useful for development and debugging. Partial: binary stats are detailed; text stats do not yet include script/object counts.
+- [x] CLI output should be useful for development and debugging.
   - [x] File kind.
   - [x] Header presence/size.
   - [x] Present elevations and byte/line ranges.

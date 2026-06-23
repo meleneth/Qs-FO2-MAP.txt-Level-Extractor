@@ -1,8 +1,10 @@
 #include "cli_operations.h"
 
 #include "text_map_parser.h"
+#include "text_map_records.h"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cctype>
 #include <cstddef>
@@ -55,11 +57,11 @@ ParsedTextSource source_from(const TextInput& input)
     return {input.text, input.map};
 }
 
-void print_range(const char* label, Range range)
+void append_range(std::ostream& output, const char* label, Range range)
 {
-    std::cout << "  " << label << ": offset=" << range.offset
-              << " size=" << range.size
-              << " end=" << range.end() << '\n';
+    output << "  " << label << ": offset=" << range.offset
+           << " size=" << range.size
+           << " end=" << range.end() << '\n';
 }
 
 std::string script_type_name(int type)
@@ -143,6 +145,78 @@ std::string lowercase_extension(const std::filesystem::path& path)
         return static_cast<char>(std::tolower(ch));
     });
     return ext;
+}
+
+std::string format_text_map_stats(std::string_view text, const ParsedTextMap& map)
+{
+    std::ostringstream output;
+    output << "kind: map txt\n";
+    output << "status: parsed\n";
+    append_range(output, "header", map.header);
+    for (int elevation = 0; elevation < elevation_count; ++elevation) {
+        const auto label = "elevation " + std::to_string(elevation);
+        if (map.elevations[elevation]) {
+            append_range(output, label.c_str(), *map.elevations[elevation]);
+        } else {
+            output << "  " << label << ": absent\n";
+        }
+    }
+    append_range(output, "scripts", map.scripts);
+    append_range(output, "objects", map.objects);
+
+    output << "text scripts:\n";
+    const auto scripts_view = map.scripts_view(text);
+    if (!scripts_view) {
+        output << "  status: invalid range\n";
+    } else {
+        auto scripts = parse_text_scripts(*scripts_view);
+        if (!scripts) {
+            output << "  status: parse failed\n";
+            output << "  error: " << scripts.error().message << '\n';
+            output << "  error_offset: " << scripts.error().offset << '\n';
+        } else {
+            std::array<std::size_t, script_type_count> counts{};
+            for (const auto& script : scripts.value()) {
+                counts[static_cast<std::size_t>(script_type_index(script.script_type))] += 1;
+            }
+            output << "  total: " << scripts.value().size() << '\n';
+            for (int type = 0; type < script_type_count; ++type) {
+                output << "  " << script_type_name(type) << ": " << counts[static_cast<std::size_t>(type)] << '\n';
+            }
+        }
+    }
+
+    output << "text objects:\n";
+    const auto objects_view = map.objects_view(text);
+    if (!objects_view) {
+        output << "  status: invalid range\n";
+    } else {
+        auto objects = parse_text_objects(*objects_view);
+        if (!objects) {
+            output << "  status: parse failed\n";
+            output << "  error: " << objects.error().message << '\n';
+            output << "  error_offset: " << objects.error().offset << '\n';
+        } else {
+            std::array<std::size_t, elevation_count> elevation_counts{};
+            std::size_t without_elevation = 0;
+            for (const auto& object : objects.value()) {
+                if (object.elevation && *object.elevation >= 0 && *object.elevation < elevation_count) {
+                    elevation_counts[static_cast<std::size_t>(*object.elevation)] += 1;
+                } else {
+                    without_elevation += 1;
+                }
+            }
+
+            output << "  total: " << objects.value().size() << '\n';
+            for (int elevation = 0; elevation < elevation_count; ++elevation) {
+                output << "  elevation " << elevation << ": "
+                       << elevation_counts[static_cast<std::size_t>(elevation)] << '\n';
+            }
+            output << "  without_elevation: " << without_elevation << '\n';
+        }
+    }
+
+    return output.str();
 }
 
 std::string format_binary_map_stats(
@@ -329,19 +403,7 @@ int parse_stats(const std::filesystem::path& input)
             return 2;
         }
 
-        std::cout << "kind: map txt\n";
-        std::cout << "status: parsed\n";
-        print_range("header", parsed.value().header);
-        for (int elevation = 0; elevation < elevation_count; ++elevation) {
-            const auto label = "elevation " + std::to_string(elevation);
-            if (parsed.value().elevations[elevation]) {
-                print_range(label.c_str(), *parsed.value().elevations[elevation]);
-            } else {
-                std::cout << "  " << label << ": absent\n";
-            }
-        }
-        print_range("scripts", parsed.value().scripts);
-        print_range("objects", parsed.value().objects);
+        std::cout << format_text_map_stats(text, parsed.value());
         return 0;
     }
 

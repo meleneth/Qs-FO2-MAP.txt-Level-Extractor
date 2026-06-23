@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <stdexcept>
+#include <string_view>
 
 TEST_CASE("single_elevation_plan selects one matching source elevation", "[cli]")
 {
@@ -64,6 +65,53 @@ TEST_CASE("lowercase_extension normalizes input paths", "[cli]")
 {
     CHECK(qmap::cli::lowercase_extension("CITY.MAP.TXT") == ".txt");
     CHECK(qmap::cli::lowercase_extension("VAULT.MAP") == ".map");
+}
+
+TEST_CASE("format_text_map_stats summarizes ranges and record counts", "[cli][stats]")
+{
+    constexpr std::string_view text =
+        "header\r\n"
+        "square_elev: 0\r\n"
+        "\r\n"
+        "tiles\r\n"
+        ">>>>>>>>>>: SCRIPTS <<<<<<<<<<\r\n"
+        "[SCRIPT BEGIN]\r\n"
+        "scr_id: 50331649\r\n"
+        "scr_obj_id: 1\r\n"
+        "[SCRIPT END]\r\n"
+        "[SCRIPT BEGIN]\r\n"
+        "scr_id: 16777217\r\n"
+        "scr_spatial_tile: 1\r\n"
+        "scr_spatial_radius: 2\r\n"
+        "[SCRIPT END]\r\n"
+        ">>>>>>>>>>: OBJECTS <<<<<<<<<<\r\n"
+        "[OBJECT BEGIN]\r\n"
+        "obj_elev: 0\r\n"
+        "obj_sid: 50331649\r\n"
+        "[OBJECT END]\r\n"
+        "[OBJECT BEGIN]\r\n"
+        "obj_elev: 2\r\n"
+        "obj_sid: 50331650\r\n"
+        "[OBJECT END]\r\n";
+
+    const auto parsed = qmap::parse_text_map(text);
+    REQUIRE(parsed);
+
+    const auto stats = qmap::cli::format_text_map_stats(text, parsed.value());
+
+    CHECK(stats.find("kind: map txt\n") != std::string::npos);
+    CHECK(stats.find("status: parsed\n") != std::string::npos);
+    CHECK(stats.find("  elevation 0: offset=") != std::string::npos);
+    CHECK(stats.find("  elevation 1: absent\n") != std::string::npos);
+    CHECK(stats.find("text scripts:\n") != std::string::npos);
+    CHECK(stats.find("  total: 2\n") != std::string::npos);
+    CHECK(stats.find("  spatial: 1\n") != std::string::npos);
+    CHECK(stats.find("  object: 1\n") != std::string::npos);
+    CHECK(stats.find("text objects:\n") != std::string::npos);
+    CHECK(stats.find("  elevation 0: 1\n") != std::string::npos);
+    CHECK(stats.find("  elevation 1: 0\n") != std::string::npos);
+    CHECK(stats.find("  elevation 2: 1\n") != std::string::npos);
+    CHECK(stats.find("  without_elevation: 0\n") != std::string::npos);
 }
 
 TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")

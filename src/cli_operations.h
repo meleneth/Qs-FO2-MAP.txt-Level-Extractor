@@ -37,6 +37,7 @@ std::string read_text_file(const std::filesystem::path& path);
 std::vector<std::byte> read_binary_file(const std::filesystem::path& path);
 std::string lowercase_extension(const std::filesystem::path& path);
 
+std::string format_text_map_stats(std::string_view text, const ParsedTextMap& map);
 std::string format_binary_map_stats(
     const BinaryMapHeader& header,
     const BinaryMapVariables& variables,
