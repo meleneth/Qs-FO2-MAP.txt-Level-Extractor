@@ -1153,6 +1153,65 @@ TEST_CASE("write_binary_replace_elevation_patch preserves copied raw script byte
     }
 }
 
+TEST_CASE("write_binary_replace_elevation_patch preserves destination raw script bytes", "[map][binary][patch]")
+{
+    const std::vector<std::byte> source_bytes(4);
+    std::vector<std::byte> destination_bytes(128, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xE);
+    write_i32_be(destination_bytes, 64, 0x03000025);
+    for (std::size_t index = 4; index < 64; ++index) {
+        destination_bytes[64 + index] = static_cast<std::byte>(0x60 + index);
+    }
+
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_elevation = 0;
+    plan.destination_elevation = 1;
+    plan.source_tile_range = qmap::Range{0, 4};
+    plan.destination_tile_range = qmap::Range{0, 4};
+    plan.destination_total_objects_after = 0;
+    plan.destination_object_counts_after = {0, 0, 0};
+    plan.destination_script_counts_after[static_cast<std::size_t>(qmap::BinaryScriptType::object)] = 1;
+
+    qmap::BinaryScriptRecord destination_script;
+    destination_script.type = qmap::BinaryScriptType::object;
+    destination_script.raw = qmap::Range{64, 64};
+    destination_script.scr_id = 0x03000025;
+
+    qmap::BinaryMapHeader destination_header;
+    destination_header.map_flags = 0xE;
+    qmap::BinaryMapScripts source_scripts;
+    qmap::BinaryMapScripts destination_scripts;
+    destination_scripts.by_type[static_cast<std::size_t>(qmap::BinaryScriptType::object)].push_back(
+        destination_script
+    );
+    qmap::BinaryMapObjectRecords source_objects;
+    qmap::BinaryMapObjectRecords destination_objects;
+
+    const auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan,
+        44,
+        {44, 48, 52, 56, 60},
+        &destination_header,
+        &source_scripts,
+        &destination_scripts,
+        &source_objects,
+        &destination_objects,
+    });
+
+    REQUIRE(written);
+    REQUIRE(written.value().size() == 1112);
+    CHECK(written.value()[56] == std::byte{0x00});
+    CHECK(written.value()[59] == std::byte{0x01});
+    for (std::size_t index = 0; index < 64; ++index) {
+        CHECK(written.value()[60 + index] == destination_bytes[64 + index]);
+    }
+    CHECK(written.value()[1087] == std::byte{0x01});
+    CHECK(written.value()[1095] == std::byte{0x00});
+    CHECK(written.value()[1111] == std::byte{0x00});
+}
+
 TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections parseably", "[map][binary][patch][fixture]")
 {
     const auto proto_root = local_proto_root();
