@@ -1,7 +1,6 @@
 #include <imgui_internal.h>
 #include "gui_session.h"
 #include "map_txt_gui.h"
-#include "map_txt_parser.h"
 
 #include <filesystem>
 
@@ -91,14 +90,6 @@ bool hover_box()
     return false;
 }
 
-void export_map(char* path_buff)
-{
-    if (qmap::prepare_export(session) == qmap::GuiExportAction::export_text) {
-        export_map_txt(qmap::make_text_export_plan(session), &session.left, &session.right, path_buff);
-    }
-}
-
-
 void error_popup()
 {
     ImGui::Text("%s", session.current_error.c_str());
@@ -114,8 +105,7 @@ void overwrite_popup(char* path_buff)
                 "be recoverable.");
     ImGui::Text("File already exists, overwrite?");
     if (ImGui::Button("Overwrite")) {
-        //QTODO: this needs to work for both types
-        export_map(path_buff);
+        qmap::export_session_map(session, path_buff);
         ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
@@ -246,7 +236,7 @@ bool map_txt_gui()
         if (std::filesystem::exists(session.export_path)) {
             ImGui::OpenPopup("Overwrite?");
         } else {
-            export_map(session.export_path);
+            qmap::export_session_map(session, session.export_path);
         }
     }
     if (session.header == -1) {

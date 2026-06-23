@@ -241,7 +241,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 - [ ] Keep ImGui code as rendering and event forwarding.
   - [x] No parser internals in UI rendering code.
-  - [ ] No export algorithm in UI code.
+  - [x] No export algorithm in UI code.
   - [ ] No global maps or labels.
 
 - [x] Replace `char[16]` label identity with display-only strings.

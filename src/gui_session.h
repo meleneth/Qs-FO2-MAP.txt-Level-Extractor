@@ -55,6 +55,7 @@ void choose_output_header(GuiSession& session, MapSide side);
 void clear_output_header(GuiSession& session);
 TextMapExportPlan make_text_export_plan(const GuiSession& session);
 GuiExportAction prepare_export(GuiSession& session);
+void export_session_map(GuiSession& session, char* path);
 bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_path);
 
 } // namespace qmap

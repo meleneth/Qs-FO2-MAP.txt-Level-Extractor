@@ -253,6 +253,13 @@ GuiExportAction prepare_export(GuiSession& session)
     return GuiExportAction::none;
 }
 
+void export_session_map(GuiSession& session, char* path)
+{
+    if (prepare_export(session) == GuiExportAction::export_text) {
+        export_map_txt(make_text_export_plan(session), &session.left, &session.right, path);
+    }
+}
+
 bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_path)
 {
     if (!session.drop_target) {
