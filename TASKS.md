@@ -43,11 +43,12 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] `ScriptType`
   - [x] `MapFileKind`
 
-- [ ] Start using RAII containers for owned data. Partial: new parser/CLI paths use RAII; GUI file loading still uses raw pointers, `malloc`, and borrowed interior `char*`.
+- [ ] Start using RAII containers for owned data. Partial: loaded data uses RAII in parser/CLI/GUI paths; `map_lvls` still exposes raw compatibility pointers as non-owning views.
   - [x] `std::vector<std::byte>` for binary file bytes.
   - [x] `std::string` for loaded text.
   - [x] `std::vector<Script>` instead of `script*`.
   - [x] `std::array` for fixed three-elevation data.
+  - [x] `std::vector<uint8_t>` and `std::string` for GUI dropped-file ownership.
 
 - [x] Add a small local `Result<T>` type.
   - [x] Use it for parser/export operations that can fail with useful diagnostics.
@@ -275,7 +276,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Remove legacy binary `map_header` compatibility storage.
 
 - [ ] Remove raw owning pointers.
-  - [ ] No `malloc`/`free` in project code except when forced by third-party APIs.
+  - [x] No `malloc`/`free` in project code except when forced by third-party APIs.
   - [x] Use `std::unique_ptr` only for polymorphism or incomplete types.
   - [ ] Prefer values, vectors, arrays, strings, and spans.
 

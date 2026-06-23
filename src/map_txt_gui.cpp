@@ -1,11 +1,21 @@
 #include <imgui_internal.h>
 #include "binary_map_parser.h"
-#include "io_Platform.h"
 #include "map_txt_gui.h"
 #include "map_txt_parser.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstddef>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <limits>
 #include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 bool is_hovering     = false;
 int list_box         = -1;
@@ -18,6 +28,50 @@ namespace {
 constexpr int left_column = 0;
 constexpr int middle_column = 1;
 constexpr int right_column = 2;
+constexpr int path_size = 4096;
+
+void clear_loaded_map(map_lvls& map)
+{
+    map.map_type = qmap::MapFileKind::empty;
+    map.file_path_storage.clear();
+    map.map_name_storage.clear();
+    map.owned_data.clear();
+    map.file_str = nullptr;
+    map.file_siz = 0;
+    map.map_name = nullptr;
+    map.data = nullptr;
+    map.header_size = 0;
+    for (int elevation = 0; elevation < qmap::binary_map_elevation_count; ++elevation) {
+        map.lvl_sizes[elevation] = 0;
+        map.label_ptr[elevation] = map.label[elevation];
+        map.level[elevation] = nullptr;
+    }
+    map.scripts = nullptr;
+    map.objects = nullptr;
+}
+
+bool load_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>& bytes)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    bytes.assign(
+        std::istreambuf_iterator<char>(file),
+        std::istreambuf_iterator<char>()
+    );
+    return file.good() || file.eof();
+}
+
+std::string lower_extension(const std::filesystem::path& path)
+{
+    auto extension = path.extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return extension;
+}
 
 void parse_binary_map_for_gui(map_lvls& map)
 {
@@ -134,14 +188,14 @@ void file_drop_callback(const char* full_path)
     if (list_box == -1) {
         return;
     }
-    // make sure file type is .txt
-    char* ext = io_get_file_extension(full_path);
+    const std::filesystem::path file_path(full_path);
+    const std::string extension = lower_extension(file_path);
 
     qmap::MapFileKind map_type = qmap::MapFileKind::empty;
-    if (io_strncasecmp(ext, "txt", 3) == 0) {
+    if (extension == ".txt") {
         map_type = qmap::MapFileKind::text;
     } else
-    if (io_strncasecmp(ext, "map", 3) == 0) {
+    if (extension == ".map") {
         map_type = qmap::MapFileKind::binary;
     } else {
         snprintf(error_text, ERR_TXT_LEN,
@@ -156,12 +210,6 @@ void file_drop_callback(const char* full_path)
         return;
     }
 
-    char* file_path   = NULL;
-    int len = strlen(full_path) + 1;
-    file_path = (char*)malloc(len);
-    memcpy(file_path, full_path, len);
-
-
     map_lvls* map_ptr = NULL;
     if (list_box == 0) {
         map_ptr   = &map_L;
@@ -170,18 +218,26 @@ void file_drop_callback(const char* full_path)
         map_ptr   = &map_R;
     }
 
-    if (map_ptr->data) {
-        free(map_ptr->data);
-        free(map_ptr->file_str);
-        memset(map_ptr,0,sizeof(*map_ptr));
+    std::vector<uint8_t> bytes;
+    if (!load_file_bytes(file_path, bytes)) {
+        snprintf(error_text, ERR_TXT_LEN, "Unable to read file:\n%s", full_path);
+        open_err_popup = true;
+        return;
     }
-    file_info* file   = io_load_file(file_path);
-    map_ptr->file_str = file_path;
-    map_ptr->file_siz = file->size;
-    map_ptr->data     = file->data;
-    free(file);
 
-    map_ptr->map_name = io_get_filename_from_path(file_path);
+    clear_loaded_map(*map_ptr);
+    if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        snprintf(error_text, ERR_TXT_LEN, "File is too large:\n%s", full_path);
+        open_err_popup = true;
+        return;
+    }
+    map_ptr->file_path_storage = file_path.string();
+    map_ptr->map_name_storage = file_path.filename().string();
+    map_ptr->owned_data = std::move(bytes);
+    map_ptr->file_str = map_ptr->file_path_storage.data();
+    map_ptr->file_siz = static_cast<int>(map_ptr->owned_data.size());
+    map_ptr->data = map_ptr->owned_data.data();
+    map_ptr->map_name = map_ptr->map_name_storage.data();
     map_ptr->map_type = map_type;
 
 
@@ -317,8 +373,7 @@ bool map_txt_gui()
     ImVec2 size = ImGui::CalcTextSize("AAAAAAAAA");
     ImGui::PushItemWidth(size.x);
     static int header = -1;
-    #define PATH_SIZE           (MAX_PATH)
-    static char path_buff[PATH_SIZE] = "/path/to/some/folder/with/long/mapname.txt";
+    static char path_buff[path_size] = "/path/to/some/folder/with/long/mapname.txt";
 
     ImGui::Text("Map Names:");
     show_map_status("Left", map_L);
@@ -329,7 +384,7 @@ bool map_txt_gui()
     if (ImGui::Button(head_L, ImVec2{size.x,0})) {
         if (map_L.data) {
             snprintf(head_M, NAME_LENGTH, "%s##", map_L.map_name);
-            snprintf(path_buff, PATH_SIZE, "%s.Q.txt", map_L.file_str);
+            snprintf(path_buff, path_size, "%s.Q.txt", map_L.file_str);
             header = 0;
         } else {
             strncpy(head_M,"HeaderL##",sizeof("HeaderL##"));
@@ -344,7 +399,7 @@ bool map_txt_gui()
     if (ImGui::Button(head_R, ImVec2{size.x,0})) {
         if (map_R.data) {
             snprintf(head_M, NAME_LENGTH, "%s##", map_R.map_name);
-            snprintf(path_buff, PATH_SIZE, "%s.Q.txt", map_R.file_str);
+            snprintf(path_buff, path_size, "%s.Q.txt", map_R.file_str);
             header = 1;
         } else {
             strncpy(head_M,"HeaderR##",sizeof("HeaderR##"));
@@ -418,7 +473,7 @@ bool map_txt_gui()
     }
 
     if (ImGui::Button("Export")) {
-        if (io_file_exists(path_buff)) {
+        if (std::filesystem::exists(path_buff)) {
             ImGui::OpenPopup("Overwrite?");
         } else {
             export_map(label_ptr_M, header, path_buff);

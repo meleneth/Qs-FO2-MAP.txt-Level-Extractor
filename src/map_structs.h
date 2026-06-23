@@ -2,12 +2,17 @@
 #include "qmap_types.h"
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 inline constexpr int NAME_LENGTH = 16;
 
 struct map_lvls
 {
     qmap::MapFileKind map_type = qmap::MapFileKind::empty;
+    std::string file_path_storage;
+    std::string map_name_storage;
+    std::vector<uint8_t> owned_data;
     char* file_str   = nullptr;
     int   file_siz   = 0;     //should not be more than a couple MBs ever
     char* map_name   = nullptr;
