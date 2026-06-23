@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-inline constexpr int NAME_LENGTH = 16;
-
 struct map_lvls
 {
     qmap::MapFileKind map_type = qmap::MapFileKind::empty;
@@ -22,7 +20,6 @@ struct map_lvls
     int header_size  = 0;
     int lvl_sizes[3] = {0};
 
-    char label[3][NAME_LENGTH] = {"Level 1","Level 2","Level 3"};
     char* level[3] = {nullptr,nullptr,nullptr};    // pointers to "square_elev:" entries in data
 
     char* scripts = nullptr;

@@ -88,7 +88,7 @@ void parse_binary_map_for_gui(map_lvls& map)
     map.header_size = static_cast<int>(binary_map_header_size);
     for (int level = 0; level < binary_map_elevation_count; ++level) {
         if (header.value().has_elevation(level)) {
-            map.level[level] = map.label[level];
+            map.level[level] = reinterpret_cast<char*>(map.data);
         }
     }
 }
