@@ -9,8 +9,6 @@
 
 namespace qmap {
 
-constexpr int elevation_count = 3;
-
 struct ParsedTextMap {
     Range header;
     std::array<std::optional<Range>, elevation_count> elevations;

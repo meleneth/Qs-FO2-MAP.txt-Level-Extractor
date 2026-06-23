@@ -20,8 +20,8 @@ map_lvls loaded_map(const char* name, const char* path)
     map.map_name_storage = name;
     map.file_path_storage = path;
     map.data = &data;
-    map.level[0] = reinterpret_cast<char*>(&data);
-    map.level[2] = reinterpret_cast<char*>(&data);
+    map.elevations[0] = qmap::Range{0, 1};
+    map.elevations[2] = qmap::Range{0, 1};
     return map;
 }
 
@@ -107,8 +107,8 @@ TEST_CASE("GUI session loads dropped text maps into the selected side", "[gui]")
 
     CHECK(session.left.map.map_type == qmap::MapFileKind::text);
     CHECK(session.left.map.data != nullptr);
-    CHECK(session.left.map.scripts != nullptr);
-    CHECK(session.left.map.objects != nullptr);
+    CHECK(session.left.map.scripts.has_value());
+    CHECK(session.left.map.objects.has_value());
     CHECK(session.left.heading == "ARVILL2.txt");
     CHECK(session.left.labels[0] == "0:ARVILL2.txt");
     CHECK(session.left.labels[1] == "empty");

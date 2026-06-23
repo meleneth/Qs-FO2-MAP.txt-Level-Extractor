@@ -40,12 +40,9 @@ void clear_loaded_map(map_lvls& map)
     map.data_size = 0;
     map.data = nullptr;
     map.header_size = 0;
-    for (int elevation = 0; elevation < elevation_count; ++elevation) {
-        map.lvl_sizes[elevation] = 0;
-        map.level[elevation] = nullptr;
-    }
-    map.scripts = nullptr;
-    map.objects = nullptr;
+    map.elevations = {};
+    map.scripts = std::nullopt;
+    map.objects = std::nullopt;
 }
 
 bool load_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>& bytes)
@@ -75,8 +72,7 @@ void parse_binary_map_for_gui(map_lvls& map)
 {
     map.header_size = 0;
     for (int level = 0; level < binary_map_elevation_count; ++level) {
-        map.level[level] = nullptr;
-        map.lvl_sizes[level] = 0;
+        map.elevations[level] = std::nullopt;
     }
 
     if (!map.data || map.data_size == 0) {
@@ -96,7 +92,7 @@ void parse_binary_map_for_gui(map_lvls& map)
     map.header_size = static_cast<int>(binary_map_header_size);
     for (int level = 0; level < binary_map_elevation_count; ++level) {
         if (header.value().has_elevation(level)) {
-            map.level[level] = reinterpret_cast<char*>(map.data);
+            map.elevations[level] = Range{0, map.data_size};
         }
     }
 }
@@ -133,7 +129,7 @@ bool map_parse_succeeded(const map_lvls& map)
         return false;
     }
     if (map.map_type == MapFileKind::text) {
-        return map.scripts != nullptr && map.objects != nullptr;
+        return map.scripts.has_value() && map.objects.has_value();
     }
     if (map.map_type == MapFileKind::binary) {
         return map.header_size == static_cast<int>(binary_map_header_size);
@@ -154,7 +150,7 @@ void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide 
     reset_output_selection(session);
     auto& labels = labels_for_side(session, side);
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
-        labels[elevation] = map.level[elevation]
+        labels[elevation] = map.elevations[elevation]
             ? std::to_string(elevation) + ":" + map.map_name_storage
             : "empty";
     }
@@ -171,7 +167,7 @@ void select_output_elevation(
 {
     if (destination < 0 || destination >= elevation_count
         || source_elevation < 0 || source_elevation >= elevation_count
-        || !source_map.level[source_elevation]) {
+        || !source_map.elevations[source_elevation]) {
         return;
     }
 

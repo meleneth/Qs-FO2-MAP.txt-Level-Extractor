@@ -50,12 +50,9 @@ void parse_map_txt(std::span<uint8_t> map_data, map_lvls* map)
     map->data = map_data.data();
     map->data_size = map_data.size();
     map->header_size = 0;
-    for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
-        map->level[elevation] = nullptr;
-        map->lvl_sizes[elevation] = 0;
-    }
-    map->scripts = nullptr;
-    map->objects = nullptr;
+    map->elevations = {};
+    map->scripts = std::nullopt;
+    map->objects = std::nullopt;
     map->parse_error.clear();
 
     auto parsed = qmap::parse_text_map(
@@ -68,20 +65,16 @@ void parse_map_txt(std::span<uint8_t> map_data, map_lvls* map)
         map->parse_error = parsed.error().message;
         return;
     }
-
-    auto* base = reinterpret_cast<char*>(map_data.data());
     map->header_size = static_cast<int>(parsed.value().header.size);
     for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
         if (!parsed.value().elevations[elevation]) {
             continue;
         }
 
-        const auto range = *parsed.value().elevations[elevation];
-        map->level[elevation] = base + range.offset;
-        map->lvl_sizes[elevation] = static_cast<int>(range.size);
+        map->elevations[elevation] = parsed.value().elevations[elevation];
     }
-    map->scripts = base + parsed.value().scripts.offset;
-    map->objects = base + parsed.value().objects.offset;
+    map->scripts = parsed.value().scripts;
+    map->objects = parsed.value().objects;
 }
 
 void export_map_txt(

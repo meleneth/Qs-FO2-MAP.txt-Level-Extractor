@@ -6,6 +6,8 @@
 
 namespace qmap {
 
+constexpr int elevation_count = 3;
+
 enum class MapFileKind {
     empty,
     text,

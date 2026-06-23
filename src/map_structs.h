@@ -3,6 +3,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,10 +19,7 @@ struct map_lvls
     uint8_t* data    = nullptr;
 
     int header_size  = 0;
-    int lvl_sizes[3] = {0};
-
-    char* level[3] = {nullptr,nullptr,nullptr};    // pointers to "square_elev:" entries in data
-
-    char* scripts = nullptr;
-    char* objects = nullptr;
+    std::array<std::optional<qmap::Range>, qmap::elevation_count> elevations = {};
+    std::optional<qmap::Range> scripts;
+    std::optional<qmap::Range> objects;
 };
