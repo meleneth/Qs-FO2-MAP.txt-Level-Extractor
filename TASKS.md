@@ -275,7 +275,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] GUI/session display model.
   - [x] Remove legacy binary `map_header` compatibility storage.
 
-- [ ] Remove raw owning pointers.
+- [x] Remove raw owning pointers.
   - [x] No `malloc`/`free` in project code except when forced by third-party APIs.
   - [x] Use `std::unique_ptr` only for polymorphism or incomplete types.
   - [x] Prefer values, vectors, arrays, strings, and spans.

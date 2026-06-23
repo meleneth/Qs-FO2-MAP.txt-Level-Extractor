@@ -121,7 +121,6 @@ TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]
 
     parse_map_txt(std::span<uint8_t>{data.data(), data.size() - 1}, &map);
 
-    CHECK(map.data == data.data());
     CHECK(map.header_size == 0);
     for (int level = 0; level < 3; ++level) {
         CHECK_FALSE(map.elevations[level].has_value());

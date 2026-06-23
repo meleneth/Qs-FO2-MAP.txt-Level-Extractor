@@ -14,12 +14,10 @@ std::filesystem::path fixture_path(std::string_view name)
 
 map_lvls loaded_map(const char* name, const char* path)
 {
-    static unsigned char data = 0;
-
     map_lvls map;
     map.map_name_storage = name;
     map.file_path_storage = path;
-    map.data = &data;
+    map.owned_data = {0};
     map.elevations[0] = qmap::Range{0, 1};
     map.elevations[2] = qmap::Range{0, 1};
     return map;
@@ -106,7 +104,7 @@ TEST_CASE("GUI session loads dropped text maps into the selected side", "[gui]")
     REQUIRE(qmap::load_dropped_file(session, fixture_path("ARVILL2.txt")));
 
     CHECK(session.left.map.map_type == qmap::MapFileKind::text);
-    CHECK(session.left.map.data != nullptr);
+    CHECK_FALSE(session.left.map.owned_data.empty());
     CHECK(session.left.map.scripts.has_value());
     CHECK(session.left.map.objects.has_value());
     CHECK(session.left.heading == "ARVILL2.txt");
@@ -122,7 +120,7 @@ TEST_CASE("GUI session reports unsupported dropped file types", "[gui]")
 
     CHECK_FALSE(qmap::load_dropped_file(session, fixture_path("not-a-map.foo")));
 
-    CHECK(session.right.map.data == nullptr);
+    CHECK(session.right.map.owned_data.empty());
     CHECK(session.open_error_popup);
     CHECK(session.current_error.find("Wrong file type") != std::string::npos);
 }

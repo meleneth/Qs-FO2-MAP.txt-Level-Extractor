@@ -15,8 +15,6 @@ struct map_lvls
     std::string map_name_storage;
     std::string parse_error;
     std::vector<uint8_t> owned_data;
-    std::size_t data_size = 0;
-    uint8_t* data    = nullptr;
 
     int header_size  = 0;
     std::array<std::optional<qmap::Range>, qmap::elevation_count> elevations = {};

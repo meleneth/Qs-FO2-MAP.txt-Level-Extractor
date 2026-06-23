@@ -20,7 +20,7 @@ struct LegacyTextSource {
 
 std::optional<LegacyTextSource> parse_source(const map_lvls* map)
 {
-    if (!map || map->map_type == qmap::MapFileKind::empty || !map->data || map->data_size == 0) {
+    if (!map || map->map_type == qmap::MapFileKind::empty || map->owned_data.empty()) {
         auto parsed = qmap::parse_text_map(empty_text_map);
         if (!parsed) {
             return std::nullopt;
@@ -29,8 +29,8 @@ std::optional<LegacyTextSource> parse_source(const map_lvls* map)
     }
 
     std::string_view text{
-        reinterpret_cast<const char*>(map->data),
-        map->data_size,
+        reinterpret_cast<const char*>(map->owned_data.data()),
+        map->owned_data.size(),
     };
     auto parsed = qmap::parse_text_map(text);
     if (!parsed) {
@@ -47,8 +47,6 @@ void parse_map_txt(std::span<uint8_t> map_data, map_lvls* map)
         return;
     }
 
-    map->data = map_data.data();
-    map->data_size = map_data.size();
     map->header_size = 0;
     map->elevations = {};
     map->scripts = std::nullopt;

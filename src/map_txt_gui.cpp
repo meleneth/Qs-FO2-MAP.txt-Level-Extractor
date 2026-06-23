@@ -16,7 +16,7 @@ qmap::GuiSession session;
 
 void show_map_status(const char* side, const map_lvls& map)
 {
-    if (!map.data) {
+    if (map.owned_data.empty()) {
         ImGui::Text("%s: empty", side);
         return;
     }
