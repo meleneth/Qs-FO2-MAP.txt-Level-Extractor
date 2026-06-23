@@ -73,6 +73,7 @@ target_sources(
     src/binary_map_object_tails.cpp
     src/binary_map_objects.cpp
     src/binary_map_parser.cpp
+    src/prototype_metadata.cpp
     src/text_map_parser.cpp
     src/text_map_export.cpp
     src/text_map_records.cpp
@@ -161,6 +162,7 @@ if(BUILD_TESTING)
     add_executable(qmap_parser_tests
         tests/parser_tests.cpp
         tests/binary_map_parser_tests.cpp
+        tests/prototype_metadata_tests.cpp
         tests/foundation_tests.cpp
         tests/text_map_parser_tests.cpp
         tests/text_map_export_tests.cpp

@@ -157,12 +157,12 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [ ] Add prototype metadata support for PID subtype resolution.
     - [x] Add a local helper script to extract only `proto/**/*.pro` and `proto/**/*.lst` from a Fallout 2 install into `.local_fallout2_data/`.
     - [x] Keep extracted Fallout game assets ignored and out of git.
-    - [ ] Parse `proto/items/items.lst`, `proto/scenery/scenery.lst`, `proto/misc/misc.lst`, and other kind lists into PID-index-to-file mappings.
-    - [ ] Parse just enough `.pro` data to determine item/scenery/misc subtype values needed for `.map` object tail layouts.
-    - [ ] Add a `PrototypeDatabase` or similar plain model that can be loaded from an extracted proto root without GUI dependencies.
+    - [x] Parse `proto/items/items.lst`, `proto/scenery/scenery.lst`, `proto/misc/misc.lst`, and other kind lists into PID-index-to-file mappings.
+    - [x] Parse just enough `.pro` data to determine item/scenery/misc subtype values needed for `.map` object tail layouts.
+    - [x] Add a `PrototypeDatabase` or similar plain model that can be loaded from an extracted proto root without GUI dependencies.
     - [ ] Thread optional prototype metadata into binary object parsing so tail resolution is deterministic and subtype-backed.
     - [ ] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
-    - [ ] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
+    - [x] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
     - [ ] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.
     - [ ] Stretch: add C++ DAT2 reading/extraction to the app or CLI so users do not need a separate extraction step.
     - [ ] Stretch: support loose `data/proto` overrides on top of DAT-extracted prototype data.

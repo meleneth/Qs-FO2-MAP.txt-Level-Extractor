@@ -42,6 +42,11 @@ prefix only carries the PID. Correctly choosing ammo/key/misc item/weapon or
 door/ladder/exit-grid layouts requires prototype-level subtype knowledge that
 this parser does not load yet.
 
+Prototype metadata work now uses Fallout 2 Community Edition's `proto_types.h`
+and object read logic as the reference for item/scenery subtype enum values and
+runtime object-data tail sizes. The extracted `.pro` files store their PID at
+offset `0x00`; item and scenery subtype values are at offset `0x20`.
+
 The object parser must not infer tails by scanning forward for plausible object
 prefixes. Where a PID's subtype is not known, parsing should stop with a useful
 diagnostic or add a fixture-backed resolver rule after proving the documented
