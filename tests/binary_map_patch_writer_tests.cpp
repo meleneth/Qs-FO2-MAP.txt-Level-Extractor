@@ -930,11 +930,8 @@ TEST_CASE("write_binary_replace_elevation_patch tolerates contained inventory de
         plan,
     });
 
-    REQUIRE_FALSE(written);
-    CHECK(
-        written.error().message
-        == "binary map export not implemented; use --dry-run to inspect the plan"
-    );
+    REQUIRE(written);
+    CHECK(written.value().size() == 44);
 }
 
 TEST_CASE("write_binary_replace_elevation_patch validates planned copied record ranges", "[map][binary][patch]")
@@ -1070,16 +1067,21 @@ TEST_CASE("write_binary_replace_elevation_patch tolerates contained copied inven
         plan,
     });
 
-    REQUIRE_FALSE(written);
-    CHECK(
-        written.error().message
-        == "binary map export not implemented; use --dry-run to inspect the plan"
-    );
+    REQUIRE(written);
+    REQUIRE(written.value().size() == 84);
+    CHECK(written.value()[64] == std::byte{0x00});
+    CHECK(written.value()[65] == std::byte{0x00});
+    CHECK(written.value()[66] == std::byte{0x00});
+    CHECK(written.value()[67] == std::byte{0x64});
+    CHECK(written.value()[72] == std::byte{0x00});
+    CHECK(written.value()[73] == std::byte{0x00});
+    CHECK(written.value()[74] == std::byte{0x00});
+    CHECK(written.value()[75] == std::byte{0x65});
 }
 
 TEST_CASE("write_binary_replace_elevation_patch inserts copied scripts at adjusted object section offset", "[map][binary][patch]")
 {
-    const std::vector<std::byte> source_bytes(64);
+    std::vector<std::byte> source_bytes(64);
     const std::vector<std::byte> destination_bytes(96);
     qmap::BinaryReplaceElevationPlan plan;
     plan.source_tile_range = qmap::Range{0, 4};
@@ -1098,6 +1100,7 @@ TEST_CASE("write_binary_replace_elevation_patch inserts copied scripts at adjust
     copied_script.raw = qmap::Range{10, 4};
     copied_script.offsets.scr_id = 10;
     plan.copied_scripts.push_back(copied_script);
+    write_i32_be(source_bytes, 10, 0x03000010);
 
     const auto written = qmap::write_binary_replace_elevation_patch({
         source_bytes,
@@ -1106,21 +1109,23 @@ TEST_CASE("write_binary_replace_elevation_patch inserts copied scripts at adjust
         40,
     });
 
-    REQUIRE_FALSE(written);
-    CHECK(
-        written.error().message
-        == "binary map export not implemented; use --dry-run to inspect the plan"
-    );
+    REQUIRE(written);
+    REQUIRE(written.value().size() == 92);
+    CHECK(written.value()[32] == std::byte{0x03});
+    CHECK(written.value()[33] == std::byte{0x00});
+    CHECK(written.value()[34] == std::byte{0x00});
+    CHECK(written.value()[35] == std::byte{0x40});
 }
 
-TEST_CASE("write_binary_replace_elevation_patch fails until binary serialization exists", "[map][binary][patch]")
+TEST_CASE("write_binary_replace_elevation_patch returns patched bytes for an empty valid plan", "[map][binary][patch]")
 {
     const std::vector<std::byte> source_bytes(4);
-    const std::vector<std::byte> destination_bytes(64);
+    std::vector<std::byte> destination_bytes(64, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xE);
     qmap::BinaryReplaceElevationPlan plan;
     plan.source_tile_range = qmap::Range{0, 4};
     plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
+    plan.destination_elevation = 1;
 
     const auto written = qmap::write_binary_replace_elevation_patch({
         source_bytes,
@@ -1128,9 +1133,10 @@ TEST_CASE("write_binary_replace_elevation_patch fails until binary serialization
         plan,
     });
 
-    REQUIRE_FALSE(written);
-    CHECK(
-        written.error().message
-        == "binary map export not implemented; use --dry-run to inspect the plan"
-    );
+    REQUIRE(written);
+    REQUIRE(written.value().size() == 64);
+    CHECK(written.value()[40] == std::byte{0x00});
+    CHECK(written.value()[41] == std::byte{0x00});
+    CHECK(written.value()[42] == std::byte{0x00});
+    CHECK(written.value()[43] == std::byte{0x0A});
 }

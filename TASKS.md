@@ -137,6 +137,18 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] duplicate object/critter ids are reassigned with matching `obj_sid`.
   - [x] longer replacement IDs serialize correctly. Not applicable to current copied script types: supported spatial, object, and critter script IDs all stay in eight decimal digits while reassigned within their high-byte type range.
 
+## Current Priority
+
+Binary `.map` patching is now the main line of work. Text-map parsing/export, CLI basics, GUI state separation, prototype loading, binary parse-stats, weird-scan, and binary replace-elevation dry-run planning are in place.
+
+The next slices should move from writer preflight to guarded binary output:
+
+- [x] Return a complete patched byte stream from the binary replace-elevation writer.
+- [x] Parse the patched byte stream back through the prototype-backed binary parser before writing a CLI output file.
+- [ ] Keep raw object/tail bytes authoritative until decoded typed fields have round-trip tests.
+- [ ] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
+- [ ] Only then consider non-dry-run binary `replace-elevation` user-facing complete.
+
 ## Phase 5: Fix Binary `.map` Parsing
 
 - [x] Replace binary parsing with a cursor over `std::span`.
@@ -198,7 +210,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
   - [x] Document every still-unknown field with offset, observed values, and fixture coverage.
 
-- [ ] Define the binary `.map` patch/merge model.
+- [ ] Define the binary `.map` patch/merge model. Partial: whole-elevation replacement semantics are decided and tested; future merge-in and rectangular-region semantics are intentionally not designed yet.
   - [x] First binary operation is whole-elevation replacement, not rectangular region patching.
   - [x] Replacement deletes destination elevation contents first. Future merge-in mode should preserve destination contents with explicit collision rules.
   - [x] Keep the destination header and variables; only elevation-present flags may be changed by the eventual writer.
@@ -218,10 +230,10 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
     - [x] Cover source variable requirements exceeding destination variables.
     - [x] Cover exhausted object/script ID space.
 
-- [ ] Implement `replace-elevation --dry-run` planning before binary writing.
+- [ ] Implement binary `replace-elevation` writing. Partial: dry-run planning and writer preflight are implemented; final output still needs parse-back validation before it is considered complete.
   - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.
   - [x] Require output path even in dry-run so the command is the same as future write mode.
-  - [x] Make non-dry-run hard-error with "binary map export not implemented" until serialization exists.
+  - [x] Keep non-dry-run guarded: output bytes are only written after writer success and prototype-backed parse-back validation.
   - [x] Load both maps with prototype metadata and fail without `--proto-root`.
   - [x] Produce human-readable dry-run output first; JSON can come later.
   - [x] Echo source/destination/output/proto/elevation arguments in dry-run output.
@@ -251,6 +263,10 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Hard-error when any copied-record rewrite patch is not fully contained by a planned copied source range.
   - [x] Add a tested copied-byte-stream helper that applies source-offset rewrites only to planned copied ranges before insertion.
   - [x] Add tested offset adjustment after deletions and insert copied scripts before the shifted destination object section instead of appending every copied record at EOF.
+  - [x] Return the complete patched byte vector from the writer after header, tile, count, deletion, insertion, and source-record rewrite operations.
+  - [x] In CLI non-dry-run mode, parse the patched byte vector back with the same prototype database before writing the output file.
+  - [x] Add a clear parse-back failure diagnostic that includes the parser error and offset.
+  - [ ] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.
   - [ ] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
     - [x] Implement current hard errors for absent source elevation, missing copied object scripts, copied scripts referencing outside copied objects, invalid spatial elevation bits, missing copied scenery prototype metadata, copied stairs/elevator/ladder scenery links, copied script local-variable ranges unavailable in the destination, exhausted object/script ID namespaces, and undecodable exit-grid tails.
   - [x] Add tests around the pure planner before wiring the CLI command.
@@ -403,8 +419,6 @@ Each substantial refactor should include:
 
 ## First Recommended Task
 
-Start with the bounded text parser.
+Return a complete patched byte stream from the binary replace-elevation writer, then require prototype-backed parse-back validation before the CLI writes non-dry-run output.
 
-It is the highest leverage change because `.txt` export is the current user-facing workflow, and the unsafe null-terminated parsing assumption infects every later step. Build `Range`, parse from `std::string_view`, return a `ParsedTextMap`, and cover it with inline Catch2 tests. Once that is stable, export can stop depending on raw pointers and labels.
-
-Before that parser refactor, add the foundation commit: `Result<T>`, `Range`, binary/text view conventions, and any temporary adapters needed to keep old callers compiling. Mark every compatibility adapter with a clear removal note.
+This is the highest leverage change because planning, raw ranges, count patching, field rewrites, deletion, and insertion already exist. The remaining gap is proving the patched bytes still form a valid `.map` according to the current parser before exposing binary output as a real workflow.

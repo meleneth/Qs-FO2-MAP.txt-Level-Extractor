@@ -446,6 +446,15 @@ int replace_elevation(const ReplaceElevationOptions& options)
         return 2;
     }
 
+    auto validated = parse_binary_map(written.value(), loaded.value());
+    if (!validated) {
+        std::cout << "kind: binary replace-elevation\n";
+        std::cout << "status: failed\n";
+        std::cout << "error: patched output parse failed: " << validated.error().message
+                  << " at offset " << validated.error().offset << '\n';
+        return 2;
+    }
+
     write_binary_output_file(options.output, written.value(), false);
     return 0;
 }

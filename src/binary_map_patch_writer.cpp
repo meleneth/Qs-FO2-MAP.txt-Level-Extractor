@@ -797,10 +797,7 @@ Result<std::vector<std::byte>> write_binary_replace_elevation_patch(
         return Result<std::vector<std::byte>>::fail(records_inserted.error());
     }
 
-    return Result<std::vector<std::byte>>::fail({
-        "binary map export not implemented; use --dry-run to inspect the plan",
-        0,
-    });
+    return records_inserted;
 }
 
 } // namespace qmap
