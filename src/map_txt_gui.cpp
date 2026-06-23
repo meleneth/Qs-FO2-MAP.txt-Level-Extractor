@@ -45,7 +45,6 @@ void clear_loaded_map(map_lvls& map)
     map.header_size = 0;
     for (int elevation = 0; elevation < qmap::binary_map_elevation_count; ++elevation) {
         map.lvl_sizes[elevation] = 0;
-        map.label_ptr[elevation] = map.label[elevation];
         map.level[elevation] = nullptr;
     }
     map.scripts = nullptr;
@@ -184,11 +183,10 @@ void update_labels(map_lvls* map, int list_box)
     reset_output_labels();
 
     for (size_t i = 0; i < 3; i++) {
-        map->label_ptr[i] = map->label[i];
         if (map->level[i]) {
-            snprintf(map->label_ptr[i], NAME_LENGTH, "%d:%s", i, map->map_name);
+            snprintf(map->label[i], NAME_LENGTH, "%d:%s", i, map->map_name);
         } else {
-            snprintf(map->label_ptr[i], NAME_LENGTH, "empty");
+            snprintf(map->label[i], NAME_LENGTH, "empty");
         }
     }
 }
@@ -340,7 +338,7 @@ void select_output_elevation(
         return;
     }
 
-    snprintf(label_M[destination], NAME_LENGTH, "%s", source_map.label_ptr[source_elevation]);
+    snprintf(label_M[destination], NAME_LENGTH, "%s", source_map.label[source_elevation]);
     output_selection[destination] = qmap::ElevationSource{side, source_elevation};
 }
 
@@ -461,10 +459,12 @@ bool map_txt_gui()
 
     ImVec2 posB = ImGui::GetCursorPos();
     static int selection[3] = { 0, 1, 2 };
+    const char* left_labels[] = {map_L.label[0], map_L.label[1], map_L.label[2]};
+    const char* right_labels[] = {map_R.label[0], map_R.label[1], map_R.label[2]};
 
 
     // left third
-    ImGui::ListBox("##L", &selection[left_column], map_L.label_ptr, IM_COUNTOF(map_L.label_ptr));
+    ImGui::ListBox("##L", &selection[left_column], left_labels, IM_COUNTOF(left_labels));
     if (hover_box()) {
         list_box = 0;
     }
@@ -510,7 +510,7 @@ bool map_txt_gui()
 
     // right third
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2 + 120, posB.y});
-    ImGui::ListBox("##R", &selection[right_column], map_R.label_ptr, IM_COUNTOF(map_R.label_ptr));
+    ImGui::ListBox("##R", &selection[right_column], right_labels, IM_COUNTOF(right_labels));
     if (hover_box()) {
         list_box = 1;
     }

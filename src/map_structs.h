@@ -23,7 +23,6 @@ struct map_lvls
     int lvl_sizes[3] = {0};
 
     char label[3][NAME_LENGTH] = {"Level 1","Level 2","Level 3"};
-    char* label_ptr[3] = {label[0],label[1],label[2]};
     char* level[3] = {nullptr,nullptr,nullptr};    // pointers to "square_elev:" entries in data
 
     char* scripts = nullptr;
