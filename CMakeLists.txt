@@ -85,7 +85,10 @@ target_include_directories(
 qmap_enable_coverage(qmap_parsers)
 
 add_library(qmap_cli_ops STATIC
+    src/cli_file_io.cpp
     src/cli_operations.cpp
+    src/cli_selection.cpp
+    src/cli_stats.cpp
 )
 target_link_libraries(
     qmap_cli_ops PUBLIC
