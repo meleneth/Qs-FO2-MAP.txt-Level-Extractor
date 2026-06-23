@@ -1,4 +1,0 @@
-[submodule "dependencies/IO_Platform"]
-	path = dependencies/IO_Platform
-	url = git@github.com:QuantumApprentice/IO_platform.git
-	ignore = dirty
