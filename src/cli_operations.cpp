@@ -340,6 +340,13 @@ std::string format_binary_map_stats(
                     output << "    misc_dest_elevation: " << tail.value().dest_elevation << '\n';
                 }
             }
+            if (!first_record->inventory.empty()) {
+                const auto& inventory = first_record->inventory.front();
+                output << "    first_inventory_quantity: "
+                       << first_record->inventory_quantities.front() << '\n';
+                output << "    first_inventory_pid: " << inventory.prefix.pid << '\n';
+                output << "    first_inventory_type: " << object_type_name(inventory.object_type) << '\n';
+            }
         }
     }
     return output.str();

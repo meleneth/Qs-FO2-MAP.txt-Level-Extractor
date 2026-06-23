@@ -155,6 +155,11 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     qmap::BinaryObjectRecord first_record;
     first_record.prefix = first_object;
     first_record.object_type = qmap::BinaryObjectType::scenery;
+    first_record.inventory_quantities.push_back(3);
+    qmap::BinaryObjectRecord inventory_record;
+    inventory_record.object_type = qmap::BinaryObjectType::item;
+    inventory_record.prefix.pid = 0x00000002;
+    first_record.inventory.push_back(inventory_record);
     const std::byte bytes[] = {
         std::byte{0}, std::byte{0}, std::byte{0}, std::byte{10},
         std::byte{0}, std::byte{0}, std::byte{0}, std::byte{11},
@@ -205,6 +210,9 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("    tail_range: offset=0 size=12 end=12\n") != std::string::npos);
     CHECK(stats.find("    scenery_flags: 10\n") != std::string::npos);
     CHECK(stats.find("    scenery_destination: 12\n") != std::string::npos);
+    CHECK(stats.find("    first_inventory_quantity: 3\n") != std::string::npos);
+    CHECK(stats.find("    first_inventory_pid: 2\n") != std::string::npos);
+    CHECK(stats.find("    first_inventory_type: item\n") != std::string::npos);
 }
 
 TEST_CASE("format_binary_map_stats reports incomplete object record parsing", "[cli][stats]")
