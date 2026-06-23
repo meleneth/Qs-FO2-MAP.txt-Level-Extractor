@@ -1036,6 +1036,60 @@ TEST_CASE("write_binary_replace_elevation_patch preserves copied raw object byte
     CHECK(written.value()[103] == std::byte{0x00});
 }
 
+TEST_CASE("write_binary_replace_elevation_patch preserves destination raw object bytes outside the replaced elevation", "[map][binary][patch]")
+{
+    const std::vector<std::byte> source_bytes(4);
+    std::vector<std::byte> destination_bytes(88, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xC);
+    for (std::size_t index = 0; index < 16; ++index) {
+        destination_bytes[48 + index] = static_cast<std::byte>(0x50 + index);
+    }
+
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_elevation = 0;
+    plan.destination_elevation = 1;
+    plan.source_tile_range = qmap::Range{0, 4};
+    plan.destination_tile_range = qmap::Range{0, 4};
+    plan.destination_total_objects_after = 1;
+    plan.destination_object_counts_after = {1, 0, 0};
+
+    qmap::BinaryMapHeader destination_header;
+    destination_header.map_flags = 0xC;
+    qmap::BinaryMapScripts source_scripts;
+    qmap::BinaryMapScripts destination_scripts;
+    qmap::BinaryMapObjectRecords source_objects;
+    qmap::BinaryMapObjectRecords destination_objects;
+
+    qmap::BinaryObjectRecord destination_object;
+    destination_object.prefix.elevation = 0;
+    destination_object.raw = qmap::Range{48, 16};
+    destination_objects.records.push_back(destination_object);
+
+    const auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan,
+        44,
+        {44, 48, 52, 56, 60},
+        &destination_header,
+        &source_scripts,
+        &destination_scripts,
+        &source_objects,
+        &destination_objects,
+    });
+
+    REQUIRE(written);
+    REQUIRE(written.value().size() == 96);
+    CHECK(written.value()[40] == std::byte{0x00});
+    CHECK(written.value()[43] == std::byte{0x08});
+    CHECK(written.value()[71] == std::byte{0x01});
+    for (std::size_t index = 0; index < 16; ++index) {
+        CHECK(written.value()[72 + index] == destination_bytes[48 + index]);
+    }
+    CHECK(written.value()[91] == std::byte{0x00});
+    CHECK(written.value()[95] == std::byte{0x00});
+}
+
 TEST_CASE("write_binary_replace_elevation_patch preserves copied raw script bytes except planned field rewrites", "[map][binary][patch]")
 {
     std::vector<std::byte> source_bytes(80);
