@@ -234,9 +234,9 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 - [ ] Introduce an application/session state struct.
   - [ ] Left loaded map.
   - [ ] Right loaded map.
-  - [ ] Output selections.
-  - [ ] Header selection.
-  - [ ] Export path.
+  - [x] Output selections.
+  - [x] Header selection.
+  - [x] Export path.
   - [ ] Current error.
 
 - [ ] Keep ImGui code as rendering and event forwarding.

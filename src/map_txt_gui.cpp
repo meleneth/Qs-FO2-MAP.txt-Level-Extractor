@@ -31,6 +31,12 @@ constexpr int middle_column = 1;
 constexpr int right_column = 2;
 constexpr int path_size = 4096;
 
+struct GuiSession {
+    std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
+    int header = -1;
+    char export_path[path_size] = "/path/to/some/folder/with/long/mapname.txt";
+};
+
 void clear_loaded_map(map_lvls& map)
 {
     map.map_type = qmap::MapFileKind::empty;
@@ -109,14 +115,14 @@ void parse_binary_map_for_gui(map_lvls& map)
 map_lvls map_L;
 map_lvls map_R;
 char label_M[3][16] = {"empty", "##1", "##2"};
-std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
 char head_L[NAME_LENGTH] = {"empty##1"};
 char head_M[NAME_LENGTH] = {"empty##2"};
 char head_R[NAME_LENGTH] = {"empty##3"};
+GuiSession session;
 
 void reset_output_labels()
 {
-    output_selection = {};
+    session.output_selection = {};
     snprintf(label_M[0], NAME_LENGTH, "empty");
     snprintf(label_M[1], NAME_LENGTH, "##1");
     snprintf(label_M[2], NAME_LENGTH, "##2");
@@ -321,7 +327,7 @@ qmap::TextMapExportPlan make_text_export_plan(int header)
     } else {
         plan.header_side = std::nullopt;
     }
-    plan.elevations = output_selection;
+    plan.elevations = session.output_selection;
     return plan;
 }
 
@@ -339,7 +345,7 @@ void select_output_elevation(
     }
 
     snprintf(label_M[destination], NAME_LENGTH, "%s", source_map.label[source_elevation]);
-    output_selection[destination] = qmap::ElevationSource{side, source_elevation};
+    session.output_selection[destination] = qmap::ElevationSource{side, source_elevation};
 }
 
 void clear_output_elevation(int destination)
@@ -349,7 +355,7 @@ void clear_output_elevation(int destination)
     }
 
     snprintf(label_M[destination], NAME_LENGTH, "##%d", destination);
-    output_selection[destination] = std::nullopt;
+    session.output_selection[destination] = std::nullopt;
 }
 
 void export_map(int header, char* path_buff)
@@ -422,8 +428,6 @@ bool map_txt_gui()
 {
     ImVec2 size = ImGui::CalcTextSize("AAAAAAAAA");
     ImGui::PushItemWidth(size.x);
-    static int header = -1;
-    static char path_buff[path_size] = "/path/to/some/folder/with/long/mapname.txt";
 
     ImGui::Text("Map Names:");
     show_map_status("Left", map_L);
@@ -434,23 +438,23 @@ bool map_txt_gui()
     if (ImGui::Button(head_L, ImVec2{size.x,0})) {
         if (map_L.data) {
             snprintf(head_M, NAME_LENGTH, "%s##", map_L.map_name);
-            snprintf(path_buff, path_size, "%s.Q.txt", map_L.file_str);
-            header = 0;
+            snprintf(session.export_path, path_size, "%s.Q.txt", map_L.file_str);
+            session.header = 0;
         } else {
             snprintf(head_M, NAME_LENGTH, "HeaderL##");
         }
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x   + 60, posA.y});
     if (ImGui::Button(head_M, ImVec2{size.x,0})) {
-        header = -1;
+        session.header = -1;
         snprintf(head_M, NAME_LENGTH, "empty");
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x*2 + 120, posA.y});
     if (ImGui::Button(head_R, ImVec2{size.x,0})) {
         if (map_R.data) {
             snprintf(head_M, NAME_LENGTH, "%s##", map_R.map_name);
-            snprintf(path_buff, path_size, "%s.Q.txt", map_R.file_str);
-            header = 1;
+            snprintf(session.export_path, path_size, "%s.Q.txt", map_R.file_str);
+            session.header = 1;
         } else {
             snprintf(head_M, NAME_LENGTH, "HeaderR##");
         }
@@ -528,23 +532,23 @@ bool map_txt_gui()
     }
 
     if (ImGui::BeginPopup("Overwrite?")) {
-        overwrite_popup(header, path_buff);
+        overwrite_popup(session.header, session.export_path);
         ImGui::EndPopup();
     }
 
     if (ImGui::Button("Export")) {
-        if (std::filesystem::exists(path_buff)) {
+        if (std::filesystem::exists(session.export_path)) {
             ImGui::OpenPopup("Overwrite?");
         } else {
-            export_map(header, path_buff);
+            export_map(session.header, session.export_path);
         }
     }
-    if (header == -1) {
+    if (session.header == -1) {
         ImGui::SameLine();
         ImGui::Text("Pick a header first");
     }
 
-    ImGui::InputText("Path", path_buff, IM_COUNTOF(path_buff), ImGuiInputTextFlags_ElideLeft);
+    ImGui::InputText("Path", session.export_path, IM_COUNTOF(session.export_path), ImGuiInputTextFlags_ElideLeft);
 
 
     return false;
