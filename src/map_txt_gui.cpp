@@ -1,19 +1,9 @@
 #include <imgui_internal.h>
-#include "binary_map_parser.h"
 #include "gui_session.h"
 #include "map_txt_gui.h"
 #include "map_txt_parser.h"
 
-#include <algorithm>
-#include <cctype>
-#include <cstddef>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <limits>
-#include <span>
-#include <string>
-#include <vector>
 
 namespace {
 
@@ -21,111 +11,9 @@ constexpr int left_column = 0;
 constexpr int middle_column = 1;
 constexpr int right_column = 2;
 
-void clear_loaded_map(map_lvls& map)
-{
-    map.map_type = qmap::MapFileKind::empty;
-    map.file_path_storage.clear();
-    map.map_name_storage.clear();
-    map.parse_error.clear();
-    map.owned_data.clear();
-    map.file_str = nullptr;
-    map.file_siz = 0;
-    map.map_name = nullptr;
-    map.data = nullptr;
-    map.header_size = 0;
-    for (int elevation = 0; elevation < qmap::elevation_count; ++elevation) {
-        map.lvl_sizes[elevation] = 0;
-        map.level[elevation] = nullptr;
-    }
-    map.scripts = nullptr;
-    map.objects = nullptr;
-}
-
-bool load_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>& bytes)
-{
-    std::ifstream file(path, std::ios::binary);
-    if (!file.is_open()) {
-        return false;
-    }
-
-    bytes.assign(
-        std::istreambuf_iterator<char>(file),
-        std::istreambuf_iterator<char>()
-    );
-    return file.good() || file.eof();
-}
-
-std::string lower_extension(const std::filesystem::path& path)
-{
-    auto extension = path.extension().string();
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return extension;
-}
-
-void parse_binary_map_for_gui(map_lvls& map)
-{
-    map.header_size = 0;
-    for (int level = 0; level < qmap::binary_map_elevation_count; ++level) {
-        map.level[level] = nullptr;
-        map.lvl_sizes[level] = 0;
-    }
-
-    if (!map.data || map.file_siz <= 0) {
-        return;
-    }
-
-    const auto bytes = std::span<const std::byte>(
-        reinterpret_cast<const std::byte*>(map.data),
-        static_cast<std::size_t>(map.file_siz)
-    );
-    const auto header = qmap::parse_binary_map_header(bytes);
-    if (!header) {
-        map.parse_error = header.error().message;
-        return;
-    }
-
-    map.header_size = static_cast<int>(qmap::binary_map_header_size);
-    for (int level = 0; level < qmap::binary_map_elevation_count; ++level) {
-        if (header.value().has_elevation(level)) {
-            map.level[level] = map.label[level];
-        }
-    }
-}
-
 } // namespace
 
 qmap::GuiSession session;
-
-const char* map_type_name(qmap::MapFileKind map_type)
-{
-    switch (map_type) {
-    case qmap::MapFileKind::text:
-        return ".txt";
-    case qmap::MapFileKind::binary:
-        return ".map";
-    case qmap::MapFileKind::empty:
-        return "empty";
-    }
-
-    return "empty";
-}
-
-bool map_parse_succeeded(const map_lvls& map)
-{
-    if (!map.data || map.map_type == qmap::MapFileKind::empty) {
-        return false;
-    }
-    if (map.map_type == qmap::MapFileKind::text) {
-        return map.scripts != nullptr && map.objects != nullptr;
-    }
-    if (map.map_type == qmap::MapFileKind::binary) {
-        return map.header_size == static_cast<int>(qmap::binary_map_header_size);
-    }
-
-    return false;
-}
 
 void show_map_status(const char* side, const map_lvls& map)
 {
@@ -137,99 +25,21 @@ void show_map_status(const char* side, const map_lvls& map)
     ImGui::Text(
         "%s: %s %s",
         side,
-        map_parse_succeeded(map) ? "file parsed" : "parse failed",
-        map_type_name(map.map_type)
+        qmap::map_parse_succeeded(map) ? "file parsed" : "parse failed",
+        qmap::map_type_name(map.map_type)
     );
     if (map.map_type == qmap::MapFileKind::binary) {
         ImGui::SameLine();
         ImGui::TextDisabled("export not implemented");
     }
-    if (!map_parse_succeeded(map) && !map.parse_error.empty()) {
+    if (!qmap::map_parse_succeeded(map) && !map.parse_error.empty()) {
         ImGui::TextDisabled("%s: %s", side, map.parse_error.c_str());
     }
 }
 
-void update_labels(map_lvls* map, int target_list_box)
-{
-    if (target_list_box == -1) {
-        return;
-    }
-
-    const auto side = target_list_box == left_column ? qmap::MapSide::left : qmap::MapSide::right;
-    qmap::update_loaded_map_labels(session, *map, side);
-}
-
-
 void file_drop_callback(const char* full_path)
 {
-    // not hovering over one of the boxes
-    if (session.drop_target == -1) {
-        return;
-    }
-    const std::filesystem::path file_path(full_path);
-    const std::string extension = lower_extension(file_path);
-
-    qmap::MapFileKind map_type = qmap::MapFileKind::empty;
-    if (extension == ".txt") {
-        map_type = qmap::MapFileKind::text;
-    } else
-    if (extension == ".map") {
-        map_type = qmap::MapFileKind::binary;
-    } else {
-        session.current_error =
-            "Wrong file type.\n"
-            "Should be Fallout 2 'map.txt'.\n"
-            "You can export a single map.txt\n"
-            "from the Fallout 2 Mapper\n"
-            "by opening the map you want\n"
-            "to export and pressing 'Alt + P'.";
-        session.open_error_popup = true;
-        return;
-    }
-
-    map_lvls* map_ptr = nullptr;
-    if (session.drop_target == left_column) {
-        map_ptr   = &session.left;
-    } else
-    if (session.drop_target == right_column) {
-        map_ptr   = &session.right;
-    }
-    if (!map_ptr) {
-        return;
-    }
-
-    std::vector<uint8_t> bytes;
-    if (!load_file_bytes(file_path, bytes)) {
-        session.current_error = std::string{"Unable to read file:\n"} + full_path;
-        session.open_error_popup = true;
-        return;
-    }
-
-    clear_loaded_map(*map_ptr);
-    if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        session.current_error = std::string{"File is too large:\n"} + full_path;
-        session.open_error_popup = true;
-        return;
-    }
-    map_ptr->file_path_storage = file_path.string();
-    map_ptr->map_name_storage = file_path.filename().string();
-    map_ptr->owned_data = std::move(bytes);
-    map_ptr->file_str = map_ptr->file_path_storage.data();
-    map_ptr->file_siz = static_cast<int>(map_ptr->owned_data.size());
-    map_ptr->data = map_ptr->owned_data.data();
-    map_ptr->map_name = map_ptr->map_name_storage.data();
-    map_ptr->map_type = map_type;
-
-
-    if (map_ptr->map_type == qmap::MapFileKind::binary) {
-        parse_binary_map_for_gui(*map_ptr);
-    } else
-    if (map_ptr->map_type == qmap::MapFileKind::text) {
-        parse_map_txt(map_ptr->data, map_ptr);
-    }
-    update_labels(map_ptr, session.drop_target);
-    //QTODO: is this necessary? why did I mark it in the debugger?
-    session.drop_target = -1;
+    qmap::load_dropped_file(session, std::filesystem::path{full_path});
 }
 
 void drag_file(ImVec2 pos)
@@ -248,7 +58,7 @@ void drag_dropped()
 
     ImGuiIO& io = ImGui::GetIO();
     io.MouseDown[0] = false;
-    // session.drop_target = -1;
+    // session.drop_target = std::nullopt;
 }
 
 // kind of dumb, but...
@@ -358,7 +168,7 @@ bool map_txt_gui()
     // left third
     ImGui::ListBox("##L", &selection[left_column], left_labels, IM_COUNTOF(left_labels));
     if (hover_box()) {
-        session.drop_target = left_column;
+        session.drop_target = qmap::MapSide::left;
     }
 
     ImGui::SetCursorPos(ImVec2{posB.x+size.x   +  5, posB.y});
@@ -412,7 +222,7 @@ bool map_txt_gui()
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2 + 120, posB.y});
     ImGui::ListBox("##R", &selection[right_column], right_labels, IM_COUNTOF(right_labels));
     if (hover_box()) {
-        session.drop_target = right_column;
+        session.drop_target = qmap::MapSide::right;
     }
 
     ImGui::PopItemWidth();

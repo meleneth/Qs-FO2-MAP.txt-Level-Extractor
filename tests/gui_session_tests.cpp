@@ -2,7 +2,15 @@
 
 #include "gui_session.h"
 
+#include <filesystem>
+#include <string>
+
 namespace {
+
+std::filesystem::path fixture_path(std::string_view name)
+{
+    return std::filesystem::path(TEST_MAPS_DIR) / std::filesystem::path(name);
+}
 
 map_lvls loaded_map(const char* name, const char* path)
 {
@@ -88,4 +96,33 @@ TEST_CASE("GUI session rejects mixed binary and text export", "[gui]")
     CHECK(action == qmap::GuiExportAction::none);
     CHECK(session.open_error_popup);
     CHECK(session.current_error.find("can't mix .MAP and .TXT") != std::string::npos);
+}
+
+TEST_CASE("GUI session loads dropped text maps into the selected side", "[gui]")
+{
+    qmap::GuiSession session;
+    session.drop_target = qmap::MapSide::left;
+
+    REQUIRE(qmap::load_dropped_file(session, fixture_path("ARVILL2.txt")));
+
+    CHECK(session.left.map_type == qmap::MapFileKind::text);
+    CHECK(session.left.data != nullptr);
+    CHECK(session.left.scripts != nullptr);
+    CHECK(session.left.objects != nullptr);
+    CHECK(session.left_head == "ARVILL2.txt");
+    CHECK(session.left_labels[0] == "0:ARVILL2.txt");
+    CHECK(session.left_labels[1] == "empty");
+    CHECK_FALSE(session.drop_target.has_value());
+}
+
+TEST_CASE("GUI session reports unsupported dropped file types", "[gui]")
+{
+    qmap::GuiSession session;
+    session.drop_target = qmap::MapSide::right;
+
+    CHECK_FALSE(qmap::load_dropped_file(session, fixture_path("not-a-map.foo")));
+
+    CHECK(session.right.data == nullptr);
+    CHECK(session.open_error_popup);
+    CHECK(session.current_error.find("Wrong file type") != std::string::npos);
 }

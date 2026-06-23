@@ -1,8 +1,99 @@
 #include "gui_session.h"
 
+#include "binary_map_parser.h"
+#include "map_txt_parser.h"
+
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
+#include <limits>
+#include <span>
+#include <vector>
 
 namespace qmap {
+namespace {
+
+map_lvls& map_for_side(GuiSession& session, MapSide side)
+{
+    return side == MapSide::left ? session.left : session.right;
+}
+
+void clear_loaded_map(map_lvls& map)
+{
+    map.map_type = MapFileKind::empty;
+    map.file_path_storage.clear();
+    map.map_name_storage.clear();
+    map.parse_error.clear();
+    map.owned_data.clear();
+    map.file_str = nullptr;
+    map.file_siz = 0;
+    map.map_name = nullptr;
+    map.data = nullptr;
+    map.header_size = 0;
+    for (int elevation = 0; elevation < elevation_count; ++elevation) {
+        map.lvl_sizes[elevation] = 0;
+        map.level[elevation] = nullptr;
+    }
+    map.scripts = nullptr;
+    map.objects = nullptr;
+}
+
+bool load_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>& bytes)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    bytes.assign(
+        std::istreambuf_iterator<char>(file),
+        std::istreambuf_iterator<char>()
+    );
+    return file.good() || file.eof();
+}
+
+std::string lower_extension(const std::filesystem::path& path)
+{
+    auto extension = path.extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return extension;
+}
+
+void parse_binary_map_for_gui(map_lvls& map)
+{
+    map.header_size = 0;
+    for (int level = 0; level < binary_map_elevation_count; ++level) {
+        map.level[level] = nullptr;
+        map.lvl_sizes[level] = 0;
+    }
+
+    if (!map.data || map.file_siz <= 0) {
+        return;
+    }
+
+    const auto bytes = std::span<const std::byte>(
+        reinterpret_cast<const std::byte*>(map.data),
+        static_cast<std::size_t>(map.file_siz)
+    );
+    const auto header = parse_binary_map_header(bytes);
+    if (!header) {
+        map.parse_error = header.error().message;
+        return;
+    }
+
+    map.header_size = static_cast<int>(binary_map_header_size);
+    for (int level = 0; level < binary_map_elevation_count; ++level) {
+        if (header.value().has_elevation(level)) {
+            map.level[level] = map.label[level];
+        }
+    }
+}
+
+} // namespace
 
 std::array<std::string, elevation_count>& labels_for_side(GuiSession& session, MapSide side)
 {
@@ -12,6 +103,35 @@ std::array<std::string, elevation_count>& labels_for_side(GuiSession& session, M
 const std::array<std::string, elevation_count>& labels_for_side(const GuiSession& session, MapSide side)
 {
     return side == MapSide::left ? session.left_labels : session.right_labels;
+}
+
+const char* map_type_name(MapFileKind map_type)
+{
+    switch (map_type) {
+    case MapFileKind::text:
+        return ".txt";
+    case MapFileKind::binary:
+        return ".map";
+    case MapFileKind::empty:
+        return "empty";
+    }
+
+    return "empty";
+}
+
+bool map_parse_succeeded(const map_lvls& map)
+{
+    if (!map.data || map.map_type == MapFileKind::empty) {
+        return false;
+    }
+    if (map.map_type == MapFileKind::text) {
+        return map.scripts != nullptr && map.objects != nullptr;
+    }
+    if (map.map_type == MapFileKind::binary) {
+        return map.header_size == static_cast<int>(binary_map_header_size);
+    }
+
+    return false;
 }
 
 void reset_output_selection(GuiSession& session)
@@ -131,6 +251,65 @@ GuiExportAction prepare_export(GuiSession& session)
         "so I'm leaving this out for now.\n"
         "Let me know if you want this!";
     return GuiExportAction::none;
+}
+
+bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_path)
+{
+    if (!session.drop_target) {
+        return false;
+    }
+
+    const std::string extension = lower_extension(file_path);
+    MapFileKind map_type = MapFileKind::empty;
+    if (extension == ".txt") {
+        map_type = MapFileKind::text;
+    } else if (extension == ".map") {
+        map_type = MapFileKind::binary;
+    } else {
+        session.current_error =
+            "Wrong file type.\n"
+            "Should be Fallout 2 'map.txt'.\n"
+            "You can export a single map.txt\n"
+            "from the Fallout 2 Mapper\n"
+            "by opening the map you want\n"
+            "to export and pressing 'Alt + P'.";
+        session.open_error_popup = true;
+        return false;
+    }
+
+    std::vector<uint8_t> bytes;
+    if (!load_file_bytes(file_path, bytes)) {
+        session.current_error = std::string{"Unable to read file:\n"} + file_path.string();
+        session.open_error_popup = true;
+        return false;
+    }
+
+    map_lvls& map = map_for_side(session, *session.drop_target);
+    clear_loaded_map(map);
+    if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        session.current_error = std::string{"File is too large:\n"} + file_path.string();
+        session.open_error_popup = true;
+        return false;
+    }
+
+    map.file_path_storage = file_path.string();
+    map.map_name_storage = file_path.filename().string();
+    map.owned_data = std::move(bytes);
+    map.file_str = map.file_path_storage.data();
+    map.file_siz = static_cast<int>(map.owned_data.size());
+    map.data = map.owned_data.data();
+    map.map_name = map.map_name_storage.data();
+    map.map_type = map_type;
+
+    if (map.map_type == MapFileKind::binary) {
+        parse_binary_map_for_gui(map);
+    } else if (map.map_type == MapFileKind::text) {
+        parse_map_txt(map.data, &map);
+    }
+
+    update_loaded_map_labels(session, map, *session.drop_target);
+    session.drop_target = std::nullopt;
+    return true;
 }
 
 } // namespace qmap

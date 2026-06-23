@@ -240,7 +240,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Current error.
 
 - [ ] Keep ImGui code as rendering and event forwarding.
-  - [ ] No parser internals in UI rendering code.
+  - [x] No parser internals in UI rendering code.
   - [ ] No export algorithm in UI code.
   - [ ] No global maps or labels.
 

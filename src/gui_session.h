@@ -4,6 +4,7 @@
 #include "text_map_export.h"
 
 #include <array>
+#include <filesystem>
 #include <optional>
 #include <string>
 
@@ -26,7 +27,7 @@ struct GuiSession {
     std::string current_error;
     bool open_error_popup = false;
     bool is_hovering_drop_target = false;
-    int drop_target = -1;
+    std::optional<MapSide> drop_target = std::nullopt;
 };
 
 enum class GuiExportAction {
@@ -37,6 +38,8 @@ enum class GuiExportAction {
 std::array<std::string, elevation_count>& labels_for_side(GuiSession& session, MapSide side);
 const std::array<std::string, elevation_count>& labels_for_side(const GuiSession& session, MapSide side);
 
+const char* map_type_name(MapFileKind map_type);
+bool map_parse_succeeded(const map_lvls& map);
 void reset_output_selection(GuiSession& session);
 void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide side);
 void select_output_elevation(
@@ -52,5 +55,6 @@ void choose_output_header(GuiSession& session, MapSide side);
 void clear_output_header(GuiSession& session);
 TextMapExportPlan make_text_export_plan(const GuiSession& session);
 GuiExportAction prepare_export(GuiSession& session);
+bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_path);
 
 } // namespace qmap
