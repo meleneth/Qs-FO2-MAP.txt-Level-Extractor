@@ -208,12 +208,12 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Combine selected elevations from source maps into a new output file.
   - [x] Write outputs to explicit paths and fail before overwriting unless requested.
 
-- [ ] Wire reasonable CLI logging options. Partial: options exist, but `json` log format is accepted without JSON formatting.
+- [x] Wire reasonable CLI logging options.
   - [x] `--verbose` / `-v` to increase detail.
   - [x] `--quiet` / `-q` to suppress non-error output.
   - [x] `--log-level <trace|debug|info|warn|error|critical|off>`.
   - [x] `--log-file <path>` for file logging.
-  - [x] `--log-format <human|plain|json>` if JSON output becomes useful for tooling.
+  - [x] `--log-format <human|plain>`.
   - [x] Default CLI behavior should be human-readable and concise.
 
 - [x] CLI output should be useful for development and debugging.

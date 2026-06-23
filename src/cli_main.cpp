@@ -65,8 +65,10 @@ void configure_logging(const CliOptions& options)
 
     if (options.log_format == "plain") {
         spdlog::set_pattern("%v");
-    } else {
+    } else if (options.log_format == "human") {
         spdlog::set_pattern("[%l] %v");
+    } else {
+        throw std::runtime_error("unknown log format: " + options.log_format);
     }
     spdlog::set_level(level);
 }
@@ -81,7 +83,7 @@ int main(int argc, char** argv)
     app.add_flag("-q,--quiet", options.quiet, "Suppress non-error log output");
     app.add_option("--log-level", options.log_level, "trace|debug|info|warn|error|critical|off");
     app.add_option("--log-file", options.log_file, "Write logs to a file");
-    app.add_option("--log-format", options.log_format, "human|plain|json");
+    app.add_option("--log-format", options.log_format, "human|plain");
 
     std::filesystem::path parse_stats_input;
     auto* parse_stats_command = app.add_subcommand("parse-stats", "Parse a map file and print a stats breakdown");
