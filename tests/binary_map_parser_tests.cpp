@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "binary_map_parser.h"
+#include "prototype_metadata.h"
 
 #include <array>
 #include <cstddef>
@@ -827,6 +828,45 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     CHECK(parsed.value().records[1].tail.size == 10 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].raw.size == 32 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
+}
+
+TEST_CASE("parse_binary_map_object_records uses prototype metadata for item tails", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x00000063, 50331649);
+    append_i32(bytes, 10);
+    append_i32(bytes, 0x00000026);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000063,
+        qmap::BinaryObjectType::item,
+        3,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
+
+    if (!parsed) {
+        INFO(parsed.error().message);
+    }
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().records.size() == 1);
+    CHECK(parsed.value().records[0].tail.size == 2 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].raw.size == 24 * sizeof(std::int32_t));
 }
 
 TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[map][binary]")

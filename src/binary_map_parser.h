@@ -13,6 +13,8 @@
 
 namespace qmap {
 
+class PrototypeDatabase;
+
 constexpr std::size_t binary_map_filename_size = 16;
 constexpr std::size_t binary_map_unknown_header_words = 44;
 constexpr std::size_t binary_map_header_size = 236;
@@ -244,6 +246,12 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::span<const std::byte> bytes,
     std::size_t object_section_offset,
     const BinaryMapHeader& header
+);
+Result<BinaryMapObjectRecords> parse_binary_map_object_records(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header,
+    const PrototypeDatabase& prototypes
 );
 Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes);
 

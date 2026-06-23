@@ -1,6 +1,7 @@
 #include "binary_map_parser.h"
 
 #include "byte_reader.h"
+#include "prototype_metadata.h"
 
 #include <array>
 #include <cstdint>
@@ -14,6 +15,11 @@ namespace {
 struct InventoryEntries {
     std::vector<std::int32_t> quantities;
     std::vector<BinaryObjectRecord> records;
+};
+
+struct ObjectParseContext {
+    const PrototypeDatabase* prototypes = nullptr;
+    int map_version = 0;
 };
 
 Result<std::int32_t> read_i32(ByteReader& reader)
@@ -211,14 +217,27 @@ std::optional<std::size_t> fixture_backed_tail_size(const BinaryObjectPrefix& pr
     return std::nullopt;
 }
 
-Result<std::size_t> resolve_object_tail_size(const BinaryObjectPrefix& prefix, BinaryObjectType type)
+Result<std::size_t> resolve_object_tail_size(
+    const BinaryObjectPrefix& prefix,
+    BinaryObjectType type,
+    const ObjectParseContext& context
+)
 {
-    // Public MAP docs define subtype-specific tails for items, scenery, and
-    // misc objects. The MAP object prefix only carries the prototype PID, so
-    // non-zero subtype tails are listed here only when fixture data proves a
-    // concrete prototype uses that documented layout.
+    // Public MAP docs define subtype-specific tails, but the MAP object prefix
+    // only carries the prototype PID. Prefer loaded prototype subtype metadata
+    // when available; keep narrow fixture overrides for records not covered yet.
     if (const auto fixture_tail_size = fixture_backed_tail_size(prefix)) {
         return Result<std::size_t>::ok(*fixture_tail_size);
+    }
+    if (context.prototypes != nullptr) {
+        if (const auto prototype = context.prototypes->find(prefix.pid)) {
+            if (const auto prototype_tail_size = object_tail_size_from_prototype(
+                    *prototype,
+                    context.map_version
+                )) {
+                return Result<std::size_t>::ok(*prototype_tail_size);
+            }
+        }
     }
 
     switch (type) {
@@ -258,16 +277,18 @@ Result<std::size_t> resolve_object_tail_size(const BinaryObjectPrefix& prefix, B
     return Result<std::size_t>::fail({"unsupported object type", prefix.raw.offset});
 }
 
-Result<BinaryObjectRecord> parse_object_record(ByteReader& reader);
+Result<BinaryObjectRecord> parse_object_record(ByteReader& reader, const ObjectParseContext& context);
 Result<std::vector<BinaryObjectRecord>> parse_object_record_sequence(
     ByteReader& reader,
     std::int32_t record_count,
-    std::optional<int> elevation
+    std::optional<int> elevation,
+    const ObjectParseContext& context
 );
 
 Result<InventoryEntries> parse_inventory_entries(
     ByteReader& reader,
-    std::int32_t remaining_inventory
+    std::int32_t remaining_inventory,
+    const ObjectParseContext& context
 )
 {
     InventoryEntries entries;
@@ -288,7 +309,7 @@ Result<InventoryEntries> parse_inventory_entries(
             return Result<InventoryEntries>::fail(quantity.error());
         }
 
-        auto inventory_record = parse_object_record(reader);
+        auto inventory_record = parse_object_record(reader, context);
         if (!inventory_record) {
             auto seek = reader.seek(entry_start);
             if (!seek) {
@@ -307,7 +328,7 @@ Result<InventoryEntries> parse_inventory_entries(
     return Result<InventoryEntries>::ok(std::move(entries));
 }
 
-Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
+Result<BinaryObjectRecord> parse_object_record(ByteReader& reader, const ObjectParseContext& context)
 {
     const auto record_start = reader.offset();
     auto prefix = parse_object_prefix(reader);
@@ -345,7 +366,7 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
 
     const auto tail_start = reader.offset();
 
-    auto tail_size = resolve_object_tail_size(prefix.value(), *object_type);
+    auto tail_size = resolve_object_tail_size(prefix.value(), *object_type, context);
     if (!tail_size) {
         return Result<BinaryObjectRecord>::fail(tail_size.error());
     }
@@ -360,7 +381,7 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
     record.object_type = *object_type;
     record.tail = Range{tail_start, tail_bytes.value().size()};
 
-    auto inventory = parse_inventory_entries(reader, record.prefix.inventory_count);
+    auto inventory = parse_inventory_entries(reader, record.prefix.inventory_count, context);
     if (!inventory) {
         return Result<BinaryObjectRecord>::fail(inventory.error());
     }
@@ -386,14 +407,14 @@ Error object_record_error_context(const Error& error, std::optional<int> elevati
 Result<std::vector<BinaryObjectRecord>> parse_object_record_sequence(
     ByteReader& reader,
     std::int32_t record_count,
-    std::optional<int> elevation
+    std::optional<int> elevation,
+    const ObjectParseContext& context
 )
 {
     std::vector<BinaryObjectRecord> records;
     records.reserve(static_cast<std::size_t>(record_count));
     for (std::int32_t index = 0; index < record_count; ++index) {
-        const auto start = reader.offset();
-        auto record = parse_object_record(reader);
+        auto record = parse_object_record(reader, context);
         if (!record) {
             return Result<std::vector<BinaryObjectRecord>>::fail(
                 object_record_error_context(record.error(), elevation, index)
@@ -406,6 +427,7 @@ Result<std::vector<BinaryObjectRecord>> parse_object_record_sequence(
 
 Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& reader, std::size_t object_section_offset)
 {
+    const ObjectParseContext context;
     BinaryMapObjectRecords objects;
     auto total_count = read_i32(reader);
     if (!total_count) {
@@ -436,7 +458,7 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
         return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
     }
 
-    auto records = parse_object_record_sequence(reader, objects.total_count, std::nullopt);
+    auto records = parse_object_record_sequence(reader, objects.total_count, std::nullopt, context);
     if (!records) {
         return Result<BinaryMapObjectRecords>::fail(records.error());
     }
@@ -445,6 +467,76 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
     }
     objects.end_offset = reader.offset();
 
+    return Result<BinaryMapObjectRecords>::ok(std::move(objects));
+}
+
+Result<BinaryMapObjectRecords> parse_binary_map_object_records_with_context(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header,
+    const ObjectParseContext& context
+)
+{
+    ByteReader reader(bytes);
+    auto skipped = reader.read_bytes(object_section_offset);
+    if (!skipped) {
+        return Result<BinaryMapObjectRecords>::fail(skipped.error());
+    }
+
+    BinaryMapObjectRecords objects;
+    auto total_count = read_i32(reader);
+    if (!total_count) {
+        return Result<BinaryMapObjectRecords>::fail(total_count.error());
+    }
+    if (total_count.value() < 0) {
+        return Result<BinaryMapObjectRecords>::fail({"negative object count", object_section_offset});
+    }
+    objects.total_count = total_count.value();
+
+    std::int64_t summed_counts = 0;
+    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
+        objects.elevation_counts[elevation] = 0;
+
+        auto block_count = read_i32(reader);
+        if (!block_count) {
+            return Result<BinaryMapObjectRecords>::fail(block_count.error());
+        }
+        if (block_count.value() < 0) {
+            return Result<BinaryMapObjectRecords>::fail({"negative elevation object count", reader.offset() - 4});
+        }
+
+        if (!header.has_elevation(elevation)) {
+            if (block_count.value() != 0) {
+                return Result<BinaryMapObjectRecords>::fail({"absent elevation has object records", reader.offset() - 4});
+            }
+            continue;
+        }
+
+        objects.elevation_counts[elevation] = block_count.value();
+        summed_counts += block_count.value();
+        if (summed_counts > objects.total_count) {
+            return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
+        }
+
+        auto records = parse_object_record_sequence(
+            reader,
+            block_count.value(),
+            elevation,
+            context
+        );
+        if (!records) {
+            return Result<BinaryMapObjectRecords>::fail(records.error());
+        }
+        for (auto& record : records.value()) {
+            objects.records.push_back(std::move(record));
+        }
+    }
+
+    if (summed_counts != objects.total_count) {
+        return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
+    }
+
+    objects.end_offset = reader.offset();
     return Result<BinaryMapObjectRecords>::ok(std::move(objects));
 }
 
@@ -673,66 +765,19 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     const BinaryMapHeader& header
 )
 {
-    ByteReader reader(bytes);
-    auto skipped = reader.read_bytes(object_section_offset);
-    if (!skipped) {
-        return Result<BinaryMapObjectRecords>::fail(skipped.error());
-    }
+    const ObjectParseContext context{nullptr, static_cast<int>(header.version)};
+    return parse_binary_map_object_records_with_context(bytes, object_section_offset, header, context);
+}
 
-    BinaryMapObjectRecords objects;
-    auto total_count = read_i32(reader);
-    if (!total_count) {
-        return Result<BinaryMapObjectRecords>::fail(total_count.error());
-    }
-    if (total_count.value() < 0) {
-        return Result<BinaryMapObjectRecords>::fail({"negative object count", object_section_offset});
-    }
-    objects.total_count = total_count.value();
-
-    std::int64_t summed_counts = 0;
-    for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
-        objects.elevation_counts[elevation] = 0;
-
-        auto block_count = read_i32(reader);
-        if (!block_count) {
-            return Result<BinaryMapObjectRecords>::fail(block_count.error());
-        }
-        if (block_count.value() < 0) {
-            return Result<BinaryMapObjectRecords>::fail({"negative elevation object count", reader.offset() - 4});
-        }
-
-        if (!header.has_elevation(elevation)) {
-            if (block_count.value() != 0) {
-                return Result<BinaryMapObjectRecords>::fail({"absent elevation has object records", reader.offset() - 4});
-            }
-            continue;
-        }
-
-        objects.elevation_counts[elevation] = block_count.value();
-        summed_counts += block_count.value();
-        if (summed_counts > objects.total_count) {
-            return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
-        }
-
-        auto records = parse_object_record_sequence(
-            reader,
-            block_count.value(),
-            elevation
-        );
-        if (!records) {
-            return Result<BinaryMapObjectRecords>::fail(records.error());
-        }
-        for (auto& record : records.value()) {
-            objects.records.push_back(std::move(record));
-        }
-    }
-
-    if (summed_counts != objects.total_count) {
-        return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
-    }
-
-    objects.end_offset = reader.offset();
-    return Result<BinaryMapObjectRecords>::ok(std::move(objects));
+Result<BinaryMapObjectRecords> parse_binary_map_object_records(
+    std::span<const std::byte> bytes,
+    std::size_t object_section_offset,
+    const BinaryMapHeader& header,
+    const PrototypeDatabase& prototypes
+)
+{
+    const ObjectParseContext context{&prototypes, static_cast<int>(header.version)};
+    return parse_binary_map_object_records_with_context(bytes, object_section_offset, header, context);
 }
 
 } // namespace qmap
