@@ -77,22 +77,53 @@ std::vector<std::byte> read_binary_file(const std::filesystem::path& path)
     return bytes;
 }
 
-void write_output_file(const std::filesystem::path& path, std::string_view content, bool force)
+Result<void> write_text_output_file(
+    const std::filesystem::path& path,
+    std::string_view content,
+    bool force
+)
 {
-    if (!force && std::filesystem::exists(path)) {
-        throw std::runtime_error("output file already exists: " + path.string());
+    std::error_code error;
+    const auto exists = std::filesystem::exists(path, error);
+    if (error) {
+        return Result<void>::fail({
+            "unable to check output file: " + path.string() + ": " + error.message(),
+            0,
+        });
+    }
+    if (!force && exists) {
+        return Result<void>::fail({"output file already exists: " + path.string(), 0});
     }
 
     if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path());
+        std::filesystem::create_directories(path.parent_path(), error);
+        if (error) {
+            return Result<void>::fail({
+                "unable to create output directory: " + path.parent_path().string()
+                    + ": " + error.message(),
+                0,
+            });
+        }
     }
 
     std::ofstream file(path, std::ios::binary | std::ios::trunc);
     if (!file) {
-        throw std::runtime_error("unable to open output file: " + path.string());
+        return Result<void>::fail({"unable to open output file: " + path.string(), 0});
     }
 
     file.write(content.data(), static_cast<std::streamsize>(content.size()));
+    if (!file) {
+        return Result<void>::fail({"unable to write output file: " + path.string(), 0});
+    }
+    return Result<void>::ok();
+}
+
+void write_output_file(const std::filesystem::path& path, std::string_view content, bool force)
+{
+    auto written = write_text_output_file(path, content, force);
+    if (!written) {
+        throw std::runtime_error(written.error().message);
+    }
 }
 
 Result<void> write_binary_output_file(

@@ -139,6 +139,49 @@ TEST_CASE("write_binary_output_file writes bytes and rejects accidental overwrit
     std::filesystem::remove(output);
 }
 
+TEST_CASE("write_text_output_file writes text and rejects accidental overwrite", "[cli]")
+{
+    const auto output =
+        std::filesystem::temp_directory_path() / "qmap-write-text-output-file-test.txt";
+    std::filesystem::remove(output);
+
+    const auto saved = qmap::cli::write_text_output_file(output, "alpha", false);
+    REQUIRE(saved);
+
+    const auto read = qmap::cli::read_text_file_result(output);
+    REQUIRE(read);
+    CHECK(read.value() == "alpha");
+
+    const auto refused = qmap::cli::write_text_output_file(output, "beta", false);
+    REQUIRE_FALSE(refused);
+    CHECK(refused.error().message.find("output file already exists:") == 0);
+
+    const auto overwritten = qmap::cli::write_text_output_file(output, "beta", true);
+    REQUIRE(overwritten);
+    const auto replaced = qmap::cli::read_text_file_result(output);
+    REQUIRE(replaced);
+    CHECK(replaced.value() == "beta");
+
+    std::filesystem::remove(output);
+}
+
+TEST_CASE("write_text_output_file creates parent directories", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-write-text-output-dir-test";
+    const auto output = directory / "nested" / "out.txt";
+    std::filesystem::remove_all(directory);
+
+    const auto saved = qmap::cli::write_text_output_file(output, "payload", false);
+
+    REQUIRE(saved);
+    const auto read = qmap::cli::read_text_file_result(output);
+    REQUIRE(read);
+    CHECK(read.value() == "payload");
+
+    std::filesystem::remove_all(directory);
+}
+
 TEST_CASE("write_binary_output_file creates parent directories", "[cli]")
 {
     const auto directory =
