@@ -74,3 +74,18 @@ TEST_CASE("GUI session header selection updates export path and export plan", "[
     CHECK(session.header == -1);
     CHECK(session.middle_head == "empty");
 }
+
+TEST_CASE("GUI session rejects mixed binary and text export", "[gui]")
+{
+    qmap::GuiSession session;
+    session.left = loaded_map("left.map", "C:/maps/left.map");
+    session.left.map_type = qmap::MapFileKind::binary;
+    session.right = loaded_map("right.txt", "C:/maps/right.txt");
+    session.right.map_type = qmap::MapFileKind::text;
+
+    const auto action = qmap::prepare_export(session);
+
+    CHECK(action == qmap::GuiExportAction::none);
+    CHECK(session.open_error_popup);
+    CHECK(session.current_error.find("can't mix .MAP and .TXT") != std::string::npos);
+}

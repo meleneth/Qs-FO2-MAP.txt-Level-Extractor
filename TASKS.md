@@ -248,10 +248,10 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Labels may truncate for UI.
   - [x] They must not drive export behavior.
 
-- [ ] Add non-UI tests for session behavior.
+- [x] Add non-UI tests for session behavior.
   - [x] load left/right map updates available elevations.
   - [x] selecting header updates default export path.
-  - [ ] invalid mixed file kinds produces a domain error.
+  - [x] invalid mixed file kinds produces a domain error.
 
 ## Phase 9: Error Handling And Result Types
 

@@ -283,34 +283,8 @@ bool hover_box()
 
 void export_map(char* path_buff)
 {
-    if (session.left.data == nullptr && session.right.data == nullptr) {
-        return;
-    }
-    if (session.left.map_type == qmap::MapFileKind::empty && session.right.map_type == qmap::MapFileKind::empty) {
-        return;
-    }
-
-    // .map file extension for both maps or one .map and one empty
-    if ((session.left.map_type == qmap::MapFileKind::binary || session.left.map_type == qmap::MapFileKind::empty)
-    &&  (session.right.map_type == qmap::MapFileKind::binary || session.right.map_type == qmap::MapFileKind::empty)) {
-        session.open_error_popup = true;
-        session.current_error =
-            ".MAP export is not implemented yet.\n"
-            "The file can be parsed, but binary export\n"
-            "is disabled until the full format is modeled.";
-    } else
-    // .txt file extension for both maps or one .txt and one empty
-    if ((session.left.map_type == qmap::MapFileKind::text || session.left.map_type == qmap::MapFileKind::empty)
-    &&  (session.right.map_type == qmap::MapFileKind::text || session.right.map_type == qmap::MapFileKind::empty)) {
+    if (qmap::prepare_export(session) == qmap::GuiExportAction::export_text) {
         export_map_txt(qmap::make_text_export_plan(session), &session.left, &session.right, path_buff);
-    } else {
-        session.open_error_popup = true;
-        session.current_error =
-            "Sorry, can't mix .MAP and .TXT yet.\n"
-            "It's just a pain in the butt to\n"
-            "combine these two filetypes,\n"
-            "so I'm leaving this out for now.\n"
-            "Let me know if you want this!";
     }
 }
 

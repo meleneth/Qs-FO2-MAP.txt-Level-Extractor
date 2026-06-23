@@ -27,6 +27,11 @@ struct GuiSession {
     bool open_error_popup = false;
 };
 
+enum class GuiExportAction {
+    none,
+    export_text,
+};
+
 std::array<std::string, elevation_count>& labels_for_side(GuiSession& session, MapSide side);
 const std::array<std::string, elevation_count>& labels_for_side(const GuiSession& session, MapSide side);
 
@@ -44,5 +49,6 @@ void clear_output_elevation(GuiSession& session, int destination);
 void choose_output_header(GuiSession& session, MapSide side);
 void clear_output_header(GuiSession& session);
 TextMapExportPlan make_text_export_plan(const GuiSession& session);
+GuiExportAction prepare_export(GuiSession& session);
 
 } // namespace qmap

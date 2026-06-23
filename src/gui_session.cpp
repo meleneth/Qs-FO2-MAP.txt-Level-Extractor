@@ -99,4 +99,38 @@ TextMapExportPlan make_text_export_plan(const GuiSession& session)
     return plan;
 }
 
+GuiExportAction prepare_export(GuiSession& session)
+{
+    if (session.left.data == nullptr && session.right.data == nullptr) {
+        return GuiExportAction::none;
+    }
+    if (session.left.map_type == MapFileKind::empty && session.right.map_type == MapFileKind::empty) {
+        return GuiExportAction::none;
+    }
+
+    if ((session.left.map_type == MapFileKind::binary || session.left.map_type == MapFileKind::empty)
+        && (session.right.map_type == MapFileKind::binary || session.right.map_type == MapFileKind::empty)) {
+        session.open_error_popup = true;
+        session.current_error =
+            ".MAP export is not implemented yet.\n"
+            "The file can be parsed, but binary export\n"
+            "is disabled until the full format is modeled.";
+        return GuiExportAction::none;
+    }
+
+    if ((session.left.map_type == MapFileKind::text || session.left.map_type == MapFileKind::empty)
+        && (session.right.map_type == MapFileKind::text || session.right.map_type == MapFileKind::empty)) {
+        return GuiExportAction::export_text;
+    }
+
+    session.open_error_popup = true;
+    session.current_error =
+        "Sorry, can't mix .MAP and .TXT yet.\n"
+        "It's just a pain in the butt to\n"
+        "combine these two filetypes,\n"
+        "so I'm leaving this out for now.\n"
+        "Let me know if you want this!";
+    return GuiExportAction::none;
+}
+
 } // namespace qmap
