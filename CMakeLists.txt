@@ -70,6 +70,7 @@ endif()
 add_library(qmap_parsers STATIC)
 target_sources(
     qmap_parsers PRIVATE
+    src/binary_map_object_tails.cpp
     src/binary_map_objects.cpp
     src/binary_map_parser.cpp
     src/text_map_parser.cpp
