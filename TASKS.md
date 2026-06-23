@@ -196,10 +196,10 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Keep SDL/ImGui UI dependencies separate from CLI parsing.
   - [x] CLI mode should not initialize ImGui or SDL.
 
-- [ ] Add spdlog, likely via `FetchContent`, pinned to an explicit version. Partial: dependency and CLI logging exist; parser diagnostics still return through `Result` and are not wired through spdlog.
+- [x] Add spdlog via `FetchContent`, pinned to an explicit version.
   - [x] Use it for CLI diagnostics, parser diagnostics, and future GUI-visible logs.
   - [x] Keep parser code able to return diagnostics without requiring a global logger.
-  - [ ] Prefer structured messages with enough context to debug unknown `.map` tail/padding behavior.
+  - [x] Prefer structured messages with enough context to debug unknown `.map` tail/padding behavior.
 
 - [x] Provide command line operations for core workflows.
   - [x] Parse a file and print a detailed stat breakdown.

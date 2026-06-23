@@ -289,7 +289,17 @@ std::string format_binary_map_stats(
         }
         output << "    elevation: " << first_object->elevation << '\n';
         output << "    script_id: " << first_object->script_id << '\n';
+        output << "    inventory_count: " << first_object->inventory_count << '\n';
+        output << "    inventory_size: " << first_object->inventory_size << '\n';
+        output << "    unknown_10: " << first_object->unknown_10 << '\n';
+        output << "    unknown_11: " << first_object->unknown_11 << '\n';
         if (first_record && type) {
+            output << "    raw_range: offset=" << first_record->raw.offset
+                   << " size=" << first_record->raw.size
+                   << " end=" << first_record->raw.end() << '\n';
+            output << "    tail_range: offset=" << first_record->tail.offset
+                   << " size=" << first_record->tail.size
+                   << " end=" << first_record->tail.end() << '\n';
             if (*type == BinaryObjectType::scenery) {
                 auto tail = parse_binary_scenery_tail(bytes, first_record->tail);
                 if (tail) {

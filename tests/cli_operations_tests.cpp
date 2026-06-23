@@ -147,6 +147,10 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     first_object.pid = 0x02000001;
     first_object.elevation = 1;
     first_object.script_id = 50331649;
+    first_object.inventory_count = 2;
+    first_object.inventory_size = 4;
+    first_object.unknown_10 = 901;
+    first_object.unknown_11 = 902;
 
     qmap::BinaryObjectRecord first_record;
     first_record.prefix = first_object;
@@ -155,6 +159,7 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
         std::byte{0}, std::byte{0}, std::byte{0}, std::byte{11},
         std::byte{0}, std::byte{0}, std::byte{0}, std::byte{12},
     };
+    first_record.raw = qmap::Range{32, 128};
     first_record.tail = qmap::Range{0, sizeof(bytes)};
 
     const auto stats = qmap::cli::format_binary_map_stats(
@@ -189,6 +194,12 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("    type: scenery\n") != std::string::npos);
     CHECK(stats.find("    elevation: 1\n") != std::string::npos);
     CHECK(stats.find("    script_id: 50331649\n") != std::string::npos);
+    CHECK(stats.find("    inventory_count: 2\n") != std::string::npos);
+    CHECK(stats.find("    inventory_size: 4\n") != std::string::npos);
+    CHECK(stats.find("    unknown_10: 901\n") != std::string::npos);
+    CHECK(stats.find("    unknown_11: 902\n") != std::string::npos);
+    CHECK(stats.find("    raw_range: offset=32 size=128 end=160\n") != std::string::npos);
+    CHECK(stats.find("    tail_range: offset=0 size=12 end=12\n") != std::string::npos);
     CHECK(stats.find("    scenery_flags: 10\n") != std::string::npos);
     CHECK(stats.find("    scenery_destination: 12\n") != std::string::npos);
 }
