@@ -123,12 +123,12 @@ bool map_txt_gui()
     ImGui::PushItemWidth(size.x);
 
     ImGui::Text("Map Names:");
-    show_map_status("Left", session.left);
-    show_map_status("Right", session.right);
+    show_map_status("Left", session.left.map);
+    show_map_status("Right", session.right.map);
 
 
     ImVec2 posA = ImGui::GetCursorPos();
-    if (ImGui::Button(session.left_head.c_str(), ImVec2{size.x,0})) {
+    if (ImGui::Button(session.left.heading.c_str(), ImVec2{size.x,0})) {
         qmap::choose_output_header(session, qmap::MapSide::left);
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x   + 60, posA.y});
@@ -136,21 +136,21 @@ bool map_txt_gui()
         qmap::clear_output_header(session);
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x*2 + 120, posA.y});
-    if (ImGui::Button(session.right_head.c_str(), ImVec2{size.x,0})) {
+    if (ImGui::Button(session.right.heading.c_str(), ImVec2{size.x,0})) {
         qmap::choose_output_header(session, qmap::MapSide::right);
     }
 
 
     ImVec2 posB = ImGui::GetCursorPos();
     const char* left_labels[] = {
-        session.left_labels[0].c_str(),
-        session.left_labels[1].c_str(),
-        session.left_labels[2].c_str(),
+        session.left.labels[0].c_str(),
+        session.left.labels[1].c_str(),
+        session.left.labels[2].c_str(),
     };
     const char* right_labels[] = {
-        session.right_labels[0].c_str(),
-        session.right_labels[1].c_str(),
-        session.right_labels[2].c_str(),
+        session.right.labels[0].c_str(),
+        session.right.labels[1].c_str(),
+        session.right.labels[2].c_str(),
     };
 
 
@@ -165,8 +165,8 @@ bool map_txt_gui()
         qmap::select_output_elevation(
             session,
             session.selected_elevations[middle_column],
-            session.left,
-            session.left_labels[session.selected_elevations[left_column]],
+            session.left.map,
+            session.left.labels[session.selected_elevations[left_column]],
             qmap::MapSide::left,
             session.selected_elevations[left_column]
         );
@@ -200,8 +200,8 @@ bool map_txt_gui()
         qmap::select_output_elevation(
             session,
             session.selected_elevations[middle_column],
-            session.right,
-            session.right_labels[session.selected_elevations[right_column]],
+            session.right.map,
+            session.right.labels[session.selected_elevations[right_column]],
             qmap::MapSide::right,
             session.selected_elevations[right_column]
         );

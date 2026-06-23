@@ -272,7 +272,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Loaded file ownership.
   - [x] Parsed text map.
   - [x] Parsed binary map.
-  - [ ] GUI/session display model.
+  - [x] GUI/session display model.
   - [x] Remove legacy binary `map_header` compatibility storage.
 
 - [ ] Remove raw owning pointers.

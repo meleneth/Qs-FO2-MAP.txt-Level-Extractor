@@ -15,9 +15,19 @@
 namespace qmap {
 namespace {
 
-map_lvls& map_for_side(GuiSession& session, MapSide side)
+GuiSession::MapSlot& slot_for_side(GuiSession& session, MapSide side)
 {
     return side == MapSide::left ? session.left : session.right;
+}
+
+const GuiSession::MapSlot& slot_for_side(const GuiSession& session, MapSide side)
+{
+    return side == MapSide::left ? session.left : session.right;
+}
+
+map_lvls& map_for_side(GuiSession& session, MapSide side)
+{
+    return slot_for_side(session, side).map;
 }
 
 void clear_loaded_map(map_lvls& map)
@@ -95,12 +105,12 @@ void parse_binary_map_for_gui(map_lvls& map)
 
 std::array<std::string, elevation_count>& labels_for_side(GuiSession& session, MapSide side)
 {
-    return side == MapSide::left ? session.left_labels : session.right_labels;
+    return slot_for_side(session, side).labels;
 }
 
 const std::array<std::string, elevation_count>& labels_for_side(const GuiSession& session, MapSide side)
 {
-    return side == MapSide::left ? session.left_labels : session.right_labels;
+    return slot_for_side(session, side).labels;
 }
 
 const char* map_type_name(MapFileKind map_type)
@@ -140,12 +150,7 @@ void reset_output_selection(GuiSession& session)
 
 void update_loaded_map_labels(GuiSession& session, const map_lvls& map, MapSide side)
 {
-    if (side == MapSide::left) {
-        session.left_head = map.map_name_storage;
-    } else {
-        session.right_head = map.map_name_storage;
-    }
-
+    slot_for_side(session, side).heading = map.map_name_storage;
     reset_output_selection(session);
     auto& labels = labels_for_side(session, side);
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
@@ -186,7 +191,7 @@ void clear_output_elevation(GuiSession& session, int destination)
 
 void choose_output_header(GuiSession& session, MapSide side)
 {
-    const map_lvls& map = side == MapSide::left ? session.left : session.right;
+    const map_lvls& map = slot_for_side(session, side).map;
     if (!map.data) {
         session.middle_head = side == MapSide::left ? "HeaderL##" : "HeaderR##";
         return;
@@ -219,15 +224,15 @@ TextMapExportPlan make_text_export_plan(const GuiSession& session)
 
 GuiExportAction prepare_export(GuiSession& session)
 {
-    if (session.left.data == nullptr && session.right.data == nullptr) {
+    if (session.left.map.data == nullptr && session.right.map.data == nullptr) {
         return GuiExportAction::none;
     }
-    if (session.left.map_type == MapFileKind::empty && session.right.map_type == MapFileKind::empty) {
+    if (session.left.map.map_type == MapFileKind::empty && session.right.map.map_type == MapFileKind::empty) {
         return GuiExportAction::none;
     }
 
-    if ((session.left.map_type == MapFileKind::binary || session.left.map_type == MapFileKind::empty)
-        && (session.right.map_type == MapFileKind::binary || session.right.map_type == MapFileKind::empty)) {
+    if ((session.left.map.map_type == MapFileKind::binary || session.left.map.map_type == MapFileKind::empty)
+        && (session.right.map.map_type == MapFileKind::binary || session.right.map.map_type == MapFileKind::empty)) {
         session.open_error_popup = true;
         session.current_error =
             ".MAP export is not implemented yet.\n"
@@ -236,8 +241,8 @@ GuiExportAction prepare_export(GuiSession& session)
         return GuiExportAction::none;
     }
 
-    if ((session.left.map_type == MapFileKind::text || session.left.map_type == MapFileKind::empty)
-        && (session.right.map_type == MapFileKind::text || session.right.map_type == MapFileKind::empty)) {
+    if ((session.left.map.map_type == MapFileKind::text || session.left.map.map_type == MapFileKind::empty)
+        && (session.right.map.map_type == MapFileKind::text || session.right.map.map_type == MapFileKind::empty)) {
         return GuiExportAction::export_text;
     }
 
@@ -254,7 +259,7 @@ GuiExportAction prepare_export(GuiSession& session)
 void export_session_map(GuiSession& session, char* path)
 {
     if (prepare_export(session) == GuiExportAction::export_text) {
-        export_map_txt(make_text_export_plan(session), &session.left, &session.right, path);
+        export_map_txt(make_text_export_plan(session), &session.left.map, &session.right.map, path);
     }
 }
 
