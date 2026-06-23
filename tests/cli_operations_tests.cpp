@@ -197,6 +197,38 @@ TEST_CASE("read_binary_file_result reads binary bytes", "[cli]")
     std::filesystem::remove(input);
 }
 
+TEST_CASE("read_text_file_result reports missing input files", "[cli]")
+{
+    const auto missing =
+        std::filesystem::temp_directory_path() / "qmap-missing-text-input-test.txt";
+    std::filesystem::remove(missing);
+
+    const auto read = qmap::cli::read_text_file_result(missing);
+
+    REQUIRE_FALSE(read);
+    CHECK(read.error().message.find("unable to open input file:") == 0);
+    CHECK(read.error().offset == 0);
+}
+
+TEST_CASE("read_text_file_result reads text bytes", "[cli]")
+{
+    const auto input =
+        std::filesystem::temp_directory_path() / "qmap-read-text-input-test.txt";
+    std::filesystem::remove(input);
+    {
+        std::ofstream file(input, std::ios::binary);
+        REQUIRE(file);
+        file << "map text";
+    }
+
+    const auto read = qmap::cli::read_text_file_result(input);
+
+    REQUIRE(read);
+    CHECK(read.value() == "map text");
+
+    std::filesystem::remove(input);
+}
+
 TEST_CASE("parse_stats reports missing binary input as structured output", "[cli][stats]")
 {
     const auto missing =
@@ -213,6 +245,26 @@ TEST_CASE("parse_stats reports missing binary input as structured output", "[cli
     CHECK(exit_code == 2);
     CHECK(capture.str().find("file: " + missing.string() + "\n") != std::string::npos);
     CHECK(capture.str().find("kind: binary map\n") != std::string::npos);
+    CHECK(capture.str().find("status: parse failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: input read failed: unable to open input file:") != std::string::npos);
+    CHECK(capture.str().find(" at offset 0\n") != std::string::npos);
+}
+
+TEST_CASE("parse_stats reports missing text input as structured output", "[cli][stats]")
+{
+    const auto missing =
+        std::filesystem::temp_directory_path() / "qmap-missing-parse-stats-input.txt";
+    std::filesystem::remove(missing);
+
+    qmap::cli::ParseStatsOptions options;
+    options.input = missing;
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::parse_stats(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("file: " + missing.string() + "\n") != std::string::npos);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
     CHECK(capture.str().find("status: parse failed\n") != std::string::npos);
     CHECK(capture.str().find("error: input read failed: unable to open input file:") != std::string::npos);
     CHECK(capture.str().find(" at offset 0\n") != std::string::npos);

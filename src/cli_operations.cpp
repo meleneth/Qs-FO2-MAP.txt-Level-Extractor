@@ -107,7 +107,16 @@ int parse_stats(const ParseStatsOptions& options)
     const auto ext = lowercase_extension(options.input);
 
     if (ext == ".txt") {
-        const auto text = read_text_file(options.input);
+        auto text_result = read_text_file_result(options.input);
+        if (!text_result) {
+            std::cout << "file: " << options.input.string() << '\n';
+            std::cout << "kind: map txt\n";
+            std::cout << "status: parse failed\n";
+            std::cout << "error: input read failed: " << text_result.error().message
+                      << " at offset " << text_result.error().offset << '\n';
+            return 2;
+        }
+        const auto& text = text_result.value();
 
         std::cout << "file: " << options.input.string() << '\n';
         std::cout << "bytes: " << text.size() << '\n';
@@ -243,7 +252,16 @@ int parse_stats(const ParseStatsOptions& options)
         return 0;
     }
 
-    const auto text = read_text_file(options.input);
+    auto text_result = read_text_file_result(options.input);
+    if (!text_result) {
+        std::cout << "file: " << options.input.string() << '\n';
+        std::cout << "kind: unknown\n";
+        std::cout << "status: parse failed\n";
+        std::cout << "error: input read failed: " << text_result.error().message
+                  << " at offset " << text_result.error().offset << '\n';
+        return 2;
+    }
+    const auto& text = text_result.value();
     std::cout << "file: " << options.input.string() << '\n';
     std::cout << "bytes: " << text.size() << '\n';
     std::cout << "kind: unknown\n";

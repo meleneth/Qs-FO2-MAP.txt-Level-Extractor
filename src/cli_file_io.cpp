@@ -10,17 +10,37 @@
 
 namespace qmap::cli {
 
-std::string read_text_file(const std::filesystem::path& path)
+Result<std::string> read_text_file_result(const std::filesystem::path& path)
 {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        throw std::runtime_error("unable to open input file: " + path.string());
+        return Result<std::string>::fail({
+            "unable to open input file: " + path.string(),
+            0,
+        });
     }
 
-    return {
+    std::string text{
         std::istreambuf_iterator<char>(file),
         std::istreambuf_iterator<char>(),
     };
+    if (file.bad()) {
+        return Result<std::string>::fail({
+            "unable to read input file: " + path.string(),
+            text.size(),
+        });
+    }
+    return Result<std::string>::ok(std::move(text));
+}
+
+std::string read_text_file(const std::filesystem::path& path)
+{
+    auto read = read_text_file_result(path);
+    if (!read) {
+        throw std::runtime_error(read.error().message);
+    }
+    auto text = std::move(read.value());
+    return text;
 }
 
 Result<std::vector<std::byte>> read_binary_file_result(const std::filesystem::path& path)

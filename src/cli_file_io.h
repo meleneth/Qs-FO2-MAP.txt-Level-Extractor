@@ -10,6 +10,7 @@
 
 namespace qmap::cli {
 
+Result<std::string> read_text_file_result(const std::filesystem::path& path);
 std::string read_text_file(const std::filesystem::path& path);
 Result<std::vector<std::byte>> read_binary_file_result(const std::filesystem::path& path);
 std::vector<std::byte> read_binary_file(const std::filesystem::path& path);
