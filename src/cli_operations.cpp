@@ -26,16 +26,23 @@ struct TextInput {
     ParsedTextMap map;
 };
 
-TextInput read_text_map(const std::filesystem::path& path)
+Result<TextInput> read_text_map(const std::filesystem::path& path)
 {
-    auto text = read_text_file(path);
-    auto parsed = parse_text_map(text);
-    if (!parsed) {
-        throw std::runtime_error(
-            "failed to parse " + path.string() + ": " + parsed.error().message
-        );
+    auto text = read_text_file_result(path);
+    if (!text) {
+        return Result<TextInput>::fail({
+            "input read failed: " + text.error().message,
+            text.error().offset,
+        });
     }
-    return {std::move(text), parsed.value()};
+    auto parsed = parse_text_map(text.value());
+    if (!parsed) {
+        return Result<TextInput>::fail({
+            "input parse failed: " + parsed.error().message,
+            parsed.error().offset,
+        });
+    }
+    return Result<TextInput>::ok({std::move(text.value()), parsed.value()});
 }
 
 ParsedTextSource source_from(const TextInput& input)
@@ -120,6 +127,11 @@ bool write_text_output_or_report(
         return false;
     }
     return true;
+}
+
+void report_text_command_failure(const Error& error)
+{
+    std::cout << format_text_command_failure(error.message, error.offset);
 }
 
 } // namespace
@@ -299,11 +311,22 @@ int parse_stats(const ParseStatsOptions& options)
 int extract_elevation(const ExtractOptions& options)
 {
     auto input = read_text_map(options.input);
-    auto plan = single_elevation_plan(options.elevation);
-    const ParsedTextSource empty_right{input.text, input.map};
-    auto exported = export_text_map(source_from(input), empty_right, plan);
+    if (!input) {
+        report_text_command_failure(input.error());
+        return 2;
+    }
+    TextMapExportPlan plan;
+    try {
+        plan = single_elevation_plan(options.elevation);
+    } catch (const std::exception& error) {
+        std::cout << format_text_command_failure(error.what(), std::nullopt);
+        return 2;
+    }
+    const ParsedTextSource empty_right{input.value().text, input.value().map};
+    auto exported = export_text_map(source_from(input.value()), empty_right, plan);
     if (!exported) {
-        throw std::runtime_error(exported.error().message);
+        report_text_command_failure(exported.error());
+        return 2;
     }
 
     return write_text_output_or_report(options.output, exported.value(), options.force) ? 0 : 2;
@@ -312,15 +335,20 @@ int extract_elevation(const ExtractOptions& options)
 int split_elevations(const SplitOptions& options)
 {
     auto input = read_text_map(options.input);
+    if (!input) {
+        report_text_command_failure(input.error());
+        return 2;
+    }
     for (int elevation = 0; elevation < elevation_count; ++elevation) {
-        if (!input.map.elevations[elevation]) {
+        if (!input.value().map.elevations[elevation]) {
             continue;
         }
         auto plan = single_elevation_plan(elevation);
-        const ParsedTextSource empty_right{input.text, input.map};
-        auto exported = export_text_map(source_from(input), empty_right, plan);
+        const ParsedTextSource empty_right{input.value().text, input.value().map};
+        auto exported = export_text_map(source_from(input.value()), empty_right, plan);
         if (!exported) {
-            throw std::runtime_error(exported.error().message);
+            report_text_command_failure(exported.error());
+            return 2;
         }
         if (!write_text_output_or_report(
             split_output_path(options.output_dir, options.input, elevation),
@@ -336,23 +364,38 @@ int split_elevations(const SplitOptions& options)
 int combine_maps(const CombineOptions& options)
 {
     auto left = read_text_map(options.left);
+    if (!left) {
+        report_text_command_failure(left.error());
+        return 2;
+    }
     auto right = read_text_map(options.right);
+    if (!right) {
+        report_text_command_failure(right.error());
+        return 2;
+    }
     TextMapExportPlan plan;
     if (options.header == 0) {
         plan.header_side = MapSide::left;
     } else if (options.header == 1) {
         plan.header_side = MapSide::right;
     } else {
-        throw std::runtime_error("header must be 0 for left or 1 for right");
+        std::cout << format_text_command_failure("header must be 0 for left or 1 for right", std::nullopt);
+        return 2;
     }
 
     for (const auto& spec : options.selection_specs) {
-        apply_selection(plan, spec);
+        try {
+            apply_selection(plan, spec);
+        } catch (const std::exception& error) {
+            std::cout << format_text_command_failure(error.what(), std::nullopt);
+            return 2;
+        }
     }
 
-    auto exported = export_text_map(source_from(left), source_from(right), plan);
+    auto exported = export_text_map(source_from(left.value()), source_from(right.value()), plan);
     if (!exported) {
-        throw std::runtime_error(exported.error().message);
+        report_text_command_failure(exported.error());
+        return 2;
     }
     return write_text_output_or_report(options.output, exported.value(), options.force) ? 0 : 2;
 }

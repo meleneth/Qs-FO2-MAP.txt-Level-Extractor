@@ -203,6 +203,154 @@ TEST_CASE("combine_maps reports output overwrite failures", "[cli]")
     std::filesystem::remove_all(directory);
 }
 
+TEST_CASE("extract_elevation reports input read failures", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-extract-input-failure-test";
+    std::filesystem::remove_all(directory);
+
+    qmap::cli::ExtractOptions options;
+    options.input = directory / "missing.map.txt";
+    options.output = directory / "out.map.txt";
+    options.elevation = 0;
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::extract_elevation(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
+    CHECK(capture.str().find("status: failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: input read failed: unable to open input file:") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("extract_elevation reports invalid elevation arguments", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-extract-invalid-elevation-test";
+    std::filesystem::remove_all(directory);
+    const auto input = directory / "source.map.txt";
+    write_test_text_file(input, minimal_text_map("header", 0, "zero"));
+
+    qmap::cli::ExtractOptions options;
+    options.input = input;
+    options.output = directory / "out.map.txt";
+    options.elevation = 3;
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::extract_elevation(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
+    CHECK(capture.str().find("status: failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: elevation must be 0, 1, or 2\n") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("extract_elevation reports absent source elevations", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-extract-absent-elevation-test";
+    std::filesystem::remove_all(directory);
+    const auto input = directory / "source.map.txt";
+    write_test_text_file(input, minimal_text_map("header", 0, "zero"));
+
+    qmap::cli::ExtractOptions options;
+    options.input = input;
+    options.output = directory / "out.map.txt";
+    options.elevation = 1;
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::extract_elevation(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
+    CHECK(capture.str().find("status: failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: selected source elevation is absent") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("split_elevations reports input parse failures", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-split-parse-failure-test";
+    std::filesystem::remove_all(directory);
+    const auto input = directory / "source.map.txt";
+    write_test_text_file(input, "header\n>>>>>>>>>>: OBJECTS <<<<<<<<<<\n");
+
+    qmap::cli::SplitOptions options;
+    options.input = input;
+    options.output_dir = directory / "out";
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::split_elevations(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
+    CHECK(capture.str().find("status: failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: input parse failed: missing SCRIPTS section") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("combine_maps reports invalid header arguments", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-combine-invalid-header-test";
+    std::filesystem::remove_all(directory);
+    const auto left = directory / "left.map.txt";
+    const auto right = directory / "right.map.txt";
+    write_test_text_file(left, minimal_text_map("left-header", 0, "zero"));
+    write_test_text_file(right, minimal_text_map("right-header", 1, "one"));
+
+    qmap::cli::CombineOptions options;
+    options.left = left;
+    options.right = right;
+    options.output = directory / "out.map.txt";
+    options.header = 2;
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::combine_maps(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
+    CHECK(capture.str().find("status: failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: header must be 0 for left or 1 for right\n") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("combine_maps reports malformed selection arguments", "[cli]")
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / "qmap-combine-selection-failure-test";
+    std::filesystem::remove_all(directory);
+    const auto left = directory / "left.map.txt";
+    const auto right = directory / "right.map.txt";
+    write_test_text_file(left, minimal_text_map("left-header", 0, "zero"));
+    write_test_text_file(right, minimal_text_map("right-header", 1, "one"));
+
+    qmap::cli::CombineOptions options;
+    options.left = left;
+    options.right = right;
+    options.output = directory / "out.map.txt";
+    options.header = 0;
+    options.selection_specs.push_back("0=X:1");
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::combine_maps(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("kind: map txt\n") != std::string::npos);
+    CHECK(capture.str().find("status: failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: selection side must be L or R\n") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
 TEST_CASE("write_binary_output_file writes bytes and rejects accidental overwrite", "[cli]")
 {
     const auto output =
