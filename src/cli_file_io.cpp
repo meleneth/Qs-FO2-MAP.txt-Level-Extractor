@@ -54,6 +54,31 @@ void write_output_file(const std::filesystem::path& path, std::string_view conte
     file.write(content.data(), static_cast<std::streamsize>(content.size()));
 }
 
+void write_binary_output_file(
+    const std::filesystem::path& path,
+    const std::vector<std::byte>& content,
+    bool force
+)
+{
+    if (!force && std::filesystem::exists(path)) {
+        throw std::runtime_error("output file already exists: " + path.string());
+    }
+
+    if (path.has_parent_path()) {
+        std::filesystem::create_directories(path.parent_path());
+    }
+
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (!file) {
+        throw std::runtime_error("unable to open output file: " + path.string());
+    }
+
+    file.write(
+        reinterpret_cast<const char*>(content.data()),
+        static_cast<std::streamsize>(content.size())
+    );
+}
+
 std::string lowercase_extension(const std::filesystem::path& path)
 {
     auto ext = path.extension().string();

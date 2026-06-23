@@ -59,7 +59,16 @@ enum class BinaryScriptType : int {
 constexpr int binary_script_type_count = 5;
 
 struct BinaryScriptRecord {
+    struct FieldOffsets {
+        std::size_t scr_id = 0;
+        std::optional<std::size_t> spatial_tile;
+        std::size_t scr_obj_id = 0;
+        std::size_t lvar_offset = 0;
+        std::size_t lvar_count = 0;
+    };
+
     Range raw;
+    FieldOffsets offsets;
     BinaryScriptType type = BinaryScriptType::system;
     std::int32_t scr_id = 0;
     std::int32_t scr_next = 0;
@@ -84,11 +93,23 @@ struct BinaryScriptRecord {
 
 struct BinaryMapScripts {
     std::array<std::vector<BinaryScriptRecord>, binary_script_type_count> by_type;
+    std::array<std::size_t, binary_script_type_count> count_offsets{};
     std::size_t end_offset = 0;
 };
 
 struct BinaryObjectPrefix {
+    struct FieldOffsets {
+        std::size_t obj_id = 0;
+        std::size_t tile = 0;
+        std::size_t elevation = 0;
+        std::size_t pid = 0;
+        std::size_t script_id = 0;
+        std::size_t inventory_count = 0;
+        std::size_t inventory_size = 0;
+    };
+
     Range raw;
+    FieldOffsets offsets;
     std::int32_t obj_id = 0;
     std::int32_t tile = 0;
     std::int32_t x = 0;
@@ -192,6 +213,7 @@ struct BinaryMapObjectRecords {
     std::int32_t total_count = 0;
     std::array<std::int32_t, binary_map_elevation_count> elevation_counts{};
     std::vector<BinaryObjectRecord> records;
+    std::vector<Error> diagnostics;
     std::size_t end_offset = 0;
 };
 

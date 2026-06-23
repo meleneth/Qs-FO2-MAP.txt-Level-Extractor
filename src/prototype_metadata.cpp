@@ -14,6 +14,8 @@ constexpr std::size_t common_pid_offset = 0x00;
 constexpr std::size_t common_subtype_offset = 0x20;
 constexpr std::size_t minimum_typed_prototype_size = common_subtype_offset + sizeof(std::int32_t);
 constexpr int fallout_1_map_version = 19;
+constexpr std::int32_t first_exit_grid_pid = 0x05000010;
+constexpr std::int32_t last_exit_grid_pid = 0x05000017;
 
 enum ItemPrototypeSubtype : int {
     item_armor = 0,
@@ -237,9 +239,26 @@ std::optional<std::size_t> object_tail_size_from_prototype(
         default:
             return std::nullopt;
         }
+    case BinaryObjectType::misc:
+        if (prototype.pid >= first_exit_grid_pid && prototype.pid <= last_exit_grid_pid) {
+            return 16;
+        }
+        return 0;
     default:
         return std::nullopt;
     }
+}
+
+bool prototype_is_elevation_linking_scenery(const PrototypeRecord& prototype)
+{
+    if (prototype.object_type != BinaryObjectType::scenery) {
+        return false;
+    }
+
+    return prototype.subtype == scenery_stairs
+        || prototype.subtype == scenery_elevator
+        || prototype.subtype == scenery_ladder_up
+        || prototype.subtype == scenery_ladder_down;
 }
 
 Result<std::vector<PrototypeListEntry>> parse_prototype_list(std::string_view text)

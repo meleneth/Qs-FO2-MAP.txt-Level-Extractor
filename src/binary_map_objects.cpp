@@ -19,8 +19,12 @@ struct InventoryEntries {
 
 struct ObjectParseContext {
     const PrototypeDatabase* prototypes = nullptr;
+    std::vector<Error>* diagnostics = nullptr;
     int map_version = 0;
 };
+
+constexpr std::int32_t first_exit_grid_pid = 0x05000010;
+constexpr std::int32_t last_exit_grid_pid = 0x05000017;
 
 Result<std::int32_t> read_i32(ByteReader& reader)
 {
@@ -36,12 +40,14 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     const auto start = reader.offset();
     BinaryObjectPrefix record;
 
+    record.offsets.obj_id = reader.offset();
     auto obj_id = read_i32(reader);
     if (!obj_id) {
         return Result<BinaryObjectPrefix>::fail(obj_id.error());
     }
     record.obj_id = obj_id.value();
 
+    record.offsets.tile = reader.offset();
     auto tile = read_i32(reader);
     if (!tile) {
         return Result<BinaryObjectPrefix>::fail(tile.error());
@@ -96,12 +102,14 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     }
     record.flags = flags.value();
 
+    record.offsets.elevation = reader.offset();
     auto elevation = read_i32(reader);
     if (!elevation) {
         return Result<BinaryObjectPrefix>::fail(elevation.error());
     }
     record.elevation = elevation.value();
 
+    record.offsets.pid = reader.offset();
     auto pid = read_i32(reader);
     if (!pid) {
         return Result<BinaryObjectPrefix>::fail(pid.error());
@@ -132,6 +140,7 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     }
     record.outline_color = outline_color.value();
 
+    record.offsets.script_id = reader.offset();
     auto script_id = read_i32(reader);
     if (!script_id) {
         return Result<BinaryObjectPrefix>::fail(script_id.error());
@@ -144,12 +153,14 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     }
     record.script_index = script_index.value();
 
+    record.offsets.inventory_count = reader.offset();
     auto inventory_count = read_i32(reader);
     if (!inventory_count) {
         return Result<BinaryObjectPrefix>::fail(inventory_count.error());
     }
     record.inventory_count = inventory_count.value();
 
+    record.offsets.inventory_size = reader.offset();
     auto inventory_size = read_i32(reader);
     if (!inventory_size) {
         return Result<BinaryObjectPrefix>::fail(inventory_size.error());
@@ -192,72 +203,62 @@ bool looks_like_object_prefix(const BinaryObjectPrefix& prefix)
     return true;
 }
 
-std::optional<std::size_t> fixture_backed_tail_size(const BinaryObjectPrefix& prefix)
-{
-    struct Rule {
-        std::size_t offset;
-        std::int32_t pid;
-        std::size_t tail_size;
-    };
-
-    constexpr std::array rules{
-        // These records remain as narrow fixture exceptions until real
-        // prototype metadata for the fixture PID proves a general subtype rule.
-        Rule{95772, 0x00000016, 48}, // ARVILL2.map
-        Rule{137036, 0x0000004F, 16}, // BROKEN2.map
-        Rule{154112, 0x00000001, 4}, // Newr1.map
-        Rule{137616, 0x00000234, 60}, // Newr2.map
-    };
-
-    for (const auto& rule : rules) {
-        if (prefix.raw.offset == rule.offset && prefix.pid == rule.pid) {
-            return rule.tail_size;
-        }
-    }
-    return std::nullopt;
-}
-
 Result<std::size_t> resolve_object_tail_size(
     const BinaryObjectPrefix& prefix,
     BinaryObjectType type,
     const ObjectParseContext& context
 )
 {
-    // Public MAP docs define subtype-specific tails, but the MAP object prefix
-    // only carries the prototype PID. Item subtype metadata is now safe enough
-    // to drive the cursor; keep other subtype families behind fixture evidence.
-    if (const auto fixture_tail_size = fixture_backed_tail_size(prefix)) {
-        return Result<std::size_t>::ok(*fixture_tail_size);
-    }
-    if (context.prototypes != nullptr) {
-        // Prototype metadata is threaded through the parser, but the broad
-        // subtype-to-MAP-tail table is not cursor-safe against real fixtures
-        // yet. Keep cursor movement on fixture-backed rules until validated.
-    }
-
     switch (type) {
     case BinaryObjectType::item:
-        if (prefix.pid == 0x00000121) {
-            return Result<std::size_t>::ok(4);
+        if (context.prototypes == nullptr) {
+            return Result<std::size_t>::fail({
+                std::string{"prototype metadata required for item PID "}
+                    + std::to_string(prefix.pid),
+                prefix.raw.offset,
+            });
+        } else if (const auto prototype = context.prototypes->find(prefix.pid)) {
+            if (const auto tail_size = object_tail_size_from_prototype(*prototype, context.map_version)) {
+                return Result<std::size_t>::ok(*tail_size);
+            }
+        } else {
+            return Result<std::size_t>::fail({
+                std::string{"prototype metadata missing item PID "}
+                    + std::to_string(prefix.pid),
+                prefix.raw.offset,
+            });
         }
         return Result<std::size_t>::ok(0);
     case BinaryObjectType::critter:
         return Result<std::size_t>::ok(40);
     case BinaryObjectType::scenery:
-        if (prefix.pid == 0x02000002) {
-            return Result<std::size_t>::ok(4);
+        if (context.prototypes == nullptr) {
+            return Result<std::size_t>::fail({
+                std::string{"prototype metadata required for scenery PID "}
+                    + std::to_string(prefix.pid),
+                prefix.raw.offset,
+            });
+        } else if (const auto prototype = context.prototypes->find(prefix.pid)) {
+            if (const auto tail_size = object_tail_size_from_prototype(*prototype, context.map_version)) {
+                return Result<std::size_t>::ok(*tail_size);
+            }
+        } else {
+            return Result<std::size_t>::fail({
+                std::string{"prototype metadata missing scenery PID "}
+                    + std::to_string(prefix.pid),
+                prefix.raw.offset,
+            });
         }
         return Result<std::size_t>::ok(0);
     case BinaryObjectType::misc:
-        if (prefix.pid == 0x0500000C) {
-            // ARVILL2.map offset 44600 and BROKEN1.map offset 88056 prove
-            // this exit-grid-like prototype carries eleven 4-byte words.
-            return Result<std::size_t>::ok(44);
+        if (context.prototypes != nullptr) {
+            if (const auto prototype = context.prototypes->find(prefix.pid)) {
+                if (const auto tail_size = object_tail_size_from_prototype(*prototype, context.map_version)) {
+                    return Result<std::size_t>::ok(*tail_size);
+                }
+            }
         }
-        if (prefix.pid == 0x0500000E
-            || prefix.pid == 0x05000010
-            || prefix.pid == 0x05000013
-            || prefix.pid == 0x05000017) {
+        if (prefix.pid >= first_exit_grid_pid && prefix.pid <= last_exit_grid_pid) {
             return Result<std::size_t>::ok(16);
         }
         return Result<std::size_t>::ok(0);
@@ -422,8 +423,9 @@ Result<std::vector<BinaryObjectRecord>> parse_object_record_sequence(
 
 Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& reader, std::size_t object_section_offset)
 {
-    const ObjectParseContext context;
     BinaryMapObjectRecords objects;
+    ObjectParseContext context;
+    context.diagnostics = &objects.diagnostics;
     auto total_count = read_i32(reader);
     if (!total_count) {
         return Result<BinaryMapObjectRecords>::fail(total_count.error());
@@ -479,6 +481,8 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records_with_context(
     }
 
     BinaryMapObjectRecords objects;
+    ObjectParseContext parse_context = context;
+    parse_context.diagnostics = &objects.diagnostics;
     auto total_count = read_i32(reader);
     if (!total_count) {
         return Result<BinaryMapObjectRecords>::fail(total_count.error());
@@ -517,7 +521,7 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records_with_context(
             reader,
             block_count.value(),
             elevation,
-            context
+            parse_context
         );
         if (!records) {
             return Result<BinaryMapObjectRecords>::fail(records.error());
@@ -760,7 +764,7 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     const BinaryMapHeader& header
 )
 {
-    const ObjectParseContext context{nullptr, static_cast<int>(header.version)};
+    const ObjectParseContext context{nullptr, nullptr, static_cast<int>(header.version)};
     return parse_binary_map_object_records_with_context(bytes, object_section_offset, header, context);
 }
 
@@ -771,7 +775,7 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     const PrototypeDatabase& prototypes
 )
 {
-    const ObjectParseContext context{&prototypes, static_cast<int>(header.version)};
+    const ObjectParseContext context{&prototypes, nullptr, static_cast<int>(header.version)};
     return parse_binary_map_object_records_with_context(bytes, object_section_offset, header, context);
 }
 

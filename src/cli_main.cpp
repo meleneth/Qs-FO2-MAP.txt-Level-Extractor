@@ -116,6 +116,23 @@ int main(int argc, char** argv)
     combine_command->add_option("--select", combine_options.selection_specs, "DEST=SIDE:SOURCE, e.g. 0=L:1 or 2=R:0")->expected(1, -1);
     combine_command->add_flag("-f,--force", combine_options.force, "Overwrite output if it exists");
 
+    qmap::cli::ReplaceElevationOptions replace_elevation_options;
+    auto* replace_elevation_command = app.add_subcommand(
+        "replace-elevation",
+        "Plan or replace one binary .map elevation from another binary .map"
+    );
+    replace_elevation_command->add_option("source", replace_elevation_options.source, "Source .map")->required();
+    replace_elevation_command->add_option("destination", replace_elevation_options.destination, "Destination .map")->required();
+    replace_elevation_command->add_option("output", replace_elevation_options.output, "Output .map")->required();
+    replace_elevation_command->add_option("--source-elevation", replace_elevation_options.source_elevation, "Source elevation 0, 1, or 2")->required();
+    replace_elevation_command->add_option("--dest-elevation", replace_elevation_options.destination_elevation, "Destination elevation 0, 1, or 2")->required();
+    replace_elevation_command->add_option(
+        "--proto-root",
+        replace_elevation_options.proto_root,
+        "Extracted Fallout 2 proto root, e.g. .local_fallout2_data/proto"
+    )->required();
+    replace_elevation_command->add_flag("--dry-run", replace_elevation_options.dry_run, "Print the replacement plan without writing output");
+
     CLI11_PARSE(app, argc, argv);
 
     try {
@@ -131,6 +148,9 @@ int main(int argc, char** argv)
         }
         if (*combine_command) {
             return qmap::cli::combine_maps(combine_options);
+        }
+        if (*replace_elevation_command) {
+            return qmap::cli::replace_elevation(replace_elevation_options);
         }
 
         std::cout << app.help();

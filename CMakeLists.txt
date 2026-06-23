@@ -71,8 +71,11 @@ add_library(qmap_parsers STATIC)
 target_sources(
     qmap_parsers PRIVATE
     src/binary_map_object_tails.cpp
+    src/binary_map_patch_planner.cpp
+    src/binary_map_patch_writer.cpp
     src/binary_map_objects.cpp
     src/binary_map_parser.cpp
+    src/map_weird_scan.cpp
     src/prototype_metadata.cpp
     src/text_map_parser.cpp
     src/text_map_export.cpp
@@ -119,6 +122,16 @@ target_link_libraries(
 )
 qmap_enable_coverage(qmap_cli)
 
+add_executable(qmap_weird_scan
+    src/map_weird_scan_main.cpp
+)
+target_link_libraries(
+    qmap_weird_scan PRIVATE
+    qmap_cli_ops
+    CLI11::CLI11
+)
+qmap_enable_coverage(qmap_weird_scan)
+
 add_library(qmap_imgui STATIC
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
@@ -162,6 +175,9 @@ if(BUILD_TESTING)
     add_executable(qmap_parser_tests
         tests/parser_tests.cpp
         tests/binary_map_parser_tests.cpp
+        tests/binary_map_patch_planner_tests.cpp
+        tests/binary_map_patch_writer_tests.cpp
+        tests/map_weird_scan_tests.cpp
         tests/prototype_metadata_tests.cpp
         tests/foundation_tests.cpp
         tests/text_map_parser_tests.cpp

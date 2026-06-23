@@ -2,11 +2,14 @@
 
 #include "text_map_records.h"
 
+#include <algorithm>
 #include <array>
 #include <sstream>
 
 namespace qmap::cli {
 namespace {
+
+constexpr std::size_t max_object_record_diagnostics = 20;
 
 void append_range(std::ostream& output, const char* label, Range range)
 {
@@ -144,7 +147,8 @@ std::string format_binary_map_stats(
     std::span<const std::byte> bytes,
     std::optional<std::size_t> parsed_object_records_count,
     std::optional<std::size_t> parsed_object_records_total_count,
-    std::optional<Error> object_records_error
+    std::optional<Error> object_records_error,
+    std::span<const Error> object_record_diagnostics
 )
 {
     std::ostringstream output;
@@ -196,6 +200,22 @@ std::string format_binary_map_stats(
         }
     } else {
         output << "  object_records_status: not_attempted\n";
+    }
+    if (!object_record_diagnostics.empty()) {
+        output << "  object_record_diagnostics: " << object_record_diagnostics.size() << '\n';
+        const auto shown_count = std::min(
+            object_record_diagnostics.size(),
+            max_object_record_diagnostics
+        );
+        for (std::size_t index = 0; index < shown_count; ++index) {
+            const auto& diagnostic = object_record_diagnostics[index];
+            output << "  object_record_diagnostic: " << diagnostic.message
+                   << " at offset " << diagnostic.offset << '\n';
+        }
+        if (shown_count < object_record_diagnostics.size()) {
+            output << "  object_record_diagnostics_omitted: "
+                   << object_record_diagnostics.size() - shown_count << '\n';
+        }
     }
     if (first_object) {
         output << "  first_object:\n";

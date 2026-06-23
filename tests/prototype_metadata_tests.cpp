@@ -168,6 +168,69 @@ TEST_CASE("object_tail_size_from_prototype resolves scenery subtype map tails", 
     }, 20) == 0);
 }
 
+TEST_CASE("prototype_is_elevation_linking_scenery identifies scenery links", "[prototype]")
+{
+    CHECK_FALSE(qmap::prototype_is_elevation_linking_scenery({
+        0x02000001,
+        qmap::BinaryObjectType::scenery,
+        0,
+    }));
+    CHECK(qmap::prototype_is_elevation_linking_scenery({
+        0x02000002,
+        qmap::BinaryObjectType::scenery,
+        1,
+    }));
+    CHECK(qmap::prototype_is_elevation_linking_scenery({
+        0x02000003,
+        qmap::BinaryObjectType::scenery,
+        2,
+    }));
+    CHECK(qmap::prototype_is_elevation_linking_scenery({
+        0x02000004,
+        qmap::BinaryObjectType::scenery,
+        3,
+    }));
+    CHECK(qmap::prototype_is_elevation_linking_scenery({
+        0x02000005,
+        qmap::BinaryObjectType::scenery,
+        4,
+    }));
+    CHECK_FALSE(qmap::prototype_is_elevation_linking_scenery({
+        0x02000006,
+        qmap::BinaryObjectType::scenery,
+        5,
+    }));
+    CHECK_FALSE(qmap::prototype_is_elevation_linking_scenery({
+        0x00000001,
+        qmap::BinaryObjectType::item,
+        3,
+    }));
+}
+
+TEST_CASE("object_tail_size_from_prototype resolves misc exit-grid PID tails", "[prototype]")
+{
+    CHECK(qmap::object_tail_size_from_prototype({
+        0x05000010,
+        qmap::BinaryObjectType::misc,
+        0,
+    }, 20) == 16);
+    CHECK(qmap::object_tail_size_from_prototype({
+        0x05000017,
+        qmap::BinaryObjectType::misc,
+        0,
+    }, 20) == 16);
+    CHECK(qmap::object_tail_size_from_prototype({
+        0x0500000C,
+        qmap::BinaryObjectType::misc,
+        0,
+    }, 20) == 0);
+    CHECK(qmap::object_tail_size_from_prototype({
+        0x05000018,
+        qmap::BinaryObjectType::misc,
+        0,
+    }, 20) == 0);
+}
+
 TEST_CASE("load_prototype_database reads extracted proto tree", "[prototype]")
 {
     const auto root = make_temp_proto_root();

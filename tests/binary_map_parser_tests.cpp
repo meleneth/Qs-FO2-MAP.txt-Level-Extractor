@@ -6,11 +6,53 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <span>
 #include <string_view>
 #include <vector>
 
 namespace {
+
+std::filesystem::path fixture_path(std::string_view name)
+{
+    return std::filesystem::path(TEST_MAPS_DIR) / std::filesystem::path(name);
+}
+
+std::filesystem::path local_proto_root()
+{
+    return std::filesystem::path(TEST_MAPS_DIR).parent_path()
+        / ".local_fallout2_data"
+        / "proto";
+}
+
+std::vector<std::byte> load_binary_fixture(std::string_view name)
+{
+    std::ifstream file(fixture_path(name), std::ios::binary);
+    REQUIRE(file.is_open());
+
+    std::vector<char> chars(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
+    std::vector<std::byte> bytes;
+    bytes.reserve(chars.size());
+    for (const auto value : chars) {
+        bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(value)));
+    }
+    return bytes;
+}
+
+std::size_t count_records_including_inventory(const std::vector<qmap::BinaryObjectRecord>& records)
+{
+    std::size_t count = 0;
+    for (const auto& record : records) {
+        ++count;
+        count += count_records_including_inventory(record.inventory);
+    }
+    return count;
+}
 
 std::byte b(unsigned int value)
 {
@@ -255,7 +297,7 @@ std::vector<std::byte> example_map_with_object_records()
     auto bytes = example_map_with_scripts();
     append_i32(bytes, 2);
     append_i32(bytes, 1);
-    append_object_prefix(bytes, 100, 0, 0x0500000E, 50331649);
+    append_object_prefix(bytes, 100, 0, 0x05000010, 50331649);
     append_i32_repeated(bytes, 4, 9000);
     append_i32(bytes, 0);
     append_i32(bytes, 1);
@@ -406,6 +448,13 @@ TEST_CASE("parse_binary_map_scripts reads script records and block footers", "[m
 
     const auto& spatial = parsed.value().by_type[1];
     REQUIRE(spatial.size() == 1);
+    CHECK(parsed.value().count_offsets[1] + sizeof(std::int32_t) == spatial[0].raw.offset);
+    CHECK(spatial[0].offsets.scr_id == spatial[0].raw.offset);
+    REQUIRE(spatial[0].offsets.spatial_tile);
+    CHECK(*spatial[0].offsets.spatial_tile == spatial[0].raw.offset + 2 * sizeof(std::int32_t));
+    CHECK(spatial[0].offsets.scr_obj_id == spatial[0].raw.offset + 7 * sizeof(std::int32_t));
+    CHECK(spatial[0].offsets.lvar_offset == spatial[0].raw.offset + 8 * sizeof(std::int32_t));
+    CHECK(spatial[0].offsets.lvar_count == spatial[0].raw.offset + 9 * sizeof(std::int32_t));
     CHECK(spatial[0].type == qmap::BinaryScriptType::spatial);
     CHECK(spatial[0].scr_id == 0x01000000);
     CHECK(spatial[0].scr_next == -1);
@@ -417,6 +466,12 @@ TEST_CASE("parse_binary_map_scripts reads script records and block footers", "[m
 
     const auto& objects = parsed.value().by_type[3];
     REQUIRE(objects.size() == 17);
+    CHECK(parsed.value().count_offsets[3] + sizeof(std::int32_t) == objects[0].raw.offset);
+    CHECK(objects[0].offsets.scr_id == objects[0].raw.offset);
+    CHECK_FALSE(objects[0].offsets.spatial_tile);
+    CHECK(objects[0].offsets.scr_obj_id == objects[0].raw.offset + 5 * sizeof(std::int32_t));
+    CHECK(objects[0].offsets.lvar_offset == objects[0].raw.offset + 6 * sizeof(std::int32_t));
+    CHECK(objects[0].offsets.lvar_count == objects[0].raw.offset + 7 * sizeof(std::int32_t));
     CHECK(objects[0].scr_id == 0x03000001);
     CHECK(objects[15].scr_id == 0x03000010);
     CHECK(objects[16].scr_id == 0x03000020);
@@ -522,6 +577,13 @@ TEST_CASE("parse_binary_map_object_prefixes reads counts and fixed object fields
     CHECK(parsed.value().elevation_counts[2] == 1);
     REQUIRE(parsed.value().records.size() == 2);
     CHECK(parsed.value().records[0].obj_id == 100);
+    CHECK(parsed.value().records[0].offsets.obj_id == parsed.value().records[0].raw.offset);
+    CHECK(parsed.value().records[0].offsets.tile == parsed.value().records[0].raw.offset + sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].offsets.elevation == parsed.value().records[0].raw.offset + 10 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].offsets.pid == parsed.value().records[0].raw.offset + 11 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].offsets.script_id == parsed.value().records[0].raw.offset + 16 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].offsets.inventory_count == parsed.value().records[0].raw.offset + 18 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].offsets.inventory_size == parsed.value().records[0].raw.offset + 19 * sizeof(std::int32_t));
     CHECK(parsed.value().records[0].elevation == 0);
     CHECK(parsed.value().records[0].pid == 0x02000001);
     CHECK(parsed.value().records[0].pid_type() == 2);
@@ -819,7 +881,7 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
 
     REQUIRE(parsed);
     REQUIRE(parsed.value().records.size() == 2);
-    CHECK(parsed.value().records[0].prefix.pid == 0x0500000E);
+    CHECK(parsed.value().records[0].prefix.pid == 0x05000010);
     CHECK(parsed.value().records[0].object_type == qmap::BinaryObjectType::misc);
     CHECK(parsed.value().records[0].tail.size == 4 * sizeof(std::int32_t));
     CHECK(parsed.value().records[0].raw.size == 26 * sizeof(std::int32_t));
@@ -828,6 +890,68 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     CHECK(parsed.value().records[1].tail.size == 10 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].raw.size == 32 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
+}
+
+TEST_CASE("parse_binary_map_object_records keeps generic misc PID 0x0500000C prefix-only", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 2);
+    append_i32(bytes, 2);
+    append_object_prefix(bytes, 204, 0, 0x0500000C, -1);
+    append_object_prefix(bytes, 318, 0, 0x03000001, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().records.size() == 2);
+    CHECK(parsed.value().records[0].prefix.pid == 0x0500000C);
+    CHECK(parsed.value().records[0].tail.empty());
+    CHECK(parsed.value().records[0].raw.size == 22 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].prefix.obj_id == 318);
+    CHECK(parsed.value().records[1].prefix.raw.offset == parsed.value().records[0].raw.end());
+}
+
+TEST_CASE("parse_binary_map_object_records uses prototype tails for scenery", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 2);
+    append_i32(bytes, 2);
+    append_object_prefix(bytes, 100, 0, 0x02000001, -1);
+    append_i32(bytes, 1234);
+    append_object_prefix(bytes, 200, 0, 0x03000001, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x02000001,
+        qmap::BinaryObjectType::scenery,
+        0,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().records.size() == 2);
+    CHECK(parsed.value().records[0].prefix.pid == 0x02000001);
+    CHECK(parsed.value().records[0].tail.size == sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].prefix.obj_id == 200);
+    CHECK(parsed.value().records[1].prefix.raw.offset == parsed.value().records[0].raw.end());
 }
 
 TEST_CASE("parse_binary_map_object_records accepts prototype metadata without unvalidated cursor movement", "[map][binary]")
@@ -844,6 +968,11 @@ TEST_CASE("parse_binary_map_object_records accepts prototype metadata without un
         qmap::BinaryObjectType::item,
         3,
     });
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000002,
+        qmap::BinaryObjectType::item,
+        0,
+    });
 
     const auto parsed = qmap::parse_binary_map_object_records(
         bytes,
@@ -857,10 +986,71 @@ TEST_CASE("parse_binary_map_object_records accepts prototype metadata without un
     }
     REQUIRE(parsed);
     REQUIRE(parsed.value().records.size() == 2);
-    CHECK(parsed.value().records[0].prefix.pid == 0x0500000E);
+    CHECK(parsed.value().records[0].prefix.pid == 0x05000010);
     CHECK(parsed.value().records[0].tail.size == 4 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].prefix.pid == 0x01000002);
     CHECK(parsed.value().records[1].tail.size == 10 * sizeof(std::int32_t));
+}
+
+TEST_CASE("parse_binary_map_object_records requires prototype metadata for item tails", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x00000001, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "elevation 0 object 0: prototype metadata required for item PID 1");
+}
+
+TEST_CASE("parse_binary_map_object_records uses prototype tails for top-level items", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x00000001, -1);
+    append_i32(bytes, 50);
+    append_i32(bytes, 51);
+    const auto object_end = bytes.size();
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000001,
+        qmap::BinaryObjectType::item,
+        3,
+    });
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000002,
+        qmap::BinaryObjectType::item,
+        0,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().records.size() == 1);
+    CHECK(parsed.value().records[0].tail.size == 2 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].raw.end() == object_end);
+    CHECK(parsed.value().diagnostics.empty());
 }
 
 TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[map][binary]")
@@ -871,7 +1061,19 @@ TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
     REQUIRE(scripts);
 
-    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000002,
+        qmap::BinaryObjectType::item,
+        0,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
 
     REQUIRE(parsed);
     CHECK(parsed.value().total_count == 2);
@@ -896,7 +1098,19 @@ TEST_CASE("parse_binary_map_object_records parses inventory object records", "[m
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
     REQUIRE(scripts);
 
-    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000002,
+        qmap::BinaryObjectType::item,
+        0,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
 
     REQUIRE(parsed);
     CHECK(parsed.value().total_count == 1);
@@ -913,6 +1127,57 @@ TEST_CASE("parse_binary_map_object_records parses inventory object records", "[m
     CHECK(parent.inventory[0].prefix.pid == 0x00000002);
     CHECK(parent.inventory[0].tail.empty());
     CHECK(parent.raw.end() == bytes.size() - 2 * sizeof(std::int32_t));
+    CHECK(parsed.value().end_offset == bytes.size());
+}
+
+TEST_CASE("parse_binary_map_object_records uses prototype tails for inventory items", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x03000001, 50331649, 2, 8);
+    append_i32(bytes, 2);
+    append_object_prefix(bytes, 101, -1, 0x00000001, -1, 0, 0, -1);
+    append_i32(bytes, 50);
+    append_i32(bytes, 51);
+    append_i32(bytes, 5);
+    append_object_prefix(bytes, 102, -1, 0x00000002, -1, 0, 0, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000001,
+        qmap::BinaryObjectType::item,
+        3,
+    });
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000002,
+        qmap::BinaryObjectType::item,
+        0,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
+
+    REQUIRE(parsed);
+    REQUIRE(parsed.value().records.size() == 1);
+    const auto& parent = parsed.value().records[0];
+    CHECK(parent.inventory_quantities == std::vector<std::int32_t>{2, 5});
+    REQUIRE(parent.inventory.size() == 2);
+    CHECK(parent.inventory[0].prefix.obj_id == 101);
+    CHECK(parent.inventory[0].tail.size == 2 * sizeof(std::int32_t));
+    CHECK(parent.inventory[1].prefix.obj_id == 102);
+    CHECK(parent.inventory[1].tail.empty());
+    CHECK(parsed.value().diagnostics.empty());
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
@@ -1068,4 +1333,41 @@ TEST_CASE("parse_binary_map accepts prototype metadata for composed object parsi
     REQUIRE(parsed.value().objects.records.size() == 2);
     CHECK(parsed.value().objects.records[0].tail.size == 4 * sizeof(std::int32_t));
     CHECK(parsed.value().objects.end_offset == bytes.size());
+}
+
+TEST_CASE("parse_binary_map parses real fixture object records with prototype metadata", "[map][binary][fixture]")
+{
+    const auto proto_root = local_proto_root();
+    if (!std::filesystem::exists(proto_root)) {
+        SKIP("requires extracted Fallout proto data under .local_fallout2_data/proto");
+    }
+
+    const auto loaded = qmap::load_prototype_database(proto_root);
+    REQUIRE(loaded);
+
+    struct FixtureExpectation {
+        const char* filename;
+        std::size_t top_level_records;
+        std::size_t records_with_inventory;
+    };
+
+    constexpr FixtureExpectation fixtures[] = {
+        {"ARVILL2.map", 1141, 1141},
+        {"BROKEN1.map", 3533, 3686},
+        {"BROKEN2.map", 7102, 7150},
+        {"Newr1.map", 3910, 4226},
+        {"Newr2.map", 5229, 5773},
+    };
+
+    for (const auto& fixture : fixtures) {
+        CAPTURE(fixture.filename);
+        const auto bytes = load_binary_fixture(fixture.filename);
+        const auto parsed = qmap::parse_binary_map(bytes, loaded.value());
+
+        REQUIRE(parsed);
+        CHECK(parsed.value().objects.records.size() == fixture.top_level_records);
+        CHECK(count_records_including_inventory(parsed.value().objects.records)
+            == fixture.records_with_inventory);
+        CHECK(parsed.value().objects.diagnostics.empty());
+    }
 }

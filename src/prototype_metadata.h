@@ -31,6 +31,8 @@ std::optional<std::size_t> object_tail_size_from_prototype(
     int map_version
 );
 
+bool prototype_is_elevation_linking_scenery(const PrototypeRecord& prototype);
+
 class PrototypeDatabase {
 public:
     void add(PrototypeRecord record);

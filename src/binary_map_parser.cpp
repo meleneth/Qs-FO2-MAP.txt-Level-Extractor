@@ -118,6 +118,7 @@ Result<BinaryScriptRecord> parse_script_record(ByteReader& reader, BinaryScriptT
     const auto start = reader.offset();
     BinaryScriptRecord record;
     record.type = type;
+    record.offsets.scr_id = reader.offset();
 
     auto scr_id = read_i32(reader);
     if (!scr_id) {
@@ -132,6 +133,7 @@ Result<BinaryScriptRecord> parse_script_record(ByteReader& reader, BinaryScriptT
     record.scr_next = scr_next.value();
 
     if (type == BinaryScriptType::spatial) {
+        record.offsets.spatial_tile = reader.offset();
         auto spatial_tile = read_i32(reader);
         if (!spatial_tile) {
             return Result<BinaryScriptRecord>::fail(spatial_tile.error());
@@ -171,18 +173,21 @@ Result<BinaryScriptRecord> parse_script_record(ByteReader& reader, BinaryScriptT
     }
     record.program_ptr = program_ptr.value();
 
+    record.offsets.scr_obj_id = reader.offset();
     auto scr_obj_id = read_u32(reader);
     if (!scr_obj_id) {
         return Result<BinaryScriptRecord>::fail(scr_obj_id.error());
     }
     record.scr_obj_id = scr_obj_id.value();
 
+    record.offsets.lvar_offset = reader.offset();
     auto lvar_offset = read_i32(reader);
     if (!lvar_offset) {
         return Result<BinaryScriptRecord>::fail(lvar_offset.error());
     }
     record.lvar_offset = lvar_offset.value();
 
+    record.offsets.lvar_count = reader.offset();
     auto lvar_count = read_i32(reader);
     if (!lvar_count) {
         return Result<BinaryScriptRecord>::fail(lvar_count.error());
@@ -528,6 +533,7 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
     BinaryMapScripts scripts;
     for (int type_index = 0; type_index < binary_script_type_count; ++type_index) {
         const auto type = static_cast<BinaryScriptType>(type_index);
+        scripts.count_offsets[type_index] = reader.offset();
         auto count = read_i32(reader);
         if (!count) {
             return Result<BinaryMapScripts>::fail(count.error());

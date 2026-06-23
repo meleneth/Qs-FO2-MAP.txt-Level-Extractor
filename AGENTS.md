@@ -8,11 +8,11 @@ Do not treat rough code as sacred. Keep the useful behavior, fixtures, and hard-
 
 ## Project Purpose
 
-This is a C++17 desktop utility for extracting and merging Fallout 2 map elevations. The practical workflow today is loading mapper-exported `map_name.txt` files, selecting source elevations, choosing an output header, and exporting a new `.Q.txt` map dump. Binary `.map` parsing exists and has tests, but binary export is unfinished.
+This is a C++17 Fallout 2 map patch/merge tool. Whole-elevation merging is the first supported workflow, not the final product boundary. The practical workflow today is loading mapper-exported `map_name.txt` files, selecting source elevations, choosing an output header, and exporting a new `.Q.txt` map dump. The project direction is to grow from safe whole-elevation `.txt` merging into reliable binary `.map` parsing, planning, patching, and export for smaller map pieces.
 
 Binary `.map` object parsing increasingly depends on Fallout prototype metadata. A `.map` object PID identifies the broad object kind and prototype index, but many variable object tails depend on the prototype subtype from `proto/<kind>/*.pro` and the corresponding `*.lst` files. Prefer prototype-backed subtype resolution over heuristic tail scanning.
 
-The long-term direction should be a tool with a real parser/model/export pipeline, not a GUI that manipulates raw text by accident.
+The long-term direction should be a tool with a real parser/model/patch/export pipeline, not a GUI that manipulates raw text by accident. When choosing between approaches, preserve the current elevation workflow while designing APIs that can also support region-level binary map patches later.
 
 ## Current Shape
 

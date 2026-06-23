@@ -23,7 +23,8 @@ std::string format_binary_map_stats(
     std::span<const std::byte> bytes = {},
     std::optional<std::size_t> parsed_object_records_count = std::nullopt,
     std::optional<std::size_t> parsed_object_records_total_count = std::nullopt,
-    std::optional<Error> object_records_error = std::nullopt
+    std::optional<Error> object_records_error = std::nullopt,
+    std::span<const Error> object_record_diagnostics = {}
 );
 
 } // namespace qmap::cli

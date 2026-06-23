@@ -16,7 +16,7 @@ This can also be used to merge two maps together, making map merges muuuuch easi
 Also, this fixes issues with scripts having overlapping script ID's, causing the mapper to reject them until the ID's
 are manually fixed so they no longer overlap.
 
-Use is simple, drag and drop only.
+Use is simple in the GUI, drag and drop only.
 <br>Drag and drop a Fallout 2 "map_name.txt" file onto one side or the other.
 <br>Select the level you want to extract from on either side, and the level to extract to in the middle.
 <br>Click the arrow for the appropriate side to set the indicator to show which level is extracted where.
@@ -26,7 +26,51 @@ Use is simple, drag and drop only.
 The Export will automatically add a "Q.txt" to the filename so files aren't over-written.
 <br>You should be able to rename this however you want, but be careful not to over-write an old map until you know the new one works.
 
-## Binary `.map` prototype data
+## Command Line Workflow
+
+The CLI is built as `qmap_cli.exe` under the selected CMake build directory.
+For the preferred debug preset that is:
+
+```powershell
+out\build\ucrt64-debug\qmap_cli.exe --help
+```
+
+Current commands:
+
+```powershell
+out\build\ucrt64-debug\qmap_cli.exe parse-stats <map.txt|map.map> [--proto-root <proto-root>]
+out\build\ucrt64-debug\qmap_cli.exe extract <input.txt> <output.txt> --elevation <0|1|2> [-f]
+out\build\ucrt64-debug\qmap_cli.exe split <input.txt> <output-dir> [-f]
+out\build\ucrt64-debug\qmap_cli.exe combine <left.txt> <right.txt> <output.txt> --header <0|1> --select <DEST=SIDE:SOURCE>... [-f]
+out\build\ucrt64-debug\qmap_cli.exe replace-elevation <source.map> <destination.map> <output.map> --source-elevation <0|1|2> --dest-elevation <0|1|2> --proto-root <proto-root> --dry-run
+```
+
+`combine` currently operates on mapper-exported `.txt` files and moves whole
+elevations. `SIDE` is `L` or `R`; `DEST` and `SOURCE` are elevation numbers
+`0`, `1`, or `2`.
+
+Example: build a new text map using the left header, left elevation 0 as output
+elevation 0, right elevation 0 as output elevation 1, and left elevation 1 as
+output elevation 2:
+
+```powershell
+out\build\ucrt64-debug\qmap_cli.exe combine .\maps\town_a.txt .\maps\town_b.txt .\out\interleaved.Q.txt --header 0 --select 0=L:0 --select 1=R:0 --select 2=L:1 -f
+```
+
+That is elevation-level interleaving. Area/region patching inside a binary
+`.map` elevation is not implemented yet; that is the direction for the binary
+parser/export work.
+
+Binary whole-elevation replacement is currently exposed as a dry-run planner
+only. It loads both `.map` files with prototype metadata and reports what would
+be deleted, copied, reassigned, and preserved. Binary output writing is not
+implemented yet.
+
+```powershell
+out\build\ucrt64-debug\qmap_cli.exe replace-elevation .\maps\source.map .\maps\destination.map .\out\patched.map --source-elevation 0 --dest-elevation 2 --proto-root .local_fallout2_data\proto --dry-run
+```
+
+## Binary `.map` Prototype Data
 
 Binary `.map` parsing is under active development. Some object records cannot be
 decoded correctly from the `.map` file alone because the object PID only gives
@@ -51,10 +95,15 @@ This writes only `proto/**/*.pro` and `proto/**/*.lst` files to
 `.local_fallout2_data/`. That directory contains local game assets and is
 ignored by git; do not commit it.
 
-After extraction, pass the prototype root to binary map stats parsing. The CLI
-will load the metadata; object tail rules still require fixture validation
-before they are allowed to move the binary parser cursor.
+After extraction, pass the prototype root to binary map stats parsing. Binary
+`.map` object parsing requires this metadata; the CLI intentionally fails
+without `--proto-root`.
 
 ```powershell
 out\build\ucrt64-debug\qmap_cli.exe parse-stats test_maps\ARVILL2.map --proto-root .local_fallout2_data\proto
 ```
+
+Current binary parser status: with extracted Fallout 2 prototype metadata, the
+real fixture maps in `test_maps/` parse through their object records, including
+nested inventory records. Binary `.map` export and area/elevation patching are
+still unfinished.

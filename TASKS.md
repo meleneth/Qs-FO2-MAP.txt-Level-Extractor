@@ -163,35 +163,105 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
     - [x] Thread optional prototype metadata through binary object parsing entry points for callers that provide a `PrototypeDatabase`.
     - [x] Add a prototype-backed top-level `parse_binary_map` overload so callers do not duplicate the staged parse pipeline.
     - [x] Add `parse-stats --proto-root` so CLI parsing can load and carry extracted prototype metadata.
-    - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated.
-    - [ ] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
+    - [x] Require `--proto-root` for CLI binary `.map` object parsing instead of pretending prototype metadata is optional.
+    - [ ] Require prototype metadata in binary GUI/workflow entry points before exposing binary object parsing beyond diagnostics.
+    - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated. Partial: item subtype tails, scenery subtype tails, and misc exit-grid PID tails are enabled.
+    - [x] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
     - [x] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
-    - [ ] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.
+    - [x] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.
     - [ ] Stretch: add C++ DAT2 reading/extraction to the app or CLI so users do not need a separate extraction step.
     - [ ] Stretch: support loose `data/proto` overrides on top of DAT-extracted prototype data.
     - [ ] Reconcile object tail sizes against the published MAP format references and fixture evidence before adding more subtype rules.
     - [x] Correct normal MAP critter tails to the documented/observed 40-byte layout; remove or quarantine the older 44-byte/11-word assumption unless a specific fixture proves it.
     - [ ] Re-check item, scenery, exit-grid, misc, and other PID-kind tails against `falloutmods.fandom.com/wiki/MAP_File_Format` and `fodev.net/files/fo2/map.html`.
-      - [ ] Validate scenery subtype tail offsets against real fixtures before allowing prototype scenery metadata to drive object cursor advancement; initial CLI smoke with extracted metadata regressed `ARVILL2.map` from object 1077 to object 53.
+      - [x] Replace fixture-specific misc exit-grid rules with Fallout CE's documented `FIRST_EXIT_GRID_PID..LAST_EXIT_GRID_PID` range (`0x05000010..0x05000017`), and keep `0x0500000C` as a generic 0-byte misc object.
+      - [x] Validate scenery door subtype tail offsets against real fixtures before allowing prototype scenery metadata to drive object cursor advancement; after item/misc corrections, enabling scenery tails lets `ARVILL2.map` parse all 1141 object records and advances `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` past their prior door-tail cursor errors.
+      - [ ] Validate stairs/elevator/ladder scenery subtype tail offsets against real fixtures as they are encountered.
     - [ ] Keep any compatibility parsing for variant tails explicitly documented with fixture names, byte offsets, and why the public reference or current prototype support is insufficient.
-      - [x] Document fixture-backed misc PID rules for `0x0500000C`, `0x05000010`, `0x05000013`, and `0x05000017` without reintroducing prefix scanning.
-      - [x] Isolate item subtype tail exceptions as offset-specific fixture overrides when PID alone is proven too broad.
-      - [ ] Remove offset-specific fixture overrides once prototype subtype resolution covers those records.
+      - [x] Document the misc exit-grid PID range without reintroducing prefix scanning, and document why `0x0500000C` remains a generic 0-byte misc tail.
+      - [x] Remove offset-specific fixture overrides once prototype subtype resolution covers those records.
   - [ ] Reconcile inventory parsing with the documented count-prefixed inventory object format.
     - [ ] Prefer bounded parent inventory parsing over global backtracking across parent record boundaries.
     - [x] Treat "direct child object" layouts as suspect until a fixture proves there is no preceding quantity/count word.
     - [ ] Add fixture-backed tests for `BROKEN1.map` style nested inventory alignment once the tail sizes are corrected.
   - [x] Consume serialized zero object-count slots for absent elevations after present object blocks.
-  - [x] Remove forward-scanning tail candidate selection; object tails now resolve through fixed kind sizes plus explicit fixture-backed PID subtype rules.
-  - [ ] Add more documented PID subtype rules so `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` can progress without heuristic scanning. Partial: misc PIDs `0x0500000C`, `0x05000010`, `0x05000013`, and `0x05000017`; offset-specific item exceptions where PID alone is proven too broad. Prefer prototype-backed rules for new work.
+  - [x] Remove forward-scanning tail candidate selection; object tails now resolve through fixed kind sizes, prototype subtype metadata, and the documented misc exit-grid PID range.
+  - [ ] Add more documented PID subtype rules so `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` can progress without heuristic scanning. Partial: item subtype tails, scenery subtype tails, and misc exit-grid PID range `0x05000010..0x05000017` now parse the current smoke fixtures with extracted prototypes. Prefer prototype-backed rules for new work.
   - [x] Capture map variables and local variables as modeled data.
   - [x] Parse tile/elevation blocks into explicit structures.
   - [x] Parse scripts, script padding, and script footers completely.
-  - [ ] Parse objects by PID/object kind, including type-specific tails.
+  - [ ] Parse objects by PID/object kind, including type-specific tails. Partial: object record boundaries are fixture-validated with extracted prototypes; many tails are still preserved as raw ranges.
   - [x] Parse inventories and nested inventory objects.
+  - [x] Add real fixture regression coverage for prototype-backed binary object parsing over `ARVILL2.map`, `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map`.
+  - [ ] Expand fixture assertions beyond counts once the object model has stable typed fields needed by export.
   - [x] Preserve raw byte ranges for fields or object variants that are still unknown so round-trip/export work is not blocked.
   - [x] Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
   - [x] Document every still-unknown field with offset, observed values, and fixture coverage.
+
+- [ ] Define the binary `.map` patch/merge model.
+  - [x] First binary operation is whole-elevation replacement, not rectangular region patching.
+  - [x] Replacement deletes destination elevation contents first. Future merge-in mode should preserve destination contents with explicit collision rules.
+  - [x] Keep the destination header and variables; only elevation-present flags may be changed by the eventual writer.
+  - [x] Preserve tile positions exactly; v1 has no x/y/tile offset.
+  - [x] Assign new object IDs to copied top-level objects and nested inventory objects.
+  - [x] Assign new script IDs to copied scripts even when no collision exists.
+  - [x] Copy object/critter scripts attached to copied objects; rewrite object/script references to the new IDs.
+  - [x] Copy spatial scripts whose `built_tile` elevation is the source elevation; rewrite `built_tile` to destination elevation and preserve tile/radius.
+  - [x] Keep destination map/local variables unchanged.
+  - [x] Keep destination map script unchanged by default.
+  - [x] Treat known unsafe conflicts as hard errors by default; add an explicit risky override later.
+  - [x] Allow replacing into an absent destination elevation; source elevation absence is a hard error.
+  - [x] Preserve exit grids by default and report them as external links; hard-error only if the exit-grid tail cannot be decoded.
+  - [x] Cross-elevation links in copied content are hard errors for v1 unless they can be safely rewritten from source elevation to destination elevation.
+  - [ ] Add planning tests before writing bytes: selected tiles, selected objects, selected scripts, ID reassignment, exit-grid reporting, and rejected boundary/cross-elevation cases.
+    - [x] Cover selected object/script counts, ID reassignment, absent destination, absent source, missing attached scripts, outside-object script references, invalid spatial built_tile elevation bits, missing copied scenery prototype metadata, copied elevation-linking scenery, and undecodable exit-grid tails.
+    - [x] Cover source variable requirements exceeding destination variables.
+    - [x] Cover exhausted object/script ID space.
+
+- [ ] Implement `replace-elevation --dry-run` planning before binary writing.
+  - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.
+  - [x] Require output path even in dry-run so the command is the same as future write mode.
+  - [x] Make non-dry-run hard-error with "binary map export not implemented" until serialization exists.
+  - [x] Load both maps with prototype metadata and fail without `--proto-root`.
+  - [x] Produce human-readable dry-run output first; JSON can come later.
+  - [x] Echo source/destination/output/proto/elevation arguments in dry-run output.
+  - [x] Report destination deletion counts: tiles/elevation block, objects, spatial scripts, attached object/critter scripts.
+  - [x] Report source copy counts: tiles/elevation block, objects, inventories, spatial scripts, attached object/critter scripts.
+  - [x] Report object ID and script ID reassignment counts.
+  - [x] Report bounded previews of object/script ID reassignment mappings.
+  - [x] Report preserved exit grids as external links with destination map/tile/elevation/rotation.
+  - [x] Preserve source and destination tile byte ranges so the writer can replace the exact destination elevation tile block.
+  - [x] Preserve source raw ranges for planned copied objects and scripts so the writer can copy exact records before applying rewrites.
+  - [x] Preserve destination raw ranges for planned deleted objects and scripts so the writer can remove exact records.
+  - [x] Hard-error if any planned tile/object/script copy or deletion range is not backed by the expected source/destination map bytes.
+  - [x] Plan destination object and script section counts after delete-then-copy so the eventual writer has explicit totals to serialize.
+  - [x] Add a binary patch writer boundary and keep non-dry-run replace-elevation failing there until serialization is implemented.
+  - [x] Add tested byte-level tile block replacement inside the writer boundary while keeping full binary output disabled.
+  - [x] Add tested header map-flag patching so replacing into an absent destination elevation marks that elevation present.
+  - [x] Add a tested checked byte-range replacement primitive for later script/object section serialization.
+  - [x] Add tested multi-range deletion for planned destination script/object raw records, with overlap and bounds checks.
+  - [x] Add tested multi-range insertion for planned copied source script/object raw records, with contained inventory range normalization.
+  - [x] Add a tested big-endian int32 patch primitive for future count and ID serialization.
+  - [x] Add a tested multi-int32 patch primitive with overlap/conflict validation for future copied-record field rewrites.
+  - [x] Add tested destination object count patching for total and per-elevation object counts.
+  - [x] Preserve parsed binary script count offsets and add tested destination script count patching.
+  - [x] Preserve parsed object/script field offsets needed for writer rewrites of object IDs, object elevation/script links, script IDs, spatial tile elevation, script object links, and local-var ranges.
+  - [x] Add tested source-record rewrite patch planning for copied object IDs, object elevation/script links, script IDs, spatial tile elevation, and script object links.
+  - [x] Wire copied-record rewrite patching into the binary writer preflight while keeping final binary export disabled.
+  - [x] Hard-error when any copied-record rewrite patch is not fully contained by a planned copied source range.
+  - [x] Add a tested copied-byte-stream helper that applies source-offset rewrites only to planned copied ranges before insertion.
+  - [x] Add tested offset adjustment after deletions and insert copied scripts before the shifted destination object section instead of appending every copied record at EOF.
+  - [ ] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
+    - [x] Implement current hard errors for absent source elevation, missing copied object scripts, copied scripts referencing outside copied objects, invalid spatial elevation bits, missing copied scenery prototype metadata, copied stairs/elevator/ladder scenery links, copied script local-variable ranges unavailable in the destination, exhausted object/script ID namespaces, and undecodable exit-grid tails.
+  - [x] Add tests around the pure planner before wiring the CLI command.
+  - [x] Add formatter coverage for the dry-run CLI report.
+
+- [ ] Decode typed object tails needed for binary export/merge decisions.
+  - [ ] Item tails: weapon ammo PID/count, ammo quantity, misc charges, key code.
+  - [ ] Scenery tails: door flags/key, stairs/elevator/ladder destinations.
+  - [ ] Misc exit-grid tails: destination map, tile, elevation, rotation.
+  - [ ] Critter tails: current HP/status fields already parsed enough for preservation; decide which fields need semantic names for merge UI.
+  - [ ] Keep raw tail bytes as the source of truth until every decoded field can round-trip.
 
 - [x] Remove or isolate placeholder object structs that imply unsupported parsing.
   - [x] Unknown fields are acceptable.
@@ -235,6 +305,14 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Split a map into per-elevation outputs.
   - [x] Combine selected elevations from source maps into a new output file.
   - [x] Write outputs to explicit paths and fail before overwriting unless requested.
+  - [x] Add a separate `qmap_weird_scan` executable for scanning binary `.map` files for suspicious object/script/inventory/exit-grid data.
+    - [x] Require `--proto-root` and parse through the prototype-backed binary map parser.
+    - [x] Report missing object script references.
+    - [x] Report object/critter scripts pointing at missing objects.
+    - [x] Report parsed inventory count mismatches.
+    - [x] Report invalid exit-grid destination tile/elevation/rotation values.
+    - [x] Summarize critters, inventory-owning objects, inventory items, and exit grids.
+    - [ ] Add more domain checks as suspicious real-map cases are identified.
 
 - [x] Wire reasonable CLI logging options.
   - [x] `--verbose` / `-v` to increase detail.

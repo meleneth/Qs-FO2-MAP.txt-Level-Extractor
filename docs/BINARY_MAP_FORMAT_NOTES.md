@@ -21,17 +21,18 @@ object record. Nested object records are included in the owning object's raw
 range and stored in `BinaryObjectRecord::inventory`.
 
 Generic modeled tail sizes are the byte counts the parser can determine from
-the PID kind alone. Some prototype IDs have documented subtype tails; those are
-handled by an explicit fixture-backed resolver in `binary_map_objects.cpp`.
+the PID kind alone. Full binary object parsing requires extracted prototype
+metadata so item and scenery subtype tails can be resolved from `.pro` records
+instead of guessed from the MAP prefix.
 
 | Object kind | PID high byte | Modeled tail bytes | Fixture coverage |
 | --- | ---: | ---: | --- |
 | item | 0 | 0 | `parse_binary_map_object_records parses inventory object records` |
 | critter | 1 | 40 | `parse_binary_critter_tail decodes preserved critter tail fields`; `test_maps/test16.map` has 128-byte critter records, matching a 0x58-byte prefix plus ten 4-byte fields |
-| scenery | 2 | 0 | Generic scenery object coverage; subtype tails require explicit prototype ID rules |
+| scenery | 2 | 0 | Generic scenery object coverage; prototype-backed subtype tails are enabled when metadata is supplied |
 | wall | 3 | 0 | Object prefix/type coverage only |
 | tile | 4 | 0 | Object prefix/type coverage only |
-| misc | 5 | 0 | Generic misc object coverage; exit-grid-like prototypes use explicit PID rules |
+| misc | 5 | 0 | Generic misc object coverage; exit grids use the engine PID range `0x05000010..0x05000017` |
 | interface | 6 | 0 | Object prefix/type coverage only |
 | inventory | 7 | 0 | Nested inventory structure coverage |
 | head | 8 | 0 | Object prefix/type coverage only |
@@ -39,46 +40,41 @@ handled by an explicit fixture-backed resolver in `binary_map_objects.cpp`.
 
 Item and scenery subtype tails are not fully modeled because the MAP object
 prefix only carries the PID. Correctly choosing ammo/key/misc item/weapon or
-door/ladder/exit-grid layouts requires prototype-level subtype knowledge that
-this parser does not load yet.
+door/ladder layouts requires prototype-level subtype knowledge.
 
 Prototype metadata work now uses Fallout 2 Community Edition's `proto_types.h`
-and object read logic as the reference for item/scenery subtype enum values and
-runtime object-data tail sizes. The extracted `.pro` files store their PID at
-offset `0x00`; item and scenery subtype values are at offset `0x20`.
+and object read logic as the reference for item/scenery subtype enum values,
+misc exit-grid PID bounds, and runtime object-data tail sizes. The extracted
+`.pro` files store their PID at offset `0x00`; item and scenery subtype values
+are at offset `0x20`. Misc prototypes are the short common misc struct and do
+not carry a subtype word; exit-grid object data is selected by the engine PID
+range `FIRST_EXIT_GRID_PID` through `LAST_EXIT_GRID_PID`, currently
+`0x05000010..0x05000017`.
 
 The object parser must not infer tails by scanning forward for plausible object
-prefixes. Where a PID's subtype is not known, parsing should stop with a useful
-diagnostic or add a fixture-backed resolver rule after proving the documented
-layout.
+prefixes. User-facing binary parsing requires `--proto-root`; without prototype
+metadata, low-level parser helpers may still parse synthetic buffers but should
+not be treated as reliable for real `.map` object records.
 
-Current fixture-backed misc prototype tail rules:
+Item prototype tails are applied when prototype metadata is supplied.
 
-| PID | Tail bytes | Evidence |
-| ---: | ---: | --- |
-| `0x0500000C` | 44 | `ARVILL2.map` object at offset 44600; `BROKEN1.map` object at offset 88056 |
-| `0x0500000E` | 16 | Synthetic regression fixture matching the published four-word misc/exit-grid shape |
-| `0x05000010` | 16 | `Newr1.map` object at offset 134884; `Newr2.map` object at offset 134724 |
-| `0x05000013` | 16 | `Newr2.map` object at offset 134828 |
-| `0x05000017` | 16 | `BROKEN2.map` object at offset 134600 |
+Scenery prototype tails are applied when prototype metadata is supplied. Current
+fixture smoke coverage includes door tails that advance `BROKEN1.map`,
+`BROKEN2.map`, `Newr1.map`, and `Newr2.map` past their previous cursor errors.
 
-Current fixture-backed item prototype tail rules:
+Current documented misc exit-grid tail rule:
 
 | PID | Tail bytes | Evidence |
 | ---: | ---: | --- |
-| `0x00000121` | 4 | `ARVILL2.map` fixture evidence for a four-byte item subtype |
+| `0x05000010..0x05000017` | 16 | Fallout CE `FIRST_EXIT_GRID_PID`/`LAST_EXIT_GRID_PID`; the public MAP reference describes exit grids as four extra 32-bit values. Fixture examples include `0x05000010` in `Newr1.map` at offset 134884 and `Newr2.map` at offset 134724, `0x05000013` in `Newr2.map` at offset 134828, and `0x05000017` in `BROKEN2.map` at offset 134600. |
 
-The following item tail rules are intentionally offset-specific because the
-same PID can appear elsewhere without the same payload in current fixture
-evidence. They should be replaced with prototype-subtype based resolution once
-the parser loads prototype metadata:
+`0x0500000C` has no special tail rule. `ARVILL2.map` object at offset 44600
+and `BROKEN1.map` object at offset 88056 both advance directly from the fixed
+0x58-byte prefix to the next mapper-text object.
 
-| PID | Tail bytes | Evidence |
-| ---: | ---: | --- |
-| `0x00000016` | 48 | `ARVILL2.map` object at offset 95772 |
-| `0x0000004F` | 16 | `BROKEN2.map` object at offset 137036 |
-| `0x00000001` | 4 | `Newr1.map` object at offset 154112 |
-| `0x00000234` | 60 | `Newr2.map` object at offset 137616 |
+Former offset-specific item overrides have been removed. The current smoke
+fixtures parse completely using prototype subtype rules plus the documented
+misc exit-grid PID range.
 
 The public MAP reference lists ten critter extra fields after the object
 prefix: reaction, current movement points, combat results, damage last turn,

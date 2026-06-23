@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 
 TEST_CASE("single_elevation_plan selects one matching source elevation", "[cli]")
 {
@@ -215,6 +216,38 @@ TEST_CASE("format_binary_map_stats summarizes modern parser output", "[cli]")
     CHECK(stats.find("    first_inventory_type: item\n") != std::string::npos);
 }
 
+TEST_CASE("format_binary_map_stats reports object record diagnostics", "[cli][stats]")
+{
+    qmap::BinaryMapHeader header;
+    header.version = 20;
+    qmap::BinaryMapVariables variables;
+    qmap::BinaryMapTiles tiles;
+    qmap::BinaryMapScripts scripts;
+    qmap::BinaryMapObjectCounts objects;
+
+    const std::vector<qmap::Error> diagnostics{
+        qmap::Error{"prototype metadata required for item PID 1", 2048},
+    };
+
+    const auto stats = qmap::cli::format_binary_map_stats(
+        header,
+        variables,
+        tiles,
+        scripts,
+        objects,
+        std::nullopt,
+        std::nullopt,
+        {},
+        1,
+        1,
+        std::nullopt,
+        diagnostics
+    );
+
+    CHECK(stats.find("  object_record_diagnostics: 1\n") != std::string::npos);
+    CHECK(stats.find("  object_record_diagnostic: prototype metadata required for item PID 1 at offset 2048\n") != std::string::npos);
+}
+
 TEST_CASE("format_binary_map_stats reports incomplete object record parsing", "[cli][stats]")
 {
     qmap::BinaryMapHeader header;
@@ -243,4 +276,96 @@ TEST_CASE("format_binary_map_stats reports incomplete object record parsing", "[
     CHECK(stats.find("  object_records_status: incomplete\n") != std::string::npos);
     CHECK(stats.find("  object_records_error: unsupported object pid type\n") != std::string::npos);
     CHECK(stats.find("  object_records_error_offset: 1234\n") != std::string::npos);
+}
+
+TEST_CASE("format_replace_elevation_plan summarizes dry-run arguments and counts", "[cli][patch]")
+{
+    qmap::cli::ReplaceElevationOptions options;
+    options.source = "source.map";
+    options.destination = "destination.map";
+    options.output = "output.map";
+    options.proto_root = ".local_fallout2_data/proto";
+    options.source_elevation = 0;
+    options.destination_elevation = 2;
+    options.dry_run = true;
+
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_elevation = 0;
+    plan.destination_elevation = 2;
+    plan.destination_was_present = true;
+    plan.source_tile_bytes = 40000;
+    plan.destination_tile_bytes = 40000;
+    plan.deleted_top_level_objects = 3;
+    plan.deleted_objects_including_inventory = 4;
+    plan.deleted_spatial_scripts = 1;
+    plan.deleted_attached_scripts = 2;
+    plan.copied_top_level_objects = 5;
+    plan.copied_objects_including_inventory = 7;
+    plan.copied_spatial_scripts = 2;
+    plan.copied_attached_scripts = 3;
+    plan.destination_total_objects_before = 8;
+    plan.destination_total_objects_after = 10;
+    plan.destination_object_counts_before = {2, 3, 3};
+    plan.destination_object_counts_after = {2, 3, 5};
+    plan.destination_script_counts_before[1] = 4;
+    plan.destination_script_counts_before[3] = 6;
+    plan.destination_script_counts_after[1] = 5;
+    plan.destination_script_counts_after[3] = 7;
+    plan.object_id_mappings.push_back({10, 100});
+    plan.script_id_mappings.push_back({0x03000010, 0x03000020});
+    plan.preserved_exit_grids.push_back({55, 42, 1234, 1, 3});
+
+    const auto formatted = qmap::cli::format_replace_elevation_plan(options, plan);
+
+    CHECK(formatted.find("kind: binary replace-elevation\n") != std::string::npos);
+    CHECK(formatted.find("status: planned\n") != std::string::npos);
+    CHECK(formatted.find("source: source.map\n") != std::string::npos);
+    CHECK(formatted.find("destination: destination.map\n") != std::string::npos);
+    CHECK(formatted.find("output: output.map\n") != std::string::npos);
+    CHECK(formatted.find("source_elevation: 0\n") != std::string::npos);
+    CHECK(formatted.find("destination_elevation: 2\n") != std::string::npos);
+    CHECK(formatted.find("destination_was_present: true\n") != std::string::npos);
+    CHECK(formatted.find("  top_level_objects: 3\n") != std::string::npos);
+    CHECK(formatted.find("  objects_with_inventory: 7\n") != std::string::npos);
+    CHECK(formatted.find("  object_total_before: 8\n") != std::string::npos);
+    CHECK(formatted.find("  object_total_after: 10\n") != std::string::npos);
+    CHECK(formatted.find("  elevation_2_objects_before: 3\n") != std::string::npos);
+    CHECK(formatted.find("  elevation_2_objects_after: 5\n") != std::string::npos);
+    CHECK(formatted.find("    spatial: before=4 after=5\n") != std::string::npos);
+    CHECK(formatted.find("    object: before=6 after=7\n") != std::string::npos);
+    CHECK(formatted.find("  object_ids: 1\n") != std::string::npos);
+    CHECK(formatted.find("  script_ids: 1\n") != std::string::npos);
+    CHECK(formatted.find("  object_id_mapping_preview: 1\n") != std::string::npos);
+    CHECK(formatted.find("  object_id_mapping: old=10 new=100\n") != std::string::npos);
+    CHECK(formatted.find("  object_id_mapping_omitted:") == std::string::npos);
+    CHECK(formatted.find("  script_id_mapping_preview: 1\n") != std::string::npos);
+    CHECK(formatted.find("  script_id_mapping: old=50331664 new=50331680\n") != std::string::npos);
+    CHECK(formatted.find("  script_id_mapping_omitted:") == std::string::npos);
+    CHECK(formatted.find("  exit_grid: object_id=55 dest_map=42 dest_tile=1234 dest_elevation=1 dest_rotation=3\n") != std::string::npos);
+    CHECK(formatted.find("replace-elevation source.map destination.map output.map --source-elevation 0 --dest-elevation 2 --proto-root .local_fallout2_data/proto --dry-run\n") != std::string::npos);
+}
+
+TEST_CASE("format_replace_elevation_plan bounds id mapping previews", "[cli][patch]")
+{
+    qmap::cli::ReplaceElevationOptions options;
+    options.source = "source.map";
+    options.destination = "destination.map";
+    options.output = "output.map";
+    options.proto_root = ".local_fallout2_data/proto";
+    options.source_elevation = 0;
+    options.destination_elevation = 2;
+    options.dry_run = true;
+
+    qmap::BinaryReplaceElevationPlan plan;
+    for (int index = 0; index < 12; ++index) {
+        plan.object_id_mappings.push_back({index + 1, index + 100});
+    }
+
+    const auto formatted = qmap::cli::format_replace_elevation_plan(options, plan);
+
+    CHECK(formatted.find("  object_id_mapping_preview: 10\n") != std::string::npos);
+    CHECK(formatted.find("  object_id_mapping: old=1 new=100\n") != std::string::npos);
+    CHECK(formatted.find("  object_id_mapping: old=10 new=109\n") != std::string::npos);
+    CHECK(formatted.find("  object_id_mapping: old=11 new=110\n") == std::string::npos);
+    CHECK(formatted.find("  object_id_mapping_omitted: 2\n") != std::string::npos);
 }
