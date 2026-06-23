@@ -139,9 +139,9 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 ## Current Priority
 
-Binary `.map` patching is now the main line of work. Text-map parsing/export, CLI basics, GUI state separation, prototype loading, binary parse-stats, weird-scan, and binary replace-elevation dry-run planning are in place.
+Binary `.map` patching is now the main line of work. Text-map parsing/export, CLI basics, GUI state separation, prototype loading, binary parse-stats, weird-scan, and guarded binary replace-elevation output are in place.
 
-The next slices should move from writer preflight to guarded binary output:
+The next slices should harden the supported whole-elevation workflow and keep expanding the typed object model needed for broader merge/export work:
 
 - [x] Return a complete patched byte stream from the binary replace-elevation writer.
 - [x] Parse the patched byte stream back through the prototype-backed binary parser before writing a CLI output file.
@@ -150,7 +150,8 @@ The next slices should move from writer preflight to guarded binary output:
 - [x] Remove the unsafe raw delete/insert writer fallback; binary replace-elevation writing now requires parsed source/destination map models.
 - [x] Keep raw object/tail bytes authoritative until decoded typed fields have round-trip tests.
 - [x] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
-- [ ] Only then consider non-dry-run binary `replace-elevation` user-facing complete.
+- [x] Surface binary output write failures, including accidental overwrite refusal, as command failures instead of reporting success.
+- [ ] Decide whether guarded non-dry-run binary `replace-elevation` is user-facing complete for supported whole-elevation cases, or keep it marked experimental until more real-map fixture coverage lands.
 
 ## Phase 5: Fix Binary `.map` Parsing
 
@@ -228,12 +229,12 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Allow replacing into an absent destination elevation; source elevation absence is a hard error.
   - [x] Preserve exit grids by default and report them as external links; hard-error only if the exit-grid tail cannot be decoded.
   - [x] Cross-elevation links in copied content are hard errors for v1 unless they can be safely rewritten from source elevation to destination elevation.
-  - [ ] Add planning tests before writing bytes: selected tiles, selected objects, selected scripts, ID reassignment, exit-grid reporting, and rejected boundary/cross-elevation cases.
+  - [x] Add planning tests before writing bytes: selected tiles, selected objects, selected scripts, ID reassignment, exit-grid reporting, and rejected boundary/cross-elevation cases.
     - [x] Cover selected object/script counts, ID reassignment, absent destination, absent source, missing attached scripts, outside-object script references, invalid spatial built_tile elevation bits, missing copied scenery prototype metadata, copied elevation-linking scenery, and undecodable exit-grid tails.
     - [x] Cover source variable requirements exceeding destination variables.
     - [x] Cover exhausted object/script ID space.
 
-- [ ] Implement binary `replace-elevation` writing. Partial: guarded non-dry-run output works for fixture-backed whole-elevation replacement; broader hard-error and round-trip coverage still needs expansion before calling it complete.
+- [ ] Implement binary `replace-elevation` writing. Partial: guarded non-dry-run output works for supported whole-elevation replacement and refuses failed output writes; broader real-map round-trip coverage and typed tail decoding still need expansion before calling binary export generally complete.
   - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.
   - [x] Require output path even in dry-run so the command is the same as future write mode.
   - [x] Keep non-dry-run guarded: output bytes are only written after writer success and prototype-backed parse-back validation.
@@ -256,7 +257,7 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Add tested header map-flag patching so replacing into an absent destination elevation marks that elevation present.
   - [x] Add a tested checked byte-range replacement primitive for later script/object section serialization.
   - [x] Add tested multi-range deletion for planned destination script/object raw records, with overlap and bounds checks.
-  - [x] Add tested multi-range insertion for planned copied source script/object raw records, with contained inventory range normalization.
+  - [x] Retire raw multi-range insertion from the full writer path; copied source records are serialized through model-backed script/object section rebuilds.
   - [x] Add a tested big-endian int32 patch primitive for future count and ID serialization.
   - [x] Add a tested multi-int32 patch primitive with overlap/conflict validation for future copied-record field rewrites.
   - [x] Add tested destination object count patching for total and per-elevation object counts.
@@ -275,8 +276,11 @@ The next slices should move from writer preflight to guarded binary output:
   - [x] Hard-error if rebuilt script or object counts do not match the planned post-replacement counts.
   - [x] Hard-error if the writer is called without parsed source/destination scripts, objects, and destination header; do not fall back to raw section surgery.
   - [x] Cover copied raw object and script byte preservation so only planned object/script/elevation fields are rewritten before typed tail round-trip support exists.
+  - [x] Cover preserved destination raw object/script byte preservation for records outside the replaced elevation.
+  - [x] Hard-error if preserved destination raw object/script ranges are not backed by the destination map bytes.
+  - [x] Surface output-file write failures from the non-dry-run CLI path.
   - [x] Add fixture-backed whole-elevation replacement smoke coverage when local prototype data is available; keep proprietary prototype assets out of git.
-  - [ ] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
+  - [x] Hard-error for missing prototype metadata, absent source elevation, missing object scripts, copied scripts referencing outside objects, undecodable elevation-bearing links, detectable source variable requirements exceeding destination variables, and exhausted object/script ID space.
     - [x] Implement current hard errors for absent source elevation, missing copied object scripts, copied scripts referencing outside copied objects, invalid spatial elevation bits, missing copied scenery prototype metadata, copied stairs/elevator/ladder scenery links, copied script local-variable ranges unavailable in the destination, exhausted object/script ID namespaces, and undecodable exit-grid tails.
   - [x] Add tests around the pure planner before wiring the CLI command.
   - [x] Add formatter coverage for the dry-run CLI report.
