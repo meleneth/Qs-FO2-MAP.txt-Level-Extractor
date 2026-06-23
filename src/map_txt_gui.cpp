@@ -1,21 +1,18 @@
 #include <imgui_internal.h>
 #include "binary_map_parser.h"
+#include "gui_session.h"
 #include "map_txt_gui.h"
 #include "map_txt_parser.h"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cstddef>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <limits>
-#include <optional>
 #include <span>
 #include <string>
-#include <utility>
 #include <vector>
 
 bool is_hovering     = false;
@@ -26,23 +23,6 @@ namespace {
 constexpr int left_column = 0;
 constexpr int middle_column = 1;
 constexpr int right_column = 2;
-constexpr int path_size = 4096;
-
-struct GuiSession {
-    map_lvls left;
-    map_lvls right;
-    std::array<std::string, qmap::elevation_count> left_labels = {"Level 1", "Level 2", "Level 3"};
-    std::array<std::string, qmap::elevation_count> right_labels = {"Level 1", "Level 2", "Level 3"};
-    std::array<std::string, qmap::elevation_count> output_labels = {"empty", "##1", "##2"};
-    std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
-    std::string left_head = "empty##1";
-    std::string middle_head = "empty##2";
-    std::string right_head = "empty##3";
-    int header = -1;
-    char export_path[path_size] = "/path/to/some/folder/with/long/mapname.txt";
-    std::string current_error;
-    bool open_error_popup = false;
-};
 
 void clear_loaded_map(map_lvls& map)
 {
@@ -119,18 +99,7 @@ void parse_binary_map_for_gui(map_lvls& map)
 
 } // namespace
 
-GuiSession session;
-
-std::array<std::string, qmap::elevation_count>& labels_for_drop_target(int drop_target)
-{
-    return drop_target == left_column ? session.left_labels : session.right_labels;
-}
-
-void reset_output_labels()
-{
-    session.output_selection = {};
-    session.output_labels = {"empty", "##1", "##2"};
-}
+qmap::GuiSession session;
 
 const char* map_type_name(qmap::MapFileKind map_type)
 {
@@ -183,27 +152,14 @@ void show_map_status(const char* side, const map_lvls& map)
     }
 }
 
-void update_labels(map_lvls* map, int list_box)
+void update_labels(map_lvls* map, int target_list_box)
 {
-    if (list_box == -1) {
+    if (target_list_box == -1) {
         return;
     }
 
-    if (list_box == left_column) {
-        session.left_head = map->map_name;
-    } else {
-        session.right_head = map->map_name;
-    }
-    reset_output_labels();
-    auto& labels = labels_for_drop_target(list_box);
-
-    for (size_t i = 0; i < 3; i++) {
-        if (map->level[i]) {
-            labels[i] = std::to_string(i) + ":" + map->map_name;
-        } else {
-            labels[i] = "empty";
-        }
-    }
+    const auto side = target_list_box == left_column ? qmap::MapSide::left : qmap::MapSide::right;
+    qmap::update_loaded_map_labels(session, *map, side);
 }
 
 
@@ -325,49 +281,7 @@ bool hover_box()
     return false;
 }
 
-qmap::TextMapExportPlan make_text_export_plan(int header)
-{
-    qmap::TextMapExportPlan plan;
-    if (header == left_column) {
-        plan.header_side = qmap::MapSide::left;
-    } else if (header == 1) {
-        plan.header_side = qmap::MapSide::right;
-    } else {
-        plan.header_side = std::nullopt;
-    }
-    plan.elevations = session.output_selection;
-    return plan;
-}
-
-void select_output_elevation(
-    int destination,
-    const map_lvls& source_map,
-    const std::string& source_label,
-    qmap::MapSide side,
-    int source_elevation
-)
-{
-    if (destination < 0 || destination >= qmap::elevation_count
-        || source_elevation < 0 || source_elevation >= qmap::elevation_count
-        || !source_map.level[source_elevation]) {
-        return;
-    }
-
-    session.output_labels[destination] = source_label;
-    session.output_selection[destination] = qmap::ElevationSource{side, source_elevation};
-}
-
-void clear_output_elevation(int destination)
-{
-    if (destination < 0 || destination >= qmap::elevation_count) {
-        return;
-    }
-
-    session.output_labels[destination] = "##" + std::to_string(destination);
-    session.output_selection[destination] = std::nullopt;
-}
-
-void export_map(int header, char* path_buff)
+void export_map(char* path_buff)
 {
     if (session.left.data == nullptr && session.right.data == nullptr) {
         return;
@@ -388,7 +302,7 @@ void export_map(int header, char* path_buff)
     // .txt file extension for both maps or one .txt and one empty
     if ((session.left.map_type == qmap::MapFileKind::text || session.left.map_type == qmap::MapFileKind::empty)
     &&  (session.right.map_type == qmap::MapFileKind::text || session.right.map_type == qmap::MapFileKind::empty)) {
-        export_map_txt(make_text_export_plan(header), &session.left, &session.right, path_buff);
+        export_map_txt(qmap::make_text_export_plan(session), &session.left, &session.right, path_buff);
     } else {
         session.open_error_popup = true;
         session.current_error =
@@ -409,7 +323,7 @@ void error_popup()
         ImGui::CloseCurrentPopup();
     }
 }
-void overwrite_popup(int header, char* path_buff)
+void overwrite_popup(char* path_buff)
 {
     ImGui::Text("Don't save over the original files\n"
                 "for now, I'm not sure they would\n"
@@ -417,7 +331,7 @@ void overwrite_popup(int header, char* path_buff)
     ImGui::Text("File already exists, overwrite?");
     if (ImGui::Button("Overwrite")) {
         //QTODO: this needs to work for both types
-        export_map(header, path_buff);
+        export_map(path_buff);
         ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
@@ -441,28 +355,15 @@ bool map_txt_gui()
 
     ImVec2 posA = ImGui::GetCursorPos();
     if (ImGui::Button(session.left_head.c_str(), ImVec2{size.x,0})) {
-        if (session.left.data) {
-            session.middle_head = std::string{session.left.map_name} + "##";
-            snprintf(session.export_path, path_size, "%s.Q.txt", session.left.file_str);
-            session.header = 0;
-        } else {
-            session.middle_head = "HeaderL##";
-        }
+        qmap::choose_output_header(session, qmap::MapSide::left);
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x   + 60, posA.y});
     if (ImGui::Button(session.middle_head.c_str(), ImVec2{size.x,0})) {
-        session.header = -1;
-        session.middle_head = "empty";
+        qmap::clear_output_header(session);
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x*2 + 120, posA.y});
     if (ImGui::Button(session.right_head.c_str(), ImVec2{size.x,0})) {
-        if (session.right.data) {
-            session.middle_head = std::string{session.right.map_name} + "##";
-            snprintf(session.export_path, path_size, "%s.Q.txt", session.right.file_str);
-            session.header = 1;
-        } else {
-            session.middle_head = "HeaderR##";
-        }
+        qmap::choose_output_header(session, qmap::MapSide::right);
     }
 
 
@@ -488,7 +389,8 @@ bool map_txt_gui()
 
     ImGui::SetCursorPos(ImVec2{posB.x+size.x   +  5, posB.y});
     if (ImGui::Button(">##L->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
-        select_output_elevation(
+        qmap::select_output_elevation(
+            session,
             selection[middle_column],
             session.left,
             session.left_labels[selection[left_column]],
@@ -514,7 +416,7 @@ bool map_txt_gui()
                 selection[middle_column] = n;
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                clear_output_elevation(selection[middle_column]);
+                qmap::clear_output_elevation(session, selection[middle_column]);
             }
         }
         ImGui::EndListBox();
@@ -522,7 +424,8 @@ bool map_txt_gui()
 
     ImGui::SetCursorPos(ImVec2{posB.x+size.x*2+20 + 45, posB.y});
     if (ImGui::Button("<##R->M", ImVec2{50,ImGui::GetItemRectSize().y})) {
-        select_output_elevation(
+        qmap::select_output_elevation(
+            session,
             selection[middle_column],
             session.right,
             session.right_labels[selection[right_column]],
@@ -551,7 +454,7 @@ bool map_txt_gui()
     }
 
     if (ImGui::BeginPopup("Overwrite?")) {
-        overwrite_popup(session.header, session.export_path);
+        overwrite_popup(session.export_path);
         ImGui::EndPopup();
     }
 
@@ -559,7 +462,7 @@ bool map_txt_gui()
         if (std::filesystem::exists(session.export_path)) {
             ImGui::OpenPopup("Overwrite?");
         } else {
-            export_map(session.header, session.export_path);
+            export_map(session.export_path);
         }
     }
     if (session.header == -1) {

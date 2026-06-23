@@ -231,7 +231,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 ## Phase 8: Move GUI State Behind A Plain Model
 
-- [ ] Introduce an application/session state struct.
+- [x] Introduce an application/session state struct.
   - [x] Left loaded map.
   - [x] Right loaded map.
   - [x] Output selections.
@@ -249,8 +249,8 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] They must not drive export behavior.
 
 - [ ] Add non-UI tests for session behavior.
-  - [ ] load left/right map updates available elevations.
-  - [ ] selecting header updates default export path.
+  - [x] load left/right map updates available elevations.
+  - [x] selecting header updates default export path.
   - [ ] invalid mixed file kinds produces a domain error.
 
 ## Phase 9: Error Handling And Result Types

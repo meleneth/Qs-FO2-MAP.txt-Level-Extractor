@@ -75,6 +75,7 @@ target_sources(
     src/text_map_parser.cpp
     src/text_map_export.cpp
     src/text_map_records.cpp
+    src/gui_session.cpp
 )
 target_include_directories(
     qmap_parsers PUBLIC
@@ -161,6 +162,7 @@ if(BUILD_TESTING)
         tests/text_map_export_tests.cpp
         tests/text_map_records_tests.cpp
         tests/cli_operations_tests.cpp
+        tests/gui_session_tests.cpp
     )
     target_link_libraries(
         qmap_parser_tests PRIVATE
