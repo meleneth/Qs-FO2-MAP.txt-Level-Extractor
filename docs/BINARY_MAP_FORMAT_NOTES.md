@@ -30,7 +30,7 @@ claim that every subtype layout is fully decoded:
 | scenery | 2 | 12 | `parse_binary_scenery_tail decodes preserved scenery tail fields` |
 | wall | 3 | 0 | Object prefix/type coverage only |
 | tile | 4 | 0 | Object prefix/type coverage only |
-| misc | 5 | 20 | `parse_binary_misc_tail decodes preserved misc tail fields` |
+| misc | 5 | 0 | `parse_binary_misc_tail decodes preserved misc tail fields` |
 | interface | 6 | 0 | Object prefix/type coverage only |
 | inventory | 7 | 0 | Nested inventory structure coverage |
 | head | 8 | 0 | Object prefix/type coverage only |

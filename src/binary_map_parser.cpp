@@ -27,7 +27,6 @@ constexpr int serialized_script_block_capacity = 16;
 constexpr int base_script_record_words = 16;
 constexpr std::size_t critter_tail_words = 11;
 constexpr std::size_t scenery_tail_words = 3;
-constexpr std::size_t misc_tail_words = 5;
 constexpr int script_type_shift = 24;
 constexpr int pid_type_shift = 24;
 constexpr std::uint32_t pid_type_mask = 0xFFu;
@@ -578,8 +577,6 @@ std::size_t modeled_binary_object_tail_size(BinaryObjectType type)
         return critter_tail_words * sizeof(std::int32_t);
     case BinaryObjectType::scenery:
         return scenery_tail_words * sizeof(std::int32_t);
-    case BinaryObjectType::misc:
-        return misc_tail_words * sizeof(std::int32_t);
     case BinaryObjectType::item:
     case BinaryObjectType::wall:
     case BinaryObjectType::tile:
@@ -587,6 +584,7 @@ std::size_t modeled_binary_object_tail_size(BinaryObjectType type)
     case BinaryObjectType::inventory:
     case BinaryObjectType::head:
     case BinaryObjectType::background:
+    case BinaryObjectType::misc:
         return 0;
     }
     return 0;
@@ -1128,26 +1126,34 @@ Result<BinaryMiscTail> parse_binary_misc_tail(std::span<const std::byte> bytes, 
         return Result<BinaryMiscTail>::fail(flags.error());
     }
     parsed.flags = flags.value();
-    auto dest_map = read_i32(reader);
-    if (!dest_map) {
-        return Result<BinaryMiscTail>::fail(dest_map.error());
+    if (tail.size >= 2 * sizeof(std::int32_t)) {
+        auto dest_map = read_i32(reader);
+        if (!dest_map) {
+            return Result<BinaryMiscTail>::fail(dest_map.error());
+        }
+        parsed.dest_map = dest_map.value();
     }
-    parsed.dest_map = dest_map.value();
-    auto dest_tile = read_i32(reader);
-    if (!dest_tile) {
-        return Result<BinaryMiscTail>::fail(dest_tile.error());
+    if (tail.size >= 3 * sizeof(std::int32_t)) {
+        auto dest_tile = read_i32(reader);
+        if (!dest_tile) {
+            return Result<BinaryMiscTail>::fail(dest_tile.error());
+        }
+        parsed.dest_tile = dest_tile.value();
     }
-    parsed.dest_tile = dest_tile.value();
-    auto dest_elevation = read_i32(reader);
-    if (!dest_elevation) {
-        return Result<BinaryMiscTail>::fail(dest_elevation.error());
+    if (tail.size >= 4 * sizeof(std::int32_t)) {
+        auto dest_elevation = read_i32(reader);
+        if (!dest_elevation) {
+            return Result<BinaryMiscTail>::fail(dest_elevation.error());
+        }
+        parsed.dest_elevation = dest_elevation.value();
     }
-    parsed.dest_elevation = dest_elevation.value();
-    auto dest_rotation = read_i32(reader);
-    if (!dest_rotation) {
-        return Result<BinaryMiscTail>::fail(dest_rotation.error());
+    if (tail.size >= 5 * sizeof(std::int32_t)) {
+        auto dest_rotation = read_i32(reader);
+        if (!dest_rotation) {
+            return Result<BinaryMiscTail>::fail(dest_rotation.error());
+        }
+        parsed.dest_rotation = dest_rotation.value();
     }
-    parsed.dest_rotation = dest_rotation.value();
     return Result<BinaryMiscTail>::ok(parsed);
 }
 

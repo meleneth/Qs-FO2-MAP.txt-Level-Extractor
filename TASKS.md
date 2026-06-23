@@ -167,7 +167,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Unknown fields are acceptable.
   - [x] False confidence is not.
 
-- [ ] Add inline Catch2 tests for small synthetic binary buffers.
+- [x] Add inline Catch2 tests for small synthetic binary buffers.
   - [x] valid header.
   - [x] short header rejected.
   - [x] script count and record parse.

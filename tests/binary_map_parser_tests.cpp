@@ -712,7 +712,7 @@ TEST_CASE("modeled_binary_object_tail_size reports current fixed object tails", 
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::scenery) == 12);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::wall) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::tile) == 0);
-    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::misc) == 20);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::misc) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::interface_object) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::inventory) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::head) == 0);
@@ -946,12 +946,14 @@ TEST_CASE("parse_binary_misc_tail decodes preserved misc tail fields", "[map][bi
     append_i32(bytes, 1);
     append_i32(bytes, 1);
     append_object_prefix(bytes, 300, 0, 0x05000001, -1);
-    append_i32_repeated(bytes, 5, 9200);
     append_i32(bytes, 0);
     auto objects = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
     REQUIRE(objects);
 
-    const auto parsed = qmap::parse_binary_misc_tail(bytes, objects.value().records[0].tail);
+    std::vector<std::byte> tail_bytes;
+    append_i32_repeated(tail_bytes, 5, 9200);
+
+    const auto parsed = qmap::parse_binary_misc_tail(tail_bytes, qmap::Range{0, tail_bytes.size()});
 
     REQUIRE(parsed);
     CHECK(parsed.value().flags == 9200);
