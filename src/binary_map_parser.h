@@ -127,6 +127,7 @@ enum class BinaryObjectType : int {
 };
 
 std::optional<BinaryObjectType> binary_object_type_from_pid(std::int32_t pid);
+std::size_t modeled_binary_object_tail_size(BinaryObjectType type);
 
 struct BinaryMapObjectPrefixes {
     std::int32_t total_count = 0;

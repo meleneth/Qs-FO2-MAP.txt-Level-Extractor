@@ -20,9 +20,10 @@ Inventory entries are parsed as a 4-byte quantity followed by another complete
 object record. Nested object records are included in the owning object's raw
 range and stored in `BinaryObjectRecord::inventory`.
 
-Current modeled tail sizes:
+Current modeled tail sizes are the byte counts the parser consumes today, not a
+claim that every subtype layout is fully decoded:
 
-| Object kind | PID high byte | Tail bytes | Fixture coverage |
+| Object kind | PID high byte | Modeled tail bytes | Fixture coverage |
 | --- | ---: | ---: | --- |
 | item | 0 | 0 | `parse_binary_map_object_records parses inventory object records` |
 | critter | 1 | 44 | `parse_binary_critter_tail decodes preserved critter tail fields` |
@@ -35,10 +36,10 @@ Current modeled tail sizes:
 | head | 8 | 0 | Object prefix/type coverage only |
 | background | 9 | 0 | Object prefix/type coverage only |
 
-Item subtype tails are not fully modeled because the MAP object prefix only
-carries the item PID. Correctly choosing ammo/key/misc item/weapon tail layouts
-requires prototype-level item subtype knowledge that this parser does not load
-yet.
+Item and scenery subtype tails are not fully modeled because the MAP object
+prefix only carries the PID. Correctly choosing ammo/key/misc item/weapon or
+door/ladder/exit-grid layouts requires prototype-level subtype knowledge that
+this parser does not load yet.
 
 ## Unknown Fields
 

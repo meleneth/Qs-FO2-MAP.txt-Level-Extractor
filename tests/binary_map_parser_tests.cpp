@@ -705,6 +705,20 @@ TEST_CASE("binary_object_type_from_pid rejects unknown object type bytes", "[map
     CHECK_FALSE(qmap::binary_object_type_from_pid(0x0A000001).has_value());
 }
 
+TEST_CASE("modeled_binary_object_tail_size reports current fixed object tails", "[map][binary]")
+{
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::item) == 0);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::critter) == 44);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::scenery) == 12);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::wall) == 0);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::tile) == 0);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::misc) == 20);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::interface_object) == 0);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::inventory) == 0);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::head) == 0);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::background) == 0);
+}
+
 TEST_CASE("parse_binary_map_object_prefixes rejects count mismatches", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();

@@ -428,27 +428,6 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     return Result<BinaryObjectPrefix>::ok(record);
 }
 
-std::size_t known_object_tail_size(BinaryObjectType type)
-{
-    switch (type) {
-    case BinaryObjectType::critter:
-        return critter_tail_words * sizeof(std::int32_t);
-    case BinaryObjectType::scenery:
-        return scenery_tail_words * sizeof(std::int32_t);
-    case BinaryObjectType::misc:
-        return misc_tail_words * sizeof(std::int32_t);
-    case BinaryObjectType::item:
-    case BinaryObjectType::wall:
-    case BinaryObjectType::tile:
-    case BinaryObjectType::interface_object:
-    case BinaryObjectType::inventory:
-    case BinaryObjectType::head:
-    case BinaryObjectType::background:
-        return 0;
-    }
-    return 0;
-}
-
 Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
 {
     const auto record_start = reader.offset();
@@ -467,7 +446,7 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
     }
 
     const auto tail_start = reader.offset();
-    auto tail_bytes = reader.read_bytes(known_object_tail_size(*object_type));
+    auto tail_bytes = reader.read_bytes(modeled_binary_object_tail_size(*object_type));
     if (!tail_bytes) {
         return Result<BinaryObjectRecord>::fail(tail_bytes.error());
     }
@@ -574,6 +553,29 @@ std::optional<BinaryObjectType> binary_object_type_from_pid(std::int32_t pid)
         return std::nullopt;
     }
     return static_cast<BinaryObjectType>(type);
+}
+
+std::size_t modeled_binary_object_tail_size(BinaryObjectType type)
+{
+    // Sizes the parser currently consumes from MAP object records. Subtype
+    // specific item/scenery details still need prototype-level classification.
+    switch (type) {
+    case BinaryObjectType::critter:
+        return critter_tail_words * sizeof(std::int32_t);
+    case BinaryObjectType::scenery:
+        return scenery_tail_words * sizeof(std::int32_t);
+    case BinaryObjectType::misc:
+        return misc_tail_words * sizeof(std::int32_t);
+    case BinaryObjectType::item:
+    case BinaryObjectType::wall:
+    case BinaryObjectType::tile:
+    case BinaryObjectType::interface_object:
+    case BinaryObjectType::inventory:
+    case BinaryObjectType::head:
+    case BinaryObjectType::background:
+        return 0;
+    }
+    return 0;
 }
 
 Result<BinaryMapHeader> parse_binary_map_header(std::span<const std::byte> bytes)
