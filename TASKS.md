@@ -244,8 +244,8 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [ ] No export algorithm in UI code.
   - [ ] No global maps or labels.
 
-- [ ] Replace `char[16]` label identity with display-only strings.
-  - [ ] Labels may truncate for UI.
+- [x] Replace `char[16]` label identity with display-only strings.
+  - [x] Labels may truncate for UI.
   - [x] They must not drive export behavior.
 
 - [ ] Add non-UI tests for session behavior.

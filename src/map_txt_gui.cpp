@@ -31,7 +31,13 @@ constexpr int path_size = 4096;
 struct GuiSession {
     map_lvls left;
     map_lvls right;
+    std::array<std::string, qmap::elevation_count> left_labels = {"Level 1", "Level 2", "Level 3"};
+    std::array<std::string, qmap::elevation_count> right_labels = {"Level 1", "Level 2", "Level 3"};
+    std::array<std::string, qmap::elevation_count> output_labels = {"empty", "##1", "##2"};
     std::array<std::optional<qmap::ElevationSource>, qmap::elevation_count> output_selection = {};
+    std::string left_head = "empty##1";
+    std::string middle_head = "empty##2";
+    std::string right_head = "empty##3";
     int header = -1;
     char export_path[path_size] = "/path/to/some/folder/with/long/mapname.txt";
     std::string current_error;
@@ -113,18 +119,17 @@ void parse_binary_map_for_gui(map_lvls& map)
 
 } // namespace
 
-char label_M[3][16] = {"empty", "##1", "##2"};
-char head_L[NAME_LENGTH] = {"empty##1"};
-char head_M[NAME_LENGTH] = {"empty##2"};
-char head_R[NAME_LENGTH] = {"empty##3"};
 GuiSession session;
+
+std::array<std::string, qmap::elevation_count>& labels_for_drop_target(int drop_target)
+{
+    return drop_target == left_column ? session.left_labels : session.right_labels;
+}
 
 void reset_output_labels()
 {
     session.output_selection = {};
-    snprintf(label_M[0], NAME_LENGTH, "empty");
-    snprintf(label_M[1], NAME_LENGTH, "##1");
-    snprintf(label_M[2], NAME_LENGTH, "##2");
+    session.output_labels = {"empty", "##1", "##2"};
 }
 
 const char* map_type_name(qmap::MapFileKind map_type)
@@ -184,14 +189,19 @@ void update_labels(map_lvls* map, int list_box)
         return;
     }
 
-    snprintf((list_box == 0) ? head_L : head_R, NAME_LENGTH, "%s", map->map_name);
+    if (list_box == left_column) {
+        session.left_head = map->map_name;
+    } else {
+        session.right_head = map->map_name;
+    }
     reset_output_labels();
+    auto& labels = labels_for_drop_target(list_box);
 
     for (size_t i = 0; i < 3; i++) {
         if (map->level[i]) {
-            snprintf(map->label[i], NAME_LENGTH, "%d:%s", i, map->map_name);
+            labels[i] = std::to_string(i) + ":" + map->map_name;
         } else {
-            snprintf(map->label[i], NAME_LENGTH, "empty");
+            labels[i] = "empty";
         }
     }
 }
@@ -332,6 +342,7 @@ qmap::TextMapExportPlan make_text_export_plan(int header)
 void select_output_elevation(
     int destination,
     const map_lvls& source_map,
+    const std::string& source_label,
     qmap::MapSide side,
     int source_elevation
 )
@@ -342,7 +353,7 @@ void select_output_elevation(
         return;
     }
 
-    snprintf(label_M[destination], NAME_LENGTH, "%s", source_map.label[source_elevation]);
+    session.output_labels[destination] = source_label;
     session.output_selection[destination] = qmap::ElevationSource{side, source_elevation};
 }
 
@@ -352,7 +363,7 @@ void clear_output_elevation(int destination)
         return;
     }
 
-    snprintf(label_M[destination], NAME_LENGTH, "##%d", destination);
+    session.output_labels[destination] = "##" + std::to_string(destination);
     session.output_selection[destination] = std::nullopt;
 }
 
@@ -429,36 +440,44 @@ bool map_txt_gui()
 
 
     ImVec2 posA = ImGui::GetCursorPos();
-    if (ImGui::Button(head_L, ImVec2{size.x,0})) {
+    if (ImGui::Button(session.left_head.c_str(), ImVec2{size.x,0})) {
         if (session.left.data) {
-            snprintf(head_M, NAME_LENGTH, "%s##", session.left.map_name);
+            session.middle_head = std::string{session.left.map_name} + "##";
             snprintf(session.export_path, path_size, "%s.Q.txt", session.left.file_str);
             session.header = 0;
         } else {
-            snprintf(head_M, NAME_LENGTH, "HeaderL##");
+            session.middle_head = "HeaderL##";
         }
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x   + 60, posA.y});
-    if (ImGui::Button(head_M, ImVec2{size.x,0})) {
+    if (ImGui::Button(session.middle_head.c_str(), ImVec2{size.x,0})) {
         session.header = -1;
-        snprintf(head_M, NAME_LENGTH, "empty");
+        session.middle_head = "empty";
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x*2 + 120, posA.y});
-    if (ImGui::Button(head_R, ImVec2{size.x,0})) {
+    if (ImGui::Button(session.right_head.c_str(), ImVec2{size.x,0})) {
         if (session.right.data) {
-            snprintf(head_M, NAME_LENGTH, "%s##", session.right.map_name);
+            session.middle_head = std::string{session.right.map_name} + "##";
             snprintf(session.export_path, path_size, "%s.Q.txt", session.right.file_str);
             session.header = 1;
         } else {
-            snprintf(head_M, NAME_LENGTH, "HeaderR##");
+            session.middle_head = "HeaderR##";
         }
     }
 
 
     ImVec2 posB = ImGui::GetCursorPos();
     static int selection[3] = { 0, 1, 2 };
-    const char* left_labels[] = {session.left.label[0], session.left.label[1], session.left.label[2]};
-    const char* right_labels[] = {session.right.label[0], session.right.label[1], session.right.label[2]};
+    const char* left_labels[] = {
+        session.left_labels[0].c_str(),
+        session.left_labels[1].c_str(),
+        session.left_labels[2].c_str(),
+    };
+    const char* right_labels[] = {
+        session.right_labels[0].c_str(),
+        session.right_labels[1].c_str(),
+        session.right_labels[2].c_str(),
+    };
 
 
     // left third
@@ -472,6 +491,7 @@ bool map_txt_gui()
         select_output_elevation(
             selection[middle_column],
             session.left,
+            session.left_labels[selection[left_column]],
             qmap::MapSide::left,
             selection[left_column]
         );
@@ -479,14 +499,18 @@ bool map_txt_gui()
 
     // middle third - output listbox
     // this uses listbox internals so I can clear an entry on double-click
-    const char* output_labels[] = {label_M[0], label_M[1], label_M[2]};
+    const char* output_labels[] = {
+        session.output_labels[0].c_str(),
+        session.output_labels[1].c_str(),
+        session.output_labels[2].c_str(),
+    };
     ImGui::SetCursorPos(ImVec2{posB.x+size.x+20   + 40, posB.y});
     if (ImGui::BeginListBox("##M", {size.x,ImGui::GetItemRectSize().y}))
     {
         for (int n = 0; n < IM_COUNTOF(output_labels); n++)
         {
             const bool item_selected = (n == selection[middle_column]);
-            if (ImGui::Selectable(label_M[n], item_selected))
+            if (ImGui::Selectable(output_labels[n], item_selected))
                 selection[middle_column] = n;
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
@@ -501,6 +525,7 @@ bool map_txt_gui()
         select_output_elevation(
             selection[middle_column],
             session.right,
+            session.right_labels[selection[right_column]],
             qmap::MapSide::right,
             selection[right_column]
         );
