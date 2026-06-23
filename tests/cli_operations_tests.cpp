@@ -369,3 +369,21 @@ TEST_CASE("format_replace_elevation_plan bounds id mapping previews", "[cli][pat
     CHECK(formatted.find("  object_id_mapping: old=11 new=110\n") == std::string::npos);
     CHECK(formatted.find("  object_id_mapping_omitted: 2\n") != std::string::npos);
 }
+
+TEST_CASE("format_replace_elevation_plan echoes force in the reproducible command", "[cli][patch]")
+{
+    qmap::cli::ReplaceElevationOptions options;
+    options.source = "source.map";
+    options.destination = "destination.map";
+    options.output = "output.map";
+    options.proto_root = ".local_fallout2_data/proto";
+    options.source_elevation = 0;
+    options.destination_elevation = 2;
+    options.dry_run = true;
+    options.force = true;
+
+    qmap::BinaryReplaceElevationPlan plan;
+    const auto formatted = qmap::cli::format_replace_elevation_plan(options, plan);
+
+    CHECK(formatted.find("replace-elevation source.map destination.map output.map --source-elevation 0 --dest-elevation 2 --proto-root .local_fallout2_data/proto --dry-run --force\n") != std::string::npos);
+}

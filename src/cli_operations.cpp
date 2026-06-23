@@ -365,7 +365,11 @@ std::string format_replace_elevation_plan(
            << " --source-elevation " << options.source_elevation
            << " --dest-elevation " << options.destination_elevation
            << " --proto-root " << options.proto_root.string()
-           << " --dry-run\n";
+           << " --dry-run";
+    if (options.force) {
+        output << " --force";
+    }
+    output << '\n';
     return output.str();
 }
 
