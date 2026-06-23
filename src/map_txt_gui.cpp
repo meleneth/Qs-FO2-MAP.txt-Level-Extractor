@@ -8,7 +8,6 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdio>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -117,10 +116,9 @@ char head_R[NAME_LENGTH] = {"empty##3"};
 void reset_output_labels()
 {
     output_selection = {};
-    memset(label_M, 0, sizeof(label_M));
-    strncpy(label_M[0], "empty", sizeof("empty"));
-    strncpy(label_M[1], "##1", sizeof("##1"));
-    strncpy(label_M[2], "##2", sizeof("##2"));
+    snprintf(label_M[0], NAME_LENGTH, "empty");
+    snprintf(label_M[1], NAME_LENGTH, "##1");
+    snprintf(label_M[2], NAME_LENGTH, "##2");
 }
 
 const char* map_type_name(qmap::MapFileKind map_type)
@@ -436,13 +434,13 @@ bool map_txt_gui()
             snprintf(path_buff, path_size, "%s.Q.txt", map_L.file_str);
             header = 0;
         } else {
-            strncpy(head_M,"HeaderL##",sizeof("HeaderL##"));
+            snprintf(head_M, NAME_LENGTH, "HeaderL##");
         }
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x   + 60, posA.y});
     if (ImGui::Button(head_M, ImVec2{size.x,0})) {
         header = -1;
-        strncpy(head_M,"empty",sizeof("empty"));
+        snprintf(head_M, NAME_LENGTH, "empty");
     }
     ImGui::SetCursorPos(ImVec2{posA.x+size.x*2 + 120, posA.y});
     if (ImGui::Button(head_R, ImVec2{size.x,0})) {
@@ -451,7 +449,7 @@ bool map_txt_gui()
             snprintf(path_buff, path_size, "%s.Q.txt", map_R.file_str);
             header = 1;
         } else {
-            strncpy(head_M,"HeaderR##",sizeof("HeaderR##"));
+            snprintf(head_M, NAME_LENGTH, "HeaderR##");
         }
     }
 
