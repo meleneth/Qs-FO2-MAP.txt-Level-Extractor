@@ -226,7 +226,7 @@ std::string format_binary_map_stats(
             } else if (*type == BinaryObjectType::critter) {
                 auto tail = parse_binary_critter_tail(bytes, first_record->tail);
                 if (tail) {
-                    output << "    critter_team: " << tail.value().team << '\n';
+                    output << "    critter_group_id: " << tail.value().group_id << '\n';
                     output << "    critter_hit_points: " << tail.value().hit_points << '\n';
                 }
             } else if (*type == BinaryObjectType::misc) {

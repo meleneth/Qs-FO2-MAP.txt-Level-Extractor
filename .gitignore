@@ -41,3 +41,6 @@ examples/example_sdl3_vulkan/example_sdl3_vulkan
 
 ## Vendored/submodule dependency working trees
 dependencies/*
+
+## Local Fallout 2 asset extraction
+.local_fallout2_data/

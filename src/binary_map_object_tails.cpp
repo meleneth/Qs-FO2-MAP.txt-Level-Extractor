@@ -8,8 +8,7 @@
 namespace qmap {
 namespace {
 
-constexpr std::size_t critter_tail_words = 11;
-constexpr std::size_t scenery_tail_words = 3;
+constexpr std::size_t critter_tail_words = 10;
 constexpr int pid_type_shift = 24;
 constexpr std::uint32_t pid_type_mask = 0xFFu;
 
@@ -45,9 +44,8 @@ std::size_t modeled_binary_object_tail_size(BinaryObjectType type)
     switch (type) {
     case BinaryObjectType::critter:
         return critter_tail_words * sizeof(std::int32_t);
-    case BinaryObjectType::scenery:
-        return scenery_tail_words * sizeof(std::int32_t);
     case BinaryObjectType::item:
+    case BinaryObjectType::scenery:
     case BinaryObjectType::wall:
     case BinaryObjectType::tile:
     case BinaryObjectType::interface_object:
@@ -94,46 +92,41 @@ Result<BinaryCritterTail> parse_binary_critter_tail(std::span<const std::byte> b
 
     ByteReader reader(bytes.subspan(tail.offset, tail.size));
     BinaryCritterTail parsed;
-    auto flags = read_i32(reader);
-    if (!flags) {
-        return Result<BinaryCritterTail>::fail(flags.error());
+    auto reaction = read_i32(reader);
+    if (!reaction) {
+        return Result<BinaryCritterTail>::fail(reaction.error());
     }
-    parsed.flags = flags.value();
+    parsed.reaction = reaction.value();
+    auto current_mp = read_i32(reader);
+    if (!current_mp) {
+        return Result<BinaryCritterTail>::fail(current_mp.error());
+    }
+    parsed.current_mp = current_mp.value();
+    auto combat_results = read_i32(reader);
+    if (!combat_results) {
+        return Result<BinaryCritterTail>::fail(combat_results.error());
+    }
+    parsed.combat_results = combat_results.value();
     auto damage_last_turn = read_i32(reader);
     if (!damage_last_turn) {
         return Result<BinaryCritterTail>::fail(damage_last_turn.error());
     }
     parsed.damage_last_turn = damage_last_turn.value();
-    auto combat_flags = read_i32(reader);
-    if (!combat_flags) {
-        return Result<BinaryCritterTail>::fail(combat_flags.error());
-    }
-    parsed.combat_flags = combat_flags.value();
-    auto action_points = read_i32(reader);
-    if (!action_points) {
-        return Result<BinaryCritterTail>::fail(action_points.error());
-    }
-    parsed.action_points = action_points.value();
-    auto combat_result = read_i32(reader);
-    if (!combat_result) {
-        return Result<BinaryCritterTail>::fail(combat_result.error());
-    }
-    parsed.combat_result = combat_result.value();
     auto ai_packet = read_i32(reader);
     if (!ai_packet) {
         return Result<BinaryCritterTail>::fail(ai_packet.error());
     }
     parsed.ai_packet = ai_packet.value();
-    auto team = read_i32(reader);
-    if (!team) {
-        return Result<BinaryCritterTail>::fail(team.error());
+    auto group_id = read_i32(reader);
+    if (!group_id) {
+        return Result<BinaryCritterTail>::fail(group_id.error());
     }
-    parsed.team = team.value();
-    auto last_hit_cid = read_i32(reader);
-    if (!last_hit_cid) {
-        return Result<BinaryCritterTail>::fail(last_hit_cid.error());
+    parsed.group_id = group_id.value();
+    auto who_hit_me = read_i32(reader);
+    if (!who_hit_me) {
+        return Result<BinaryCritterTail>::fail(who_hit_me.error());
     }
-    parsed.last_hit_cid = last_hit_cid.value();
+    parsed.who_hit_me = who_hit_me.value();
     auto hit_points = read_i32(reader);
     if (!hit_points) {
         return Result<BinaryCritterTail>::fail(hit_points.error());

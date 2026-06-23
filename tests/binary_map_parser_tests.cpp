@@ -254,11 +254,12 @@ std::vector<std::byte> example_map_with_object_records()
     auto bytes = example_map_with_scripts();
     append_i32(bytes, 2);
     append_i32(bytes, 1);
-    append_object_prefix(bytes, 100, 0, 0x02000001, 50331649);
-    append_i32_repeated(bytes, 3, 9000);
+    append_object_prefix(bytes, 100, 0, 0x0500000E, 50331649);
+    append_i32_repeated(bytes, 4, 9000);
+    append_i32(bytes, 0);
     append_i32(bytes, 1);
     append_object_prefix(bytes, 200, 2, 0x01000002, 67108865);
-    append_i32_repeated(bytes, 11, 9100);
+    append_i32_repeated(bytes, 10, 9100);
     return bytes;
 }
 
@@ -267,10 +268,10 @@ std::vector<std::byte> example_map_with_inventory_object()
     auto bytes = example_map_with_scripts();
     append_i32(bytes, 1);
     append_i32(bytes, 1);
-    append_object_prefix(bytes, 100, 0, 0x02000001, 50331649, 1, 4);
-    append_i32_repeated(bytes, 3, 9000);
+    append_object_prefix(bytes, 100, 0, 0x03000001, 50331649, 1, 4);
     append_i32(bytes, 3);
     append_object_prefix(bytes, 101, -1, 0x00000002, -1, 0, 0, -1);
+    append_i32(bytes, 0);
     append_i32(bytes, 0);
     return bytes;
 }
@@ -708,8 +709,8 @@ TEST_CASE("binary_object_type_from_pid rejects unknown object type bytes", "[map
 TEST_CASE("modeled_binary_object_tail_size reports current fixed object tails", "[map][binary]")
 {
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::item) == 0);
-    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::critter) == 44);
-    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::scenery) == 12);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::critter) == 40);
+    CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::scenery) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::wall) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::tile) == 0);
     CHECK(qmap::modeled_binary_object_tail_size(qmap::BinaryObjectType::misc) == 0);
@@ -790,7 +791,7 @@ TEST_CASE("parse_binary_map_object_records rejects excessive elevation counts be
     const auto parsed = qmap::parse_binary_map_object_records(bytes, 0, header);
 
     REQUIRE_FALSE(parsed);
-    CHECK(parsed.error().message == "object count mismatch");
+    CHECK(parsed.error().message == "absent elevation has object records");
 }
 
 TEST_CASE("parse_binary_map_object_records rejects excessive first count before reading more counts", "[map][binary]")
@@ -817,14 +818,14 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
 
     REQUIRE(parsed);
     REQUIRE(parsed.value().records.size() == 2);
-    CHECK(parsed.value().records[0].prefix.pid == 0x02000001);
-    CHECK(parsed.value().records[0].object_type == qmap::BinaryObjectType::scenery);
-    CHECK(parsed.value().records[0].tail.size == 3 * sizeof(std::int32_t));
-    CHECK(parsed.value().records[0].raw.size == 25 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].prefix.pid == 0x0500000E);
+    CHECK(parsed.value().records[0].object_type == qmap::BinaryObjectType::misc);
+    CHECK(parsed.value().records[0].tail.size == 4 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].raw.size == 26 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].prefix.pid == 0x01000002);
     CHECK(parsed.value().records[1].object_type == qmap::BinaryObjectType::critter);
-    CHECK(parsed.value().records[1].tail.size == 11 * sizeof(std::int32_t));
-    CHECK(parsed.value().records[1].raw.size == 33 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].tail.size == 10 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].raw.size == 32 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
@@ -846,10 +847,10 @@ TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[
     REQUIRE(parsed.value().records.size() == 2);
     CHECK(parsed.value().records[0].prefix.obj_id == 100);
     CHECK(parsed.value().records[0].prefix.elevation == 0);
-    CHECK(parsed.value().records[0].tail.size == 3 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[0].tail.size == 4 * sizeof(std::int32_t));
     CHECK(parsed.value().records[1].prefix.obj_id == 200);
     CHECK(parsed.value().records[1].prefix.elevation == 2);
-    CHECK(parsed.value().records[1].tail.size == 11 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].tail.size == 10 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
@@ -877,7 +878,7 @@ TEST_CASE("parse_binary_map_object_records parses inventory object records", "[m
     CHECK(parent.inventory[0].prefix.tile == -1);
     CHECK(parent.inventory[0].prefix.pid == 0x00000002);
     CHECK(parent.inventory[0].tail.empty());
-    CHECK(parent.raw.end() == bytes.size() - sizeof(std::int32_t));
+    CHECK(parent.raw.end() == bytes.size() - 2 * sizeof(std::int32_t));
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
@@ -890,8 +891,7 @@ TEST_CASE("parse_binary_map_object_records rejects negative inventory counts", "
     REQUIRE(scripts);
     append_i32(bytes, 1);
     append_i32(bytes, 1);
-    append_object_prefix(bytes, 100, 0, 0x02000001, 50331649, -1);
-    append_i32_repeated(bytes, 3, 9000);
+    append_object_prefix(bytes, 100, 0, 0x03000001, 50331649, -1);
 
     const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
 
@@ -901,15 +901,10 @@ TEST_CASE("parse_binary_map_object_records rejects negative inventory counts", "
 
 TEST_CASE("parse_binary_scenery_tail decodes preserved scenery tail fields", "[map][binary]")
 {
-    const auto bytes = example_map_with_object_records();
-    auto header = qmap::parse_binary_map_header(bytes);
-    REQUIRE(header);
-    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
-    REQUIRE(scripts);
-    auto objects = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
-    REQUIRE(objects);
+    std::vector<std::byte> bytes;
+    append_i32_repeated(bytes, 3, 9000);
 
-    const auto parsed = qmap::parse_binary_scenery_tail(bytes, objects.value().records[0].tail);
+    const auto parsed = qmap::parse_binary_scenery_tail(bytes, qmap::Range{0, bytes.size()});
 
     REQUIRE(parsed);
     CHECK(parsed.value().flags == 9000);
@@ -930,10 +925,10 @@ TEST_CASE("parse_binary_critter_tail decodes preserved critter tail fields", "[m
     const auto parsed = qmap::parse_binary_critter_tail(bytes, objects.value().records[1].tail);
 
     REQUIRE(parsed);
-    CHECK(parsed.value().flags == 9100);
-    CHECK(parsed.value().damage_last_turn == 9101);
-    CHECK(parsed.value().team == 9106);
-    CHECK(parsed.value().poison == 9110);
+    CHECK(parsed.value().reaction == 9100);
+    CHECK(parsed.value().damage_last_turn == 9103);
+    CHECK(parsed.value().group_id == 9105);
+    CHECK(parsed.value().poison == 9109);
 }
 
 TEST_CASE("parse_binary_misc_tail decodes preserved misc tail fields", "[map][binary]")
@@ -946,6 +941,8 @@ TEST_CASE("parse_binary_misc_tail decodes preserved misc tail fields", "[map][bi
     append_i32(bytes, 1);
     append_i32(bytes, 1);
     append_object_prefix(bytes, 300, 0, 0x05000001, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
     append_i32(bytes, 0);
     auto objects = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
     REQUIRE(objects);

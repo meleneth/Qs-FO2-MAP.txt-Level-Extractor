@@ -10,6 +10,8 @@ Do not treat rough code as sacred. Keep the useful behavior, fixtures, and hard-
 
 This is a C++17 desktop utility for extracting and merging Fallout 2 map elevations. The practical workflow today is loading mapper-exported `map_name.txt` files, selecting source elevations, choosing an output header, and exporting a new `.Q.txt` map dump. Binary `.map` parsing exists and has tests, but binary export is unfinished.
 
+Binary `.map` object parsing increasingly depends on Fallout prototype metadata. A `.map` object PID identifies the broad object kind and prototype index, but many variable object tails depend on the prototype subtype from `proto/<kind>/*.pro` and the corresponding `*.lst` files. Prefer prototype-backed subtype resolution over heuristic tail scanning.
+
 The long-term direction should be a tool with a real parser/model/export pipeline, not a GUI that manipulates raw text by accident.
 
 ## Current Shape
@@ -21,6 +23,8 @@ The long-term direction should be a tool with a real parser/model/export pipelin
 - `src/map_structs.h`: shared raw structs and loose data contract. Many fields are borrowed pointers into loaded buffers.
 - `tests/parser_tests.cpp`: current regression suite over real `.map` and `.txt` fixtures.
 - `test_maps/`: important fixtures. Treat changes here as deliberate test-data changes.
+- `scripts/extract_fallout2_protos.py`: local helper for extracting only `proto/**/*.pro` and `proto/**/*.lst` from a Fallout 2 install's DAT archives.
+- `.local_fallout2_data/`: ignored local output for extracted Fallout prototype files. It contains game assets and must not be committed.
 
 ## Engineering Direction
 
@@ -61,17 +65,22 @@ The presets assume MSYS2 UCRT64 tools at `C:/msys64/ucrt64/bin`. `CMakeLists.txt
 - Reduce global GUI state. Session state should become a struct or controller object that can be tested without ImGui.
 - Make script id collision handling complete and covered by fixtures.
 - Make binary `.map` object parsing cursor-based and bounds-checked before attempting serious binary export.
+- Resolve binary `.map` object tail sizes from prototype subtype data where possible; do not reintroduce forward scanning for plausible next objects.
 - Replace magic numbers with named constants where the domain meaning is known.
 - Prefer tests that lock down behavior before and after risky refactors.
 
 ## Design Invariants
 
 - Fallout binary `.map` fields are big-endian. Do not reinterpret packed structs directly.
+- Fallout 2 DAT2 archive metadata is little-endian and compressed entries are zlib streams. Keep DAT parsing separate from `.map` parsing.
+- Fallout `.pro` prototype fields are game-format binary data; parse them with explicit endian reads and fixtures before trusting subtype offsets.
+- PID high bytes identify broad object kind, not necessarily enough information for subtype-specific `.map` object tails.
 - `.txt` elevation markers may use CRLF or LF. Keep both working.
 - Script type ids are encoded in the high byte of `scr_id`/PID-like values. Use the `script_type` enum constants.
 - Object scripts are associated through `obj_sid` matching `scr_id`.
 - Spatial scripts encode elevation in `built_tile`; output elevation rewrites must keep this consistent.
 - `test_maps/` fixtures are part of parser correctness. Update expected values when fixture changes are intentional.
+- Extracted Fallout assets under `.local_fallout2_data/` are local reference data only. Never commit them.
 - `.map` export is not complete until it is implemented and tested end to end.
 
 ## Coding Standards

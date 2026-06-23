@@ -24,6 +24,16 @@ public:
         return bytes_.size() - offset_;
     }
 
+    Result<void> seek(std::size_t offset)
+    {
+        if (offset > bytes_.size()) {
+            return Result<void>::fail({"seek past end of input", offset_});
+        }
+
+        offset_ = offset;
+        return Result<void>::ok();
+    }
+
     bool can_read(std::size_t byte_count) const
     {
         return byte_count <= remaining();

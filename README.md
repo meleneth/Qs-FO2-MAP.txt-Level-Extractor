@@ -25,3 +25,28 @@ Use is simple, drag and drop only.
 
 The Export will automatically add a "Q.txt" to the filename so files aren't over-written.
 <br>You should be able to rename this however you want, but be careful not to over-write an old map until you know the new one works.
+
+## Binary `.map` prototype data
+
+Binary `.map` parsing is under active development. Some object records cannot be
+decoded correctly from the `.map` file alone because the object PID only gives
+the broad object kind and prototype index. The exact item/scenery/misc subtype
+comes from Fallout 2 prototype files under `proto/`, and that subtype determines
+some variable object tail layouts.
+
+If Fallout 2 is installed through Steam in the default location, extract the
+needed prototype metadata with:
+
+```powershell
+python scripts\extract_fallout2_protos.py --overwrite
+```
+
+For a custom install path:
+
+```powershell
+python scripts\extract_fallout2_protos.py --fallout2-root "C:\Path\To\Fallout 2" --overwrite
+```
+
+This writes only `proto/**/*.pro` and `proto/**/*.lst` files to
+`.local_fallout2_data/`. That directory contains local game assets and is
+ignored by git; do not commit it.

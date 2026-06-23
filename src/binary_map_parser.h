@@ -166,14 +166,13 @@ struct BinarySceneryTail {
 };
 
 struct BinaryCritterTail {
-    std::int32_t flags = 0;
+    std::int32_t reaction = 0;
+    std::int32_t current_mp = 0;
+    std::int32_t combat_results = 0;
     std::int32_t damage_last_turn = 0;
-    std::int32_t combat_flags = 0;
-    std::int32_t action_points = 0;
-    std::int32_t combat_result = 0;
     std::int32_t ai_packet = 0;
-    std::int32_t team = 0;
-    std::int32_t last_hit_cid = 0;
+    std::int32_t group_id = 0;
+    std::int32_t who_hit_me = 0;
     std::int32_t hit_points = 0;
     std::int32_t radiation = 0;
     std::int32_t poison = 0;

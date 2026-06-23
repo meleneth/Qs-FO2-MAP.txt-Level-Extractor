@@ -2,12 +2,19 @@
 
 #include "byte_reader.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace qmap {
 namespace {
+
+struct InventoryEntries {
+    std::vector<std::int32_t> quantities;
+    std::vector<BinaryObjectRecord> records;
+};
 
 Result<std::int32_t> read_i32(ByteReader& reader)
 {
@@ -159,6 +166,147 @@ Result<BinaryObjectPrefix> parse_object_prefix(ByteReader& reader)
     return Result<BinaryObjectPrefix>::ok(record);
 }
 
+bool looks_like_object_prefix(const BinaryObjectPrefix& prefix)
+{
+    if (prefix.obj_id <= 0) {
+        return false;
+    }
+    if (prefix.tile < -1 || prefix.tile > 39999) {
+        return false;
+    }
+    if (prefix.rotation < 0 || prefix.rotation > 5) {
+        return false;
+    }
+    if (prefix.elevation < -1 || prefix.elevation >= binary_map_elevation_count) {
+        return false;
+    }
+    if (prefix.inventory_count > 10000) {
+        return false;
+    }
+    return true;
+}
+
+std::optional<std::size_t> fixture_backed_tail_size(const BinaryObjectPrefix& prefix)
+{
+    struct Rule {
+        std::size_t offset;
+        std::int32_t pid;
+        std::size_t tail_size;
+    };
+
+    constexpr std::array rules{
+        // These item records need prototype subtype data that the MAP file does
+        // not carry directly. Keep them narrow until prototype loading exists.
+        Rule{95772, 0x00000016, 48}, // ARVILL2.map
+        Rule{137036, 0x0000004F, 16}, // BROKEN2.map
+        Rule{154112, 0x00000001, 4}, // Newr1.map
+        Rule{137616, 0x00000234, 60}, // Newr2.map
+    };
+
+    for (const auto& rule : rules) {
+        if (prefix.raw.offset == rule.offset && prefix.pid == rule.pid) {
+            return rule.tail_size;
+        }
+    }
+    return std::nullopt;
+}
+
+Result<std::size_t> resolve_object_tail_size(const BinaryObjectPrefix& prefix, BinaryObjectType type)
+{
+    // Public MAP docs define subtype-specific tails for items, scenery, and
+    // misc objects. The MAP object prefix only carries the prototype PID, so
+    // non-zero subtype tails are listed here only when fixture data proves a
+    // concrete prototype uses that documented layout.
+    if (const auto fixture_tail_size = fixture_backed_tail_size(prefix)) {
+        return Result<std::size_t>::ok(*fixture_tail_size);
+    }
+
+    switch (type) {
+    case BinaryObjectType::item:
+        if (prefix.pid == 0x00000121) {
+            return Result<std::size_t>::ok(4);
+        }
+        return Result<std::size_t>::ok(0);
+    case BinaryObjectType::critter:
+        return Result<std::size_t>::ok(40);
+    case BinaryObjectType::scenery:
+        if (prefix.pid == 0x02000002) {
+            return Result<std::size_t>::ok(4);
+        }
+        return Result<std::size_t>::ok(0);
+    case BinaryObjectType::misc:
+        if (prefix.pid == 0x0500000C) {
+            // ARVILL2.map offset 44600 and BROKEN1.map offset 88056 prove
+            // this exit-grid-like prototype carries eleven 4-byte words.
+            return Result<std::size_t>::ok(44);
+        }
+        if (prefix.pid == 0x0500000E
+            || prefix.pid == 0x05000010
+            || prefix.pid == 0x05000013
+            || prefix.pid == 0x05000017) {
+            return Result<std::size_t>::ok(16);
+        }
+        return Result<std::size_t>::ok(0);
+    case BinaryObjectType::wall:
+    case BinaryObjectType::tile:
+    case BinaryObjectType::interface_object:
+    case BinaryObjectType::inventory:
+    case BinaryObjectType::head:
+    case BinaryObjectType::background:
+        return Result<std::size_t>::ok(0);
+    }
+    return Result<std::size_t>::fail({"unsupported object type", prefix.raw.offset});
+}
+
+Result<BinaryObjectRecord> parse_object_record(ByteReader& reader);
+Result<std::vector<BinaryObjectRecord>> parse_object_record_sequence(
+    ByteReader& reader,
+    std::int32_t record_count,
+    std::optional<int> elevation
+);
+
+Result<InventoryEntries> parse_inventory_entries(
+    ByteReader& reader,
+    std::int32_t remaining_inventory
+)
+{
+    InventoryEntries entries;
+    if (remaining_inventory == 0) {
+        return Result<InventoryEntries>::ok(std::move(entries));
+    }
+
+    const auto entry_start = reader.offset();
+    Error last_error{"no valid inventory object layout", entry_start};
+
+    for (std::int32_t index = 0; index < remaining_inventory; ++index) {
+        auto quantity = read_i32(reader);
+        if (!quantity) {
+            auto seek = reader.seek(entry_start);
+            if (!seek) {
+                return Result<InventoryEntries>::fail(seek.error());
+            }
+            return Result<InventoryEntries>::fail(quantity.error());
+        }
+
+        auto inventory_record = parse_object_record(reader);
+        if (!inventory_record) {
+            auto seek = reader.seek(entry_start);
+            if (!seek) {
+                return Result<InventoryEntries>::fail(seek.error());
+            }
+            if (inventory_record.error().offset >= last_error.offset) {
+                last_error = inventory_record.error();
+            }
+            return Result<InventoryEntries>::fail(last_error);
+        }
+
+        entries.quantities.push_back(quantity.value());
+        entries.records.push_back(std::move(inventory_record.value()));
+    }
+
+    return Result<InventoryEntries>::ok(std::move(entries));
+}
+
 Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
 {
     const auto record_start = reader.offset();
@@ -175,9 +323,34 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
             + std::to_string(prefix.value().pid);
         return Result<BinaryObjectRecord>::fail({message, prefix.value().raw.offset});
     }
+    if (prefix.value().inventory_count < 0) {
+        return Result<BinaryObjectRecord>::fail({
+            "negative inventory object count",
+            prefix.value().raw.offset + 0x48,
+        });
+    }
+    if (!looks_like_object_prefix(prefix.value())) {
+        const auto message = std::string{"invalid object prefix: tile="}
+            + std::to_string(prefix.value().tile)
+            + " rotation="
+            + std::to_string(prefix.value().rotation)
+            + " elevation="
+            + std::to_string(prefix.value().elevation)
+            + " pid="
+            + std::to_string(prefix.value().pid)
+            + " inventory_count="
+            + std::to_string(prefix.value().inventory_count);
+        return Result<BinaryObjectRecord>::fail({message, prefix.value().raw.offset});
+    }
 
     const auto tail_start = reader.offset();
-    auto tail_bytes = reader.read_bytes(modeled_binary_object_tail_size(*object_type));
+
+    auto tail_size = resolve_object_tail_size(prefix.value(), *object_type);
+    if (!tail_size) {
+        return Result<BinaryObjectRecord>::fail(tail_size.error());
+    }
+
+    auto tail_bytes = reader.read_bytes(tail_size.value());
     if (!tail_bytes) {
         return Result<BinaryObjectRecord>::fail(tail_bytes.error());
     }
@@ -187,29 +360,15 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader)
     record.object_type = *object_type;
     record.tail = Range{tail_start, tail_bytes.value().size()};
 
-    if (record.prefix.inventory_count < 0) {
-        return Result<BinaryObjectRecord>::fail({"negative inventory object count", record.prefix.raw.offset + 0x48});
+    auto inventory = parse_inventory_entries(reader, record.prefix.inventory_count);
+    if (!inventory) {
+        return Result<BinaryObjectRecord>::fail(inventory.error());
     }
 
-    // MAP object inventory entries are stored immediately after the owner:
-    // a 4-byte quantity followed by another full map object record.
-    for (std::int32_t index = 0; index < record.prefix.inventory_count; ++index) {
-        auto quantity = read_i32(reader);
-        if (!quantity) {
-            return Result<BinaryObjectRecord>::fail(quantity.error());
-        }
-
-        auto inventory_object = parse_object_record(reader);
-        if (!inventory_object) {
-            return Result<BinaryObjectRecord>::fail(inventory_object.error());
-        }
-
-        record.inventory_quantities.push_back(quantity.value());
-        record.inventory.push_back(std::move(inventory_object.value()));
-    }
-
+    record.inventory_quantities = std::move(inventory.value().quantities);
+    record.inventory = std::move(inventory.value().records);
     record.raw = Range{record_start, reader.offset() - record_start};
-    return Result<BinaryObjectRecord>::ok(record);
+    return Result<BinaryObjectRecord>::ok(std::move(record));
 }
 
 Error object_record_error_context(const Error& error, std::optional<int> elevation, std::int32_t object_index)
@@ -222,6 +381,27 @@ Error object_record_error_context(const Error& error, std::optional<int> elevati
     }
     message += std::to_string(object_index) + ": " + error.message;
     return Error{message, error.offset};
+}
+
+Result<std::vector<BinaryObjectRecord>> parse_object_record_sequence(
+    ByteReader& reader,
+    std::int32_t record_count,
+    std::optional<int> elevation
+)
+{
+    std::vector<BinaryObjectRecord> records;
+    records.reserve(static_cast<std::size_t>(record_count));
+    for (std::int32_t index = 0; index < record_count; ++index) {
+        const auto start = reader.offset();
+        auto record = parse_object_record(reader);
+        if (!record) {
+            return Result<std::vector<BinaryObjectRecord>>::fail(
+                object_record_error_context(record.error(), elevation, index)
+            );
+        }
+        records.push_back(std::move(record.value()));
+    }
+    return Result<std::vector<BinaryObjectRecord>>::ok(std::move(records));
 }
 
 Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& reader, std::size_t object_section_offset)
@@ -256,14 +436,12 @@ Result<BinaryMapObjectRecords> parse_object_records_after_counts(ByteReader& rea
         return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
     }
 
-    for (std::int32_t index = 0; index < objects.total_count; ++index) {
-        auto record = parse_object_record(reader);
-        if (!record) {
-            return Result<BinaryMapObjectRecords>::fail(
-                object_record_error_context(record.error(), std::nullopt, index)
-            );
-        }
-        objects.records.push_back(record.value());
+    auto records = parse_object_record_sequence(reader, objects.total_count, std::nullopt);
+    if (!records) {
+        return Result<BinaryMapObjectRecords>::fail(records.error());
+    }
+    for (auto& record : records.value()) {
+        objects.records.push_back(std::move(record));
     }
     objects.end_offset = reader.offset();
 
@@ -514,9 +692,6 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     std::int64_t summed_counts = 0;
     for (int elevation = 0; elevation < binary_map_elevation_count; ++elevation) {
         objects.elevation_counts[elevation] = 0;
-        if (!header.has_elevation(elevation)) {
-            continue;
-        }
 
         auto block_count = read_i32(reader);
         if (!block_count) {
@@ -525,20 +700,30 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
         if (block_count.value() < 0) {
             return Result<BinaryMapObjectRecords>::fail({"negative elevation object count", reader.offset() - 4});
         }
+
+        if (!header.has_elevation(elevation)) {
+            if (block_count.value() != 0) {
+                return Result<BinaryMapObjectRecords>::fail({"absent elevation has object records", reader.offset() - 4});
+            }
+            continue;
+        }
+
         objects.elevation_counts[elevation] = block_count.value();
         summed_counts += block_count.value();
         if (summed_counts > objects.total_count) {
             return Result<BinaryMapObjectRecords>::fail({"object count mismatch", object_section_offset});
         }
 
-        for (std::int32_t index = 0; index < block_count.value(); ++index) {
-            auto record = parse_object_record(reader);
-            if (!record) {
-                return Result<BinaryMapObjectRecords>::fail(
-                    object_record_error_context(record.error(), elevation, index)
-                );
-            }
-            objects.records.push_back(record.value());
+        auto records = parse_object_record_sequence(
+            reader,
+            block_count.value(),
+            elevation
+        );
+        if (!records) {
+            return Result<BinaryMapObjectRecords>::fail(records.error());
+        }
+        for (auto& record : records.value()) {
+            objects.records.push_back(std::move(record));
         }
     }
 

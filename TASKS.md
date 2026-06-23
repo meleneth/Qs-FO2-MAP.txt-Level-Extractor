@@ -154,6 +154,32 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 - [ ] Parse the rest of the Fallout `.map` file format. Partial: header, variables, tiles, scripts, object prefixes, inventories, and several object tails are modeled; complete object variants remain.
   - [x] Use published Fallout/Fallout 2 MAP format references to identify sections and record layouts that are not implemented yet.
   - [x] Cite the references used for format decisions in comments or docs near the relevant parser code.
+  - [ ] Add prototype metadata support for PID subtype resolution.
+    - [x] Add a local helper script to extract only `proto/**/*.pro` and `proto/**/*.lst` from a Fallout 2 install into `.local_fallout2_data/`.
+    - [x] Keep extracted Fallout game assets ignored and out of git.
+    - [ ] Parse `proto/items/items.lst`, `proto/scenery/scenery.lst`, `proto/misc/misc.lst`, and other kind lists into PID-index-to-file mappings.
+    - [ ] Parse just enough `.pro` data to determine item/scenery/misc subtype values needed for `.map` object tail layouts.
+    - [ ] Add a `PrototypeDatabase` or similar plain model that can be loaded from an extracted proto root without GUI dependencies.
+    - [ ] Thread optional prototype metadata into binary object parsing so tail resolution is deterministic and subtype-backed.
+    - [ ] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
+    - [ ] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
+    - [ ] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.
+    - [ ] Stretch: add C++ DAT2 reading/extraction to the app or CLI so users do not need a separate extraction step.
+    - [ ] Stretch: support loose `data/proto` overrides on top of DAT-extracted prototype data.
+  - [ ] Reconcile object tail sizes against the published MAP format references and fixture evidence before adding more subtype rules.
+    - [x] Correct normal MAP critter tails to the documented/observed 40-byte layout; remove or quarantine the older 44-byte/11-word assumption unless a specific fixture proves it.
+    - [ ] Re-check item, scenery, exit-grid, misc, and other PID-kind tails against `falloutmods.fandom.com/wiki/MAP_File_Format` and `fodev.net/files/fo2/map.html`.
+    - [ ] Keep any compatibility parsing for variant tails explicitly documented with fixture names, byte offsets, and why the public reference or current prototype support is insufficient.
+      - [x] Document fixture-backed misc PID rules for `0x0500000C`, `0x05000010`, `0x05000013`, and `0x05000017` without reintroducing prefix scanning.
+      - [x] Isolate item subtype tail exceptions as offset-specific fixture overrides when PID alone is proven too broad.
+      - [ ] Remove offset-specific fixture overrides once prototype subtype resolution covers those records.
+  - [ ] Reconcile inventory parsing with the documented count-prefixed inventory object format.
+    - [ ] Prefer bounded parent inventory parsing over global backtracking across parent record boundaries.
+    - [x] Treat "direct child object" layouts as suspect until a fixture proves there is no preceding quantity/count word.
+    - [ ] Add fixture-backed tests for `BROKEN1.map` style nested inventory alignment once the tail sizes are corrected.
+  - [x] Consume serialized zero object-count slots for absent elevations after present object blocks.
+  - [x] Remove forward-scanning tail candidate selection; object tails now resolve through fixed kind sizes plus explicit fixture-backed PID subtype rules.
+  - [ ] Add more documented PID subtype rules so `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` can progress without heuristic scanning. Partial: misc PIDs `0x0500000C`, `0x05000010`, `0x05000013`, and `0x05000017`; offset-specific item exceptions where PID alone is proven too broad. Prefer prototype-backed rules for new work.
   - [x] Capture map variables and local variables as modeled data.
   - [x] Parse tile/elevation blocks into explicit structures.
   - [x] Parse scripts, script padding, and script footers completely.
