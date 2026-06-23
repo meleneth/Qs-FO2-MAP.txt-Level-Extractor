@@ -6,6 +6,7 @@
 #include "binary_map_patch_planner.h"
 #include "text_map_export.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <string>
