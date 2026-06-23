@@ -129,13 +129,13 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Critter scripts.
   - [x] Keep `obj_sid` and `scr_id` paired after rewrites.
 
-- [ ] Add inline Catch2 tests for:
+- [x] Add inline Catch2 tests for:
   - [x] object script copied only when owning object is copied.
   - [x] critter script copied only when owning critter is copied.
   - [x] spatial script copied by spatial elevation.
   - [x] duplicate spatial script ids are reassigned.
   - [x] duplicate object/critter ids are reassigned with matching `obj_sid`.
-  - [ ] longer replacement IDs serialize correctly. Note: supported copied script IDs keep type in the high byte; add this only with a valid fixture that can actually grow in decimal width.
+  - [x] longer replacement IDs serialize correctly. Not applicable to current copied script types: supported spatial, object, and critter script IDs all stay in eight decimal digits while reassigned within their high-byte type range.
 
 ## Phase 5: Fix Binary `.map` Parsing
 
@@ -186,9 +186,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Add a "file parsed" indicator when loading/parsing succeeds.
   - [x] Surface parser diagnostics separately from hard errors.
 
-- [x] Convert `export_map_map()` into one of:
-  - [ ] a tested real exporter, or
-  - [x] a removed/deleted placeholder with a tracked task.
+- [x] Remove the deleted `export_map_map()` placeholder and track real binary export separately.
 
 ## Phase 7: Add Command Line Operations
 
