@@ -268,7 +268,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 ## Phase 10: Retire Legacy Structures
 
-- [ ] Replace `map_lvls` with separate concepts. Partial: parsed text/binary concepts exist; GUI still uses `map_lvls`.
+- [x] Replace `map_lvls` with separate concepts.
   - [x] Loaded file ownership.
   - [x] Parsed text map.
   - [x] Parsed binary map.

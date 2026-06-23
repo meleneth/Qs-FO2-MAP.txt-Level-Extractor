@@ -1,11 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "map_txt_parser.h"
+#include "text_map_parser.h"
 
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -72,27 +71,29 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
             auto data = load_text_fixture(expected.txt_file);
             REQUIRE(static_cast<int>(data.size()) == expected.file_size + 1);
 
-            map_lvls map;
-            parse_map_txt(std::span<uint8_t>{data.data(), static_cast<std::size_t>(expected.file_size)}, &map);
+            const auto text = std::string_view{
+                reinterpret_cast<const char*>(data.data()),
+                static_cast<std::size_t>(expected.file_size),
+            };
+            auto parsed = qmap::parse_text_map(text);
+            REQUIRE(parsed);
 
-            REQUIRE(map.scripts);
-            REQUIRE(map.objects);
-            CHECK(map.scripts->offset == static_cast<std::size_t>(expected.scripts_offset));
-            CHECK(map.objects->offset == static_cast<std::size_t>(expected.objects_offset));
+            CHECK(parsed.value().scripts.offset == static_cast<std::size_t>(expected.scripts_offset));
+            CHECK(parsed.value().objects.offset == static_cast<std::size_t>(expected.objects_offset));
 
             int previous_level = -1;
             for (int level = 0; level < 3; ++level) {
                 const int marker_offset = expected.square_elev_offsets[level];
                 if (marker_offset < 0) {
-                    CHECK_FALSE(map.elevations[level].has_value());
+                    CHECK_FALSE(parsed.value().elevations[level].has_value());
                     continue;
                 }
 
                 const int marker_size = level_marker_size(data, marker_offset);
-                REQUIRE(map.elevations[level]);
-                CHECK(map.elevations[level]->offset == static_cast<std::size_t>(marker_offset + marker_size));
+                REQUIRE(parsed.value().elevations[level]);
+                CHECK(parsed.value().elevations[level]->offset == static_cast<std::size_t>(marker_offset + marker_size));
                 if (previous_level < 0) {
-                    CHECK(map.header_size == marker_offset);
+                    CHECK(parsed.value().header.size == static_cast<std::size_t>(marker_offset));
                 }
 
                 int end_offset = expected.scripts_offset;
@@ -102,29 +103,9 @@ TEST_CASE("text map parser locates fixture sections and level ranges", "[txt]")
                         break;
                     }
                 }
-                CHECK(map.elevations[level]->size == static_cast<std::size_t>(end_offset - (marker_offset + marker_size)));
+                CHECK(parsed.value().elevations[level]->size == static_cast<std::size_t>(end_offset - (marker_offset + marker_size)));
                 previous_level = level;
             }
         }
     }
-}
-
-TEST_CASE("text map parser clears derived pointers before parse failure", "[txt]")
-{
-    std::vector<uint8_t> data{'h', 'e', 'a', 'd', 'e', 'r', '\n', '\0'};
-
-    map_lvls map;
-    map.header_size = 123;
-    map.elevations[0] = qmap::Range{0, 456};
-    map.scripts = qmap::Range{0, 1};
-    map.objects = qmap::Range{0, 1};
-
-    parse_map_txt(std::span<uint8_t>{data.data(), data.size() - 1}, &map);
-
-    CHECK(map.header_size == 0);
-    for (int level = 0; level < 3; ++level) {
-        CHECK_FALSE(map.elevations[level].has_value());
-    }
-    CHECK_FALSE(map.scripts.has_value());
-    CHECK_FALSE(map.objects.has_value());
 }
