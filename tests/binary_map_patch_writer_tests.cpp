@@ -914,244 +914,7 @@ TEST_CASE("patch_binary_replace_elevation_tiles rejects unbacked destination ran
     CHECK(patched.error().offset == 6);
 }
 
-TEST_CASE("write_binary_replace_elevation_patch validates planned deleted record ranges", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(4);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    plan.deleted_scripts.push_back({
-        0x01000001,
-        qmap::BinaryScriptType::spatial,
-        qmap::Range{63, 2},
-    });
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE_FALSE(written);
-    CHECK(written.error().message == "removal range is outside the byte buffer");
-    CHECK(written.error().offset == 63);
-}
-
-TEST_CASE("write_binary_replace_elevation_patch tolerates contained inventory deletion ranges", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(4);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    plan.deleted_objects.push_back({
-        10,
-        qmap::BinaryObjectType::item,
-        qmap::Range{20, 20},
-    });
-    plan.deleted_objects.push_back({
-        11,
-        qmap::BinaryObjectType::item,
-        qmap::Range{28, 4},
-    });
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE(written);
-    CHECK(written.value().size() == 44);
-}
-
-TEST_CASE("write_binary_replace_elevation_patch validates planned copied record ranges", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(4);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    qmap::BinaryPlannedScriptCopy copied_script;
-    copied_script.script_id = 0x01000001;
-    copied_script.script_type = qmap::BinaryScriptType::spatial;
-    copied_script.raw = qmap::Range{3, 2};
-    plan.copied_scripts.push_back(copied_script);
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE_FALSE(written);
-    CHECK(written.error().message == "source insertion range is outside the source byte buffer");
-    CHECK(written.error().offset == 3);
-}
-
-TEST_CASE("write_binary_replace_elevation_patch validates copied record rewrite mappings", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(64);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    qmap::BinaryPlannedObjectCopy copied_object;
-    copied_object.object_id = 10;
-    copied_object.raw = qmap::Range{20, 20};
-    copied_object.offsets.obj_id = 20;
-    plan.copied_objects.push_back(copied_object);
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE_FALSE(written);
-    CHECK(written.error().message == "missing object ID mapping for copied object 10");
-    CHECK(written.error().offset == 20);
-}
-
-TEST_CASE("write_binary_replace_elevation_patch rejects rewrite patches outside copied source ranges", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(64);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    plan.object_id_mappings.push_back({10, 100});
-    qmap::BinaryPlannedObjectCopy copied_object;
-    copied_object.object_id = 10;
-    copied_object.raw = qmap::Range{20, 8};
-    copied_object.offsets.obj_id = 40;
-    plan.copied_objects.push_back(copied_object);
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE_FALSE(written);
-    CHECK(written.error().message == "rewrite patch is outside copied source ranges");
-    CHECK(written.error().offset == 40);
-}
-
-TEST_CASE("write_binary_replace_elevation_patch rejects rewrite patches that overrun copied source ranges", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(64);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    plan.object_id_mappings.push_back({10, 100});
-    qmap::BinaryPlannedObjectCopy copied_object;
-    copied_object.object_id = 10;
-    copied_object.raw = qmap::Range{20, 4};
-    copied_object.offsets.obj_id = 22;
-    plan.copied_objects.push_back(copied_object);
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE_FALSE(written);
-    CHECK(written.error().message == "rewrite patch is outside copied source ranges");
-    CHECK(written.error().offset == 22);
-}
-
-TEST_CASE("write_binary_replace_elevation_patch tolerates contained copied inventory ranges", "[map][binary][patch]")
-{
-    const std::vector<std::byte> source_bytes(64);
-    const std::vector<std::byte> destination_bytes(64);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    plan.object_id_mappings.push_back({10, 100});
-    plan.object_id_mappings.push_back({11, 101});
-    qmap::BinaryPlannedObjectCopy parent;
-    parent.object_id = 10;
-    parent.elevation = -1;
-    parent.object_type = qmap::BinaryObjectType::item;
-    parent.raw = qmap::Range{20, 20};
-    parent.offsets.obj_id = 20;
-    plan.copied_objects.push_back(parent);
-    qmap::BinaryPlannedObjectCopy child;
-    child.object_id = 11;
-    child.elevation = -1;
-    child.object_type = qmap::BinaryObjectType::item;
-    child.raw = qmap::Range{28, 4};
-    child.offsets.obj_id = 28;
-    plan.copied_objects.push_back(child);
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-    });
-
-    REQUIRE(written);
-    REQUIRE(written.value().size() == 84);
-    CHECK(written.value()[64] == std::byte{0x00});
-    CHECK(written.value()[65] == std::byte{0x00});
-    CHECK(written.value()[66] == std::byte{0x00});
-    CHECK(written.value()[67] == std::byte{0x64});
-    CHECK(written.value()[72] == std::byte{0x00});
-    CHECK(written.value()[73] == std::byte{0x00});
-    CHECK(written.value()[74] == std::byte{0x00});
-    CHECK(written.value()[75] == std::byte{0x65});
-}
-
-TEST_CASE("write_binary_replace_elevation_patch inserts copied scripts at adjusted object section offset", "[map][binary][patch]")
-{
-    std::vector<std::byte> source_bytes(64);
-    const std::vector<std::byte> destination_bytes(96);
-    qmap::BinaryReplaceElevationPlan plan;
-    plan.source_tile_range = qmap::Range{0, 4};
-    plan.destination_tile_range = qmap::Range{0, 4};
-    plan.destination_elevation = 0;
-    plan.deleted_scripts.push_back({
-        0x03000001,
-        qmap::BinaryScriptType::object,
-        qmap::Range{20, 8},
-    });
-    plan.script_id_mappings.push_back({0x03000010, 0x03000040});
-
-    qmap::BinaryPlannedScriptCopy copied_script;
-    copied_script.script_id = 0x03000010;
-    copied_script.script_type = qmap::BinaryScriptType::object;
-    copied_script.raw = qmap::Range{10, 4};
-    copied_script.offsets.scr_id = 10;
-    plan.copied_scripts.push_back(copied_script);
-    write_i32_be(source_bytes, 10, 0x03000010);
-
-    const auto written = qmap::write_binary_replace_elevation_patch({
-        source_bytes,
-        destination_bytes,
-        plan,
-        40,
-    });
-
-    REQUIRE(written);
-    REQUIRE(written.value().size() == 92);
-    CHECK(written.value()[32] == std::byte{0x03});
-    CHECK(written.value()[33] == std::byte{0x00});
-    CHECK(written.value()[34] == std::byte{0x00});
-    CHECK(written.value()[35] == std::byte{0x40});
-}
-
-TEST_CASE("write_binary_replace_elevation_patch returns patched bytes for an empty valid plan", "[map][binary][patch]")
+TEST_CASE("write_binary_replace_elevation_patch requires parsed map models", "[map][binary][patch]")
 {
     const std::vector<std::byte> source_bytes(4);
     std::vector<std::byte> destination_bytes(64, std::byte{0xAA});
@@ -1165,14 +928,100 @@ TEST_CASE("write_binary_replace_elevation_patch returns patched bytes for an emp
         source_bytes,
         destination_bytes,
         plan,
+        44,
+    });
+
+    REQUIRE_FALSE(written);
+    CHECK(written.error().message == "binary replace-elevation writer requires parsed source and destination map models");
+    CHECK(written.error().offset == 44);
+}
+
+TEST_CASE("write_binary_replace_elevation_patch returns patched bytes for an empty model-backed plan", "[map][binary][patch]")
+{
+    const std::vector<std::byte> source_bytes(4);
+    std::vector<std::byte> destination_bytes(64, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xE);
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_tile_range = qmap::Range{0, 4};
+    plan.destination_tile_range = qmap::Range{0, 4};
+    plan.destination_elevation = 1;
+
+    qmap::BinaryMapHeader destination_header;
+    destination_header.map_flags = 0xE;
+    qmap::BinaryMapScripts source_scripts;
+    qmap::BinaryMapScripts destination_scripts;
+    qmap::BinaryMapObjectRecords source_objects;
+    qmap::BinaryMapObjectRecords destination_objects;
+
+    const auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan,
+        44,
+        {44, 48, 52, 56, 60},
+        &destination_header,
+        &source_scripts,
+        &destination_scripts,
+        &source_objects,
+        &destination_objects,
     });
 
     REQUIRE(written);
-    REQUIRE(written.value().size() == 64);
+    REQUIRE(written.value().size() == 80);
     CHECK(written.value()[40] == std::byte{0x00});
     CHECK(written.value()[41] == std::byte{0x00});
     CHECK(written.value()[42] == std::byte{0x00});
     CHECK(written.value()[43] == std::byte{0x0A});
+    CHECK(written.value()[44] == std::byte{0x00});
+    CHECK(written.value()[63] == std::byte{0x00});
+    CHECK(written.value()[64] == std::byte{0x00});
+    CHECK(written.value()[79] == std::byte{0x00});
+}
+
+TEST_CASE("write_binary_replace_elevation_patch validates copied object ranges in the model-backed path", "[map][binary][patch]")
+{
+    const std::vector<std::byte> source_bytes(4);
+    std::vector<std::byte> destination_bytes(64, std::byte{0xAA});
+    write_i32_be(destination_bytes, 40, 0xE);
+    qmap::BinaryReplaceElevationPlan plan;
+    plan.source_elevation = 0;
+    plan.destination_elevation = 1;
+    plan.source_tile_range = qmap::Range{0, 4};
+    plan.destination_tile_range = qmap::Range{0, 4};
+    plan.destination_total_objects_after = 1;
+    plan.destination_object_counts_after = {0, 1, 0};
+    plan.object_id_mappings.push_back({10, 100});
+
+    qmap::BinaryPlannedObjectCopy copied_object;
+    copied_object.object_id = 10;
+    copied_object.elevation = 0;
+    copied_object.raw = qmap::Range{3, 2};
+    copied_object.offsets.obj_id = 3;
+    plan.copied_objects.push_back(copied_object);
+
+    qmap::BinaryMapHeader destination_header;
+    destination_header.map_flags = 0xE;
+    qmap::BinaryMapScripts source_scripts;
+    qmap::BinaryMapScripts destination_scripts;
+    qmap::BinaryMapObjectRecords source_objects;
+    qmap::BinaryMapObjectRecords destination_objects;
+
+    const auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan,
+        44,
+        {44, 48, 52, 56, 60},
+        &destination_header,
+        &source_scripts,
+        &destination_scripts,
+        &source_objects,
+        &destination_objects,
+    });
+
+    REQUIRE_FALSE(written);
+    CHECK(written.error().message == "source copy range is outside the source byte buffer");
+    CHECK(written.error().offset == 3);
 }
 
 TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections parseably", "[map][binary][patch][fixture]")
