@@ -95,6 +95,33 @@ std::string_view dry_run_script_type_name(std::size_t type)
     return "unknown";
 }
 
+std::string format_text_command_failure(std::string_view message, std::optional<std::size_t> offset)
+{
+    std::ostringstream output;
+    output << "kind: map txt\n";
+    output << "status: failed\n";
+    output << "error: " << message;
+    if (offset) {
+        output << " at offset " << *offset;
+    }
+    output << '\n';
+    return output.str();
+}
+
+bool write_text_output_or_report(
+    const std::filesystem::path& path,
+    std::string_view content,
+    bool force
+)
+{
+    auto written = write_text_output_file(path, content, force);
+    if (!written) {
+        std::cout << format_text_command_failure(written.error().message, written.error().offset);
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 int parse_stats(const std::filesystem::path& input)
@@ -279,8 +306,7 @@ int extract_elevation(const ExtractOptions& options)
         throw std::runtime_error(exported.error().message);
     }
 
-    write_output_file(options.output, exported.value(), options.force);
-    return 0;
+    return write_text_output_or_report(options.output, exported.value(), options.force) ? 0 : 2;
 }
 
 int split_elevations(const SplitOptions& options)
@@ -296,11 +322,13 @@ int split_elevations(const SplitOptions& options)
         if (!exported) {
             throw std::runtime_error(exported.error().message);
         }
-        write_output_file(
+        if (!write_text_output_or_report(
             split_output_path(options.output_dir, options.input, elevation),
             exported.value(),
             options.force
-        );
+        )) {
+            return 2;
+        }
     }
     return 0;
 }
@@ -326,8 +354,7 @@ int combine_maps(const CombineOptions& options)
     if (!exported) {
         throw std::runtime_error(exported.error().message);
     }
-    write_output_file(options.output, exported.value(), options.force);
-    return 0;
+    return write_text_output_or_report(options.output, exported.value(), options.force) ? 0 : 2;
 }
 
 std::string format_replace_elevation_plan(
