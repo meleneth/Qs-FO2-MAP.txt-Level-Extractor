@@ -10,9 +10,9 @@ constexpr int left_column = 0;
 constexpr int middle_column = 1;
 constexpr int right_column = 2;
 
-} // namespace
-
 qmap::GuiSession session;
+
+} // namespace
 
 void show_map_status(const char* side, const map_lvls& map)
 {
