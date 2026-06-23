@@ -254,5 +254,6 @@ Result<BinaryMapObjectRecords> parse_binary_map_object_records(
     const PrototypeDatabase& prototypes
 );
 Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes);
+Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes, const PrototypeDatabase& prototypes);
 
 } // namespace qmap

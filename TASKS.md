@@ -161,6 +161,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
     - [x] Parse just enough `.pro` data to determine item/scenery/misc subtype values needed for `.map` object tail layouts.
     - [x] Add a `PrototypeDatabase` or similar plain model that can be loaded from an extracted proto root without GUI dependencies.
     - [x] Thread optional prototype metadata into binary object parsing so tail resolution is deterministic and subtype-backed for callers that provide a `PrototypeDatabase`.
+    - [x] Add a prototype-backed top-level `parse_binary_map` overload so callers do not duplicate the staged parse pipeline.
     - [ ] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
     - [x] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
     - [ ] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.

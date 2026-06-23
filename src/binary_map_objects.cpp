@@ -201,8 +201,8 @@ std::optional<std::size_t> fixture_backed_tail_size(const BinaryObjectPrefix& pr
     };
 
     constexpr std::array rules{
-        // These item records need prototype subtype data that the MAP file does
-        // not carry directly. Keep them narrow until prototype loading exists.
+        // These records remain as narrow fixture exceptions until real
+        // prototype metadata for the fixture PID proves a general subtype rule.
         Rule{95772, 0x00000016, 48}, // ARVILL2.map
         Rule{137036, 0x0000004F, 16}, // BROKEN2.map
         Rule{154112, 0x00000001, 4}, // Newr1.map

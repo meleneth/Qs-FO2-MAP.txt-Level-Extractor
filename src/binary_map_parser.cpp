@@ -282,6 +282,48 @@ Result<void> read_script_block_footer(ByteReader& reader, int expected_count)
     return Result<void>::ok();
 }
 
+Result<BinaryMap> parse_binary_map_impl(
+    std::span<const std::byte> bytes,
+    const PrototypeDatabase* prototypes
+)
+{
+    BinaryMap map;
+
+    auto header = parse_binary_map_header(bytes);
+    if (!header) {
+        return Result<BinaryMap>::fail(header.error());
+    }
+    map.header = header.value();
+
+    auto variables = parse_binary_map_variables(bytes, map.header);
+    if (!variables) {
+        return Result<BinaryMap>::fail(variables.error());
+    }
+    map.variables = std::move(variables.value());
+
+    auto tiles = parse_binary_map_tiles(bytes, map.header);
+    if (!tiles) {
+        return Result<BinaryMap>::fail(tiles.error());
+    }
+    map.tiles = tiles.value();
+
+    auto scripts = parse_binary_map_scripts(bytes, map.header);
+    if (!scripts) {
+        return Result<BinaryMap>::fail(scripts.error());
+    }
+    map.scripts = std::move(scripts.value());
+
+    auto objects = prototypes != nullptr
+        ? parse_binary_map_object_records(bytes, map.scripts.end_offset, map.header, *prototypes)
+        : parse_binary_map_object_records(bytes, map.scripts.end_offset, map.header);
+    if (!objects) {
+        return Result<BinaryMap>::fail(objects.error());
+    }
+    map.objects = std::move(objects.value());
+
+    return Result<BinaryMap>::ok(std::move(map));
+}
+
 } // namespace
 
 std::string BinaryMapHeader::filename_string() const
@@ -528,39 +570,12 @@ Result<BinaryMapScripts> parse_binary_map_scripts(
 
 Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes)
 {
-    BinaryMap map;
+    return parse_binary_map_impl(bytes, nullptr);
+}
 
-    auto header = parse_binary_map_header(bytes);
-    if (!header) {
-        return Result<BinaryMap>::fail(header.error());
-    }
-    map.header = header.value();
-
-    auto variables = parse_binary_map_variables(bytes, map.header);
-    if (!variables) {
-        return Result<BinaryMap>::fail(variables.error());
-    }
-    map.variables = std::move(variables.value());
-
-    auto tiles = parse_binary_map_tiles(bytes, map.header);
-    if (!tiles) {
-        return Result<BinaryMap>::fail(tiles.error());
-    }
-    map.tiles = tiles.value();
-
-    auto scripts = parse_binary_map_scripts(bytes, map.header);
-    if (!scripts) {
-        return Result<BinaryMap>::fail(scripts.error());
-    }
-    map.scripts = std::move(scripts.value());
-
-    auto objects = parse_binary_map_object_records(bytes, map.scripts.end_offset, map.header);
-    if (!objects) {
-        return Result<BinaryMap>::fail(objects.error());
-    }
-    map.objects = std::move(objects.value());
-
-    return Result<BinaryMap>::ok(std::move(map));
+Result<BinaryMap> parse_binary_map(std::span<const std::byte> bytes, const PrototypeDatabase& prototypes)
+{
+    return parse_binary_map_impl(bytes, &prototypes);
 }
 
 } // namespace qmap
