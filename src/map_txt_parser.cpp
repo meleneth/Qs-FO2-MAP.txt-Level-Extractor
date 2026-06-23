@@ -55,8 +55,10 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
     }
     map->scripts = nullptr;
     map->objects = nullptr;
+    map->parse_error.clear();
 
     if (map->file_siz < 0) {
+        map->parse_error = "negative file size";
         return;
     }
 
@@ -67,6 +69,7 @@ void parse_map_txt(uint8_t* map_data, map_lvls* map)
         }
     );
     if (!parsed) {
+        map->parse_error = parsed.error().message;
         return;
     }
 

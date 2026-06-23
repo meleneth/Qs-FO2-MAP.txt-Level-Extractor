@@ -36,6 +36,7 @@ void clear_loaded_map(map_lvls& map)
     map.map_type = qmap::MapFileKind::empty;
     map.file_path_storage.clear();
     map.map_name_storage.clear();
+    map.parse_error.clear();
     map.owned_data.clear();
     map.file_str = nullptr;
     map.file_siz = 0;
@@ -92,6 +93,7 @@ void parse_binary_map_for_gui(map_lvls& map)
     );
     const auto header = qmap::parse_binary_map_header(bytes);
     if (!header) {
+        map.parse_error = header.error().message;
         return;
     }
 
@@ -166,6 +168,9 @@ void show_map_status(const char* side, const map_lvls& map)
     if (map.map_type == qmap::MapFileKind::binary) {
         ImGui::SameLine();
         ImGui::TextDisabled("export not implemented");
+    }
+    if (!map_parse_succeeded(map) && !map.parse_error.empty()) {
+        ImGui::TextDisabled("%s: %s", side, map.parse_error.c_str());
     }
 }
 

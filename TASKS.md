@@ -184,7 +184,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Show a clear "not implemented" state if selected inputs require `.map` export.
   - [x] Do not call `export_map_map()` from the GUI unless it writes a tested file.
   - [x] Add a "file parsed" indicator when loading/parsing succeeds.
-  - [ ] Surface parser diagnostics separately from hard errors.
+  - [x] Surface parser diagnostics separately from hard errors.
 
 - [x] Convert `export_map_map()` into one of:
   - [ ] a tested real exporter, or
@@ -257,7 +257,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
 
 - [x] Stop using `printf` for parser/export failures.
   - [x] Return structured errors.
-  - [ ] Keep diagnostics available to GUI and tests.
+  - [x] Keep diagnostics available to GUI and tests.
 
 - [x] Pick a simple project-wide result pattern.
   - [x] `std::optional<T>` for simple absent/present.

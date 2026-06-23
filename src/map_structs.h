@@ -12,6 +12,7 @@ struct map_lvls
     qmap::MapFileKind map_type = qmap::MapFileKind::empty;
     std::string file_path_storage;
     std::string map_name_storage;
+    std::string parse_error;
     std::vector<uint8_t> owned_data;
     char* file_str   = nullptr;
     int   file_siz   = 0;     //should not be more than a couple MBs ever
