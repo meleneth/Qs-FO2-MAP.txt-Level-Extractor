@@ -224,20 +224,15 @@ Result<std::size_t> resolve_object_tail_size(
 )
 {
     // Public MAP docs define subtype-specific tails, but the MAP object prefix
-    // only carries the prototype PID. Prefer loaded prototype subtype metadata
-    // when available; keep narrow fixture overrides for records not covered yet.
+    // only carries the prototype PID. Item subtype metadata is now safe enough
+    // to drive the cursor; keep other subtype families behind fixture evidence.
     if (const auto fixture_tail_size = fixture_backed_tail_size(prefix)) {
         return Result<std::size_t>::ok(*fixture_tail_size);
     }
     if (context.prototypes != nullptr) {
-        if (const auto prototype = context.prototypes->find(prefix.pid)) {
-            if (const auto prototype_tail_size = object_tail_size_from_prototype(
-                    *prototype,
-                    context.map_version
-                )) {
-                return Result<std::size_t>::ok(*prototype_tail_size);
-            }
-        }
+        // Prototype metadata is threaded through the parser, but the broad
+        // subtype-to-MAP-tail table is not cursor-safe against real fixtures
+        // yet. Keep cursor movement on fixture-backed rules until validated.
     }
 
     switch (type) {

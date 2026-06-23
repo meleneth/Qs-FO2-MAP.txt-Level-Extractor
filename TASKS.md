@@ -160,16 +160,19 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
     - [x] Parse `proto/items/items.lst`, `proto/scenery/scenery.lst`, `proto/misc/misc.lst`, and other kind lists into PID-index-to-file mappings.
     - [x] Parse just enough `.pro` data to determine item/scenery/misc subtype values needed for `.map` object tail layouts.
     - [x] Add a `PrototypeDatabase` or similar plain model that can be loaded from an extracted proto root without GUI dependencies.
-    - [x] Thread optional prototype metadata into binary object parsing so tail resolution is deterministic and subtype-backed for callers that provide a `PrototypeDatabase`.
+    - [x] Thread optional prototype metadata through binary object parsing entry points for callers that provide a `PrototypeDatabase`.
     - [x] Add a prototype-backed top-level `parse_binary_map` overload so callers do not duplicate the staged parse pipeline.
+    - [x] Add `parse-stats --proto-root` so CLI parsing can load and carry extracted prototype metadata.
+    - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated.
     - [ ] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
     - [x] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
     - [ ] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.
     - [ ] Stretch: add C++ DAT2 reading/extraction to the app or CLI so users do not need a separate extraction step.
     - [ ] Stretch: support loose `data/proto` overrides on top of DAT-extracted prototype data.
-  - [ ] Reconcile object tail sizes against the published MAP format references and fixture evidence before adding more subtype rules.
+    - [ ] Reconcile object tail sizes against the published MAP format references and fixture evidence before adding more subtype rules.
     - [x] Correct normal MAP critter tails to the documented/observed 40-byte layout; remove or quarantine the older 44-byte/11-word assumption unless a specific fixture proves it.
     - [ ] Re-check item, scenery, exit-grid, misc, and other PID-kind tails against `falloutmods.fandom.com/wiki/MAP_File_Format` and `fodev.net/files/fo2/map.html`.
+      - [ ] Validate scenery subtype tail offsets against real fixtures before allowing prototype scenery metadata to drive object cursor advancement; initial CLI smoke with extracted metadata regressed `ARVILL2.map` from object 1077 to object 53.
     - [ ] Keep any compatibility parsing for variant tails explicitly documented with fixture names, byte offsets, and why the public reference or current prototype support is insufficient.
       - [x] Document fixture-backed misc PID rules for `0x0500000C`, `0x05000010`, `0x05000013`, and `0x05000017` without reintroducing prefix scanning.
       - [x] Isolate item subtype tail exceptions as offset-specific fixture overrides when PID alone is proven too broad.

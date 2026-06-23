@@ -3,10 +3,12 @@
 #include "cli_file_io.h"
 #include "cli_selection.h"
 #include "cli_stats.h"
+#include "prototype_metadata.h"
 #include "text_map_parser.h"
 
 #include <cstddef>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 
 namespace qmap::cli {
@@ -56,10 +58,15 @@ std::size_t count_object_records_including_inventory(const BinaryMapObjectRecord
 
 int parse_stats(const std::filesystem::path& input)
 {
-    const auto ext = lowercase_extension(input);
-    const auto text = read_text_file(input);
+    return parse_stats(ParseStatsOptions{input, {}});
+}
 
-    std::cout << "file: " << input.string() << '\n';
+int parse_stats(const ParseStatsOptions& options)
+{
+    const auto ext = lowercase_extension(options.input);
+    const auto text = read_text_file(options.input);
+
+    std::cout << "file: " << options.input.string() << '\n';
     std::cout << "bytes: " << text.size() << '\n';
 
     if (ext == ".txt") {
@@ -77,7 +84,21 @@ int parse_stats(const std::filesystem::path& input)
     }
 
     if (ext == ".map") {
-        const auto bytes = read_binary_file(input);
+        const auto bytes = read_binary_file(options.input);
+        std::optional<PrototypeDatabase> prototypes;
+        if (!options.proto_root.empty()) {
+            auto loaded = load_prototype_database(options.proto_root);
+            if (!loaded) {
+                std::cout << "kind: binary map\n";
+                std::cout << "status: parse failed\n";
+                std::cout << "error: " << loaded.error().message
+                          << " at offset " << loaded.error().offset << '\n';
+                return 2;
+            }
+            prototypes = std::move(loaded.value());
+            std::cout << "prototype_metadata: loaded " << prototypes->size() << " records\n";
+        }
+
         auto header = parse_binary_map_header(bytes);
         if (!header) {
             std::cout << "kind: binary map\n";
@@ -130,7 +151,9 @@ int parse_stats(const std::filesystem::path& input)
         std::optional<std::size_t> parsed_object_records_count;
         std::optional<std::size_t> parsed_object_records_total_count;
         std::optional<Error> object_records_error;
-        auto object_records = parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+        auto object_records = prototypes
+            ? parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value(), *prototypes)
+            : parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
         if (object_records) {
             parsed_object_records_count = object_records.value().records.size();
             parsed_object_records_total_count = count_object_records_including_inventory(object_records.value());

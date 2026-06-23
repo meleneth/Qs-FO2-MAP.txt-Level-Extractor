@@ -33,7 +33,13 @@ struct CombineOptions {
     bool force = false;
 };
 
+struct ParseStatsOptions {
+    std::filesystem::path input;
+    std::filesystem::path proto_root;
+};
+
 int parse_stats(const std::filesystem::path& input);
+int parse_stats(const ParseStatsOptions& options);
 int extract_elevation(const ExtractOptions& options);
 int split_elevations(const SplitOptions& options);
 int combine_maps(const CombineOptions& options);

@@ -50,3 +50,11 @@ python scripts\extract_fallout2_protos.py --fallout2-root "C:\Path\To\Fallout 2"
 This writes only `proto/**/*.pro` and `proto/**/*.lst` files to
 `.local_fallout2_data/`. That directory contains local game assets and is
 ignored by git; do not commit it.
+
+After extraction, pass the prototype root to binary map stats parsing. The CLI
+will load the metadata; object tail rules still require fixture validation
+before they are allowed to move the binary parser cursor.
+
+```powershell
+out\build\ucrt64-debug\qmap_cli.exe parse-stats test_maps\ARVILL2.map --proto-root .local_fallout2_data\proto
+```

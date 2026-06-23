@@ -830,25 +830,17 @@ TEST_CASE("parse_binary_map_object_records preserves known type-specific tails",
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
-TEST_CASE("parse_binary_map_object_records uses prototype metadata for item tails", "[map][binary]")
+TEST_CASE("parse_binary_map_object_records accepts prototype metadata without unvalidated cursor movement", "[map][binary]")
 {
-    auto bytes = example_map_with_scripts();
+    auto bytes = example_map_with_object_records();
     auto header = qmap::parse_binary_map_header(bytes);
     REQUIRE(header);
     auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
     REQUIRE(scripts);
 
-    append_i32(bytes, 1);
-    append_i32(bytes, 1);
-    append_object_prefix(bytes, 100, 0, 0x00000063, 50331649);
-    append_i32(bytes, 10);
-    append_i32(bytes, 0x00000026);
-    append_i32(bytes, 0);
-    append_i32(bytes, 0);
-
     qmap::PrototypeDatabase prototypes;
     prototypes.add(qmap::PrototypeRecord{
-        0x00000063,
+        0x00000001,
         qmap::BinaryObjectType::item,
         3,
     });
@@ -864,9 +856,11 @@ TEST_CASE("parse_binary_map_object_records uses prototype metadata for item tail
         INFO(parsed.error().message);
     }
     REQUIRE(parsed);
-    REQUIRE(parsed.value().records.size() == 1);
-    CHECK(parsed.value().records[0].tail.size == 2 * sizeof(std::int32_t));
-    CHECK(parsed.value().records[0].raw.size == 24 * sizeof(std::int32_t));
+    REQUIRE(parsed.value().records.size() == 2);
+    CHECK(parsed.value().records[0].prefix.pid == 0x0500000E);
+    CHECK(parsed.value().records[0].tail.size == 4 * sizeof(std::int32_t));
+    CHECK(parsed.value().records[1].prefix.pid == 0x01000002);
+    CHECK(parsed.value().records[1].tail.size == 10 * sizeof(std::int32_t));
 }
 
 TEST_CASE("parse_binary_map_object_records follows present elevation blocks", "[map][binary]")
@@ -1059,19 +1053,11 @@ TEST_CASE("parse_binary_map composes header variables tiles scripts and objects"
 
 TEST_CASE("parse_binary_map accepts prototype metadata for composed object parsing", "[map][binary]")
 {
-    auto bytes = example_map_with_scripts();
-
-    append_i32(bytes, 1);
-    append_i32(bytes, 1);
-    append_object_prefix(bytes, 100, 0, 0x00000063, 50331649);
-    append_i32(bytes, 10);
-    append_i32(bytes, 0x00000026);
-    append_i32(bytes, 0);
-    append_i32(bytes, 0);
+    auto bytes = example_map_with_object_records();
 
     qmap::PrototypeDatabase prototypes;
     prototypes.add(qmap::PrototypeRecord{
-        0x00000063,
+        0x00000001,
         qmap::BinaryObjectType::item,
         3,
     });
@@ -1079,7 +1065,7 @@ TEST_CASE("parse_binary_map accepts prototype metadata for composed object parsi
     const auto parsed = qmap::parse_binary_map(bytes, prototypes);
 
     REQUIRE(parsed);
-    REQUIRE(parsed.value().objects.records.size() == 1);
-    CHECK(parsed.value().objects.records[0].tail.size == 2 * sizeof(std::int32_t));
+    REQUIRE(parsed.value().objects.records.size() == 2);
+    CHECK(parsed.value().objects.records[0].tail.size == 4 * sizeof(std::int32_t));
     CHECK(parsed.value().objects.end_offset == bytes.size());
 }

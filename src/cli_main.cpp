@@ -85,9 +85,14 @@ int main(int argc, char** argv)
     app.add_option("--log-file", options.log_file, "Write logs to a file");
     app.add_option("--log-format", options.log_format, "human|plain");
 
-    std::filesystem::path parse_stats_input;
+    qmap::cli::ParseStatsOptions parse_stats_options;
     auto* parse_stats_command = app.add_subcommand("parse-stats", "Parse a map file and print a stats breakdown");
-    parse_stats_command->add_option("input", parse_stats_input, "Input .txt or .map file")->required();
+    parse_stats_command->add_option("input", parse_stats_options.input, "Input .txt or .map file")->required();
+    parse_stats_command->add_option(
+        "--proto-root",
+        parse_stats_options.proto_root,
+        "Extracted Fallout 2 proto root, e.g. .local_fallout2_data/proto"
+    );
 
     qmap::cli::ExtractOptions extract_options;
     auto* extract_command = app.add_subcommand("extract", "Extract one elevation from a .txt map");
@@ -116,7 +121,7 @@ int main(int argc, char** argv)
     try {
         configure_logging(options);
         if (*parse_stats_command) {
-            return qmap::cli::parse_stats(parse_stats_input);
+            return qmap::cli::parse_stats(parse_stats_options);
         }
         if (*extract_command) {
             return qmap::cli::extract_elevation(extract_options);
