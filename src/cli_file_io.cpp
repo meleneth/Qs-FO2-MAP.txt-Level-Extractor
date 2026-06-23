@@ -67,16 +67,6 @@ Result<std::vector<std::byte>> read_binary_file_result(const std::filesystem::pa
     return Result<std::vector<std::byte>>::ok(std::move(bytes));
 }
 
-std::vector<std::byte> read_binary_file(const std::filesystem::path& path)
-{
-    auto read = read_binary_file_result(path);
-    if (!read) {
-        throw std::runtime_error(read.error().message);
-    }
-    auto bytes = std::move(read.value());
-    return bytes;
-}
-
 Result<void> write_text_output_file(
     const std::filesystem::path& path,
     std::string_view content,
@@ -116,14 +106,6 @@ Result<void> write_text_output_file(
         return Result<void>::fail({"unable to write output file: " + path.string(), 0});
     }
     return Result<void>::ok();
-}
-
-void write_output_file(const std::filesystem::path& path, std::string_view content, bool force)
-{
-    auto written = write_text_output_file(path, content, force);
-    if (!written) {
-        throw std::runtime_error(written.error().message);
-    }
 }
 
 Result<void> write_binary_output_file(
