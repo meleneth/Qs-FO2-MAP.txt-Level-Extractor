@@ -464,7 +464,14 @@ int replace_elevation(const ReplaceElevationOptions& options)
         return 2;
     }
 
-    write_binary_output_file(options.output, written.value(), options.force);
+    auto saved = write_binary_output_file(options.output, written.value(), options.force);
+    if (!saved) {
+        std::cout << "kind: binary replace-elevation\n";
+        std::cout << "status: failed\n";
+        std::cout << "error: " << saved.error().message
+                  << " at offset " << saved.error().offset << '\n';
+        return 2;
+    }
     return 0;
 }
 

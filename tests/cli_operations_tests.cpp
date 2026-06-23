@@ -1,9 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "cli_file_io.h"
 #include "cli_operations.h"
 
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -66,6 +68,43 @@ TEST_CASE("lowercase_extension normalizes input paths", "[cli]")
 {
     CHECK(qmap::cli::lowercase_extension("CITY.MAP.TXT") == ".txt");
     CHECK(qmap::cli::lowercase_extension("VAULT.MAP") == ".map");
+}
+
+TEST_CASE("write_binary_output_file writes bytes and rejects accidental overwrite", "[cli]")
+{
+    const auto output =
+        std::filesystem::temp_directory_path() / "qmap-write-binary-output-file-test.map";
+    std::filesystem::remove(output);
+
+    const std::vector<std::byte> content{
+        std::byte{0x10},
+        std::byte{0x20},
+        std::byte{0x30},
+    };
+
+    const auto saved = qmap::cli::write_binary_output_file(output, content, false);
+    REQUIRE(saved);
+
+    {
+        std::ifstream file(output, std::ios::binary);
+        REQUIRE(file);
+        std::vector<unsigned char> bytes;
+        char ch = 0;
+        while (file.get(ch)) {
+            bytes.push_back(static_cast<unsigned char>(ch));
+        }
+        CHECK(bytes == std::vector<unsigned char>{0x10, 0x20, 0x30});
+    }
+
+    const auto refused = qmap::cli::write_binary_output_file(output, content, false);
+    REQUIRE_FALSE(refused);
+    CHECK(refused.error().message.find("output file already exists:") == 0);
+
+    const std::vector<std::byte> replacement{std::byte{0x40}};
+    const auto overwritten = qmap::cli::write_binary_output_file(output, replacement, true);
+    REQUIRE(overwritten);
+
+    std::filesystem::remove(output);
 }
 
 TEST_CASE("format_text_map_stats summarizes ranges and record counts", "[cli][stats]")

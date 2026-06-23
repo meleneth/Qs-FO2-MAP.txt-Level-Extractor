@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <system_error>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -54,29 +55,48 @@ void write_output_file(const std::filesystem::path& path, std::string_view conte
     file.write(content.data(), static_cast<std::streamsize>(content.size()));
 }
 
-void write_binary_output_file(
+Result<void> write_binary_output_file(
     const std::filesystem::path& path,
     const std::vector<std::byte>& content,
     bool force
 )
 {
-    if (!force && std::filesystem::exists(path)) {
-        throw std::runtime_error("output file already exists: " + path.string());
+    std::error_code error;
+    const auto exists = std::filesystem::exists(path, error);
+    if (error) {
+        return Result<void>::fail({
+            "unable to check output file: " + path.string() + ": " + error.message(),
+            0,
+        });
+    }
+    if (!force && exists) {
+        return Result<void>::fail({"output file already exists: " + path.string(), 0});
     }
 
     if (path.has_parent_path()) {
-        std::filesystem::create_directories(path.parent_path());
+        std::filesystem::create_directories(path.parent_path(), error);
+        if (error) {
+            return Result<void>::fail({
+                "unable to create output directory: " + path.parent_path().string()
+                    + ": " + error.message(),
+                0,
+            });
+        }
     }
 
     std::ofstream file(path, std::ios::binary | std::ios::trunc);
     if (!file) {
-        throw std::runtime_error("unable to open output file: " + path.string());
+        return Result<void>::fail({"unable to open output file: " + path.string(), 0});
     }
 
     file.write(
         reinterpret_cast<const char*>(content.data()),
         static_cast<std::streamsize>(content.size())
     );
+    if (!file) {
+        return Result<void>::fail({"unable to write output file: " + path.string(), 0});
+    }
+    return Result<void>::ok();
 }
 
 std::string lowercase_extension(const std::filesystem::path& path)
