@@ -1181,6 +1181,38 @@ TEST_CASE("parse_binary_map_object_records uses prototype tails for inventory it
     CHECK(parsed.value().end_offset == bytes.size());
 }
 
+TEST_CASE("parse_binary_map_object_records rejects direct inventory children without quantity", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x03000001, 50331649, 1, 4);
+    append_object_prefix(bytes, 101, -1, 0x00000002, -1, 0, 0, -1);
+    append_i32(bytes, 0);
+    append_i32(bytes, 0);
+
+    qmap::PrototypeDatabase prototypes;
+    prototypes.add(qmap::PrototypeRecord{
+        0x00000002,
+        qmap::BinaryObjectType::item,
+        0,
+    });
+
+    const auto parsed = qmap::parse_binary_map_object_records(
+        bytes,
+        scripts.value().end_offset,
+        header.value(),
+        prototypes
+    );
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message.rfind("elevation 0 object 0:", 0) == 0);
+}
+
 TEST_CASE("parse_binary_map_object_records rejects negative inventory counts", "[map][binary]")
 {
     auto bytes = example_map_with_scripts();
@@ -1196,6 +1228,23 @@ TEST_CASE("parse_binary_map_object_records rejects negative inventory counts", "
 
     REQUIRE_FALSE(parsed);
     CHECK(parsed.error().message == "elevation 0 object 0: negative inventory object count");
+}
+
+TEST_CASE("parse_binary_map_object_records rejects negative inventory slot capacity", "[map][binary]")
+{
+    auto bytes = example_map_with_scripts();
+    auto header = qmap::parse_binary_map_header(bytes);
+    REQUIRE(header);
+    auto scripts = qmap::parse_binary_map_scripts(bytes, header.value());
+    REQUIRE(scripts);
+    append_i32(bytes, 1);
+    append_i32(bytes, 1);
+    append_object_prefix(bytes, 100, 0, 0x03000001, 50331649, 0, -1);
+
+    const auto parsed = qmap::parse_binary_map_object_records(bytes, scripts.value().end_offset, header.value());
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "elevation 0 object 0: negative inventory slot capacity");
 }
 
 TEST_CASE("parse_binary_scenery_tail decodes preserved scenery tail fields", "[map][binary]")

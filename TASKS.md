@@ -197,8 +197,8 @@ The next slices should harden the supported whole-elevation workflow and keep ex
     - [ ] Keep any compatibility parsing for variant tails explicitly documented with fixture names, byte offsets, and why the public reference or current prototype support is insufficient.
       - [x] Document the misc exit-grid PID range without reintroducing prefix scanning, and document why `0x0500000C` remains a generic 0-byte misc tail.
       - [x] Remove offset-specific fixture overrides once prototype subtype resolution covers those records.
-  - [ ] Reconcile inventory parsing with the documented count-prefixed inventory object format.
-    - [ ] Prefer bounded parent inventory parsing over global backtracking across parent record boundaries.
+  - [x] Reconcile inventory parsing with the documented count-prefixed inventory object format.
+    - [x] Prefer bounded parent inventory parsing over global backtracking across parent record boundaries.
     - [x] Treat "direct child object" layouts as suspect until a fixture proves there is no preceding quantity/count word.
     - [ ] Add fixture-backed tests for `BROKEN1.map` style nested inventory alignment once the tail sizes are corrected.
   - [x] Consume serialized zero object-count slots for absent elevations after present object blocks.

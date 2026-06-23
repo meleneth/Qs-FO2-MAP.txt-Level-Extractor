@@ -346,6 +346,12 @@ Result<BinaryObjectRecord> parse_object_record(ByteReader& reader, const ObjectP
             prefix.value().raw.offset + 0x48,
         });
     }
+    if (prefix.value().inventory_size < 0) {
+        return Result<BinaryObjectRecord>::fail({
+            "negative inventory slot capacity",
+            prefix.value().raw.offset + 0x4C,
+        });
+    }
     if (!looks_like_object_prefix(prefix.value())) {
         const auto message = std::string{"invalid object prefix: tile="}
             + std::to_string(prefix.value().tile)

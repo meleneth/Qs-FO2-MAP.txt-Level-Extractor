@@ -18,7 +18,11 @@ The object parser treats object records as:
 
 Inventory entries are parsed as a 4-byte quantity followed by another complete
 object record. Nested object records are included in the owning object's raw
-range and stored in `BinaryObjectRecord::inventory`.
+range and stored in `BinaryObjectRecord::inventory`. The object prefix field
+currently named `inventory_size` is the documented maximum inventory slot
+capacity at object offset `0x4C`; it is preserved and validated against
+negative values, but it is not used to locate inventory bytes. The parser does
+not support a direct child-object fallback without the preceding quantity word.
 
 Generic modeled tail sizes are the byte counts the parser can determine from
 the PID kind alone. Full binary object parsing requires extracted prototype
