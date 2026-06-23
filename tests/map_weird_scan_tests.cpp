@@ -155,3 +155,17 @@ TEST_CASE("format_weird_map_scan_report prints stable text output", "[map][binar
         ) != std::string::npos
     );
 }
+
+TEST_CASE("format_weird_map_scan_failure prints stable parse failure output", "[map][binary][scan]")
+{
+    const auto formatted = qmap::format_weird_map_scan_failure(
+        "MISSING.MAP",
+        "input read failed: unable to open input file: MISSING.MAP",
+        0
+    );
+
+    CHECK(formatted == "kind: binary map weird scan\n"
+                       "file: MISSING.MAP\n"
+                       "status: parse failed\n"
+                       "error: input read failed: unable to open input file: MISSING.MAP at offset 0\n");
+}

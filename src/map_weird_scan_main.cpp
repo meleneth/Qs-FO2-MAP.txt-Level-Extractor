@@ -24,23 +24,33 @@ int main(int argc, char** argv)
     CLI11_PARSE(app, argc, argv);
 
     try {
-        const auto bytes = qmap::cli::read_binary_file(input);
+        auto bytes_result = qmap::cli::read_binary_file_result(input);
+        if (!bytes_result) {
+            std::cout << qmap::format_weird_map_scan_failure(
+                input.string(),
+                "input read failed: " + bytes_result.error().message,
+                bytes_result.error().offset
+            );
+            return 2;
+        }
+        const auto& bytes = bytes_result.value();
         auto loaded = qmap::load_prototype_database(proto_root);
         if (!loaded) {
-            std::cout << "kind: binary map weird scan\n";
-            std::cout << "status: parse failed\n";
-            std::cout << "error: " << loaded.error().message
-                      << " at offset " << loaded.error().offset << '\n';
+            std::cout << qmap::format_weird_map_scan_failure(
+                input.string(),
+                loaded.error().message,
+                loaded.error().offset
+            );
             return 2;
         }
 
         auto parsed = qmap::parse_binary_map(bytes, loaded.value());
         if (!parsed) {
-            std::cout << "kind: binary map weird scan\n";
-            std::cout << "file: " << input.string() << '\n';
-            std::cout << "status: parse failed\n";
-            std::cout << "error: " << parsed.error().message
-                      << " at offset " << parsed.error().offset << '\n';
+            std::cout << qmap::format_weird_map_scan_failure(
+                input.string(),
+                parsed.error().message,
+                parsed.error().offset
+            );
             return 2;
         }
 

@@ -3,6 +3,8 @@
 #include "binary_map_parser.h"
 #include "qmap_result.h"
 
+#include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,11 @@ WeirdMapScanReport scan_weird_binary_map(
 std::string format_weird_map_scan_report(
     const WeirdMapScanReport& report,
     const std::string& input_name
+);
+std::string format_weird_map_scan_failure(
+    const std::string& input_name,
+    const std::string& message,
+    std::optional<std::size_t> offset = std::nullopt
 );
 
 } // namespace qmap

@@ -246,4 +246,22 @@ std::string format_weird_map_scan_report(
     return output.str();
 }
 
+std::string format_weird_map_scan_failure(
+    const std::string& input_name,
+    const std::string& message,
+    std::optional<std::size_t> offset
+)
+{
+    std::ostringstream output;
+    output << "kind: binary map weird scan\n";
+    output << "file: " << input_name << '\n';
+    output << "status: parse failed\n";
+    output << "error: " << message;
+    if (offset) {
+        output << " at offset " << *offset;
+    }
+    output << '\n';
+    return output.str();
+}
+
 } // namespace qmap
