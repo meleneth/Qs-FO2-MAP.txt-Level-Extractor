@@ -270,6 +270,26 @@ TEST_CASE("parse_stats reports missing text input as structured output", "[cli][
     CHECK(capture.str().find(" at offset 0\n") != std::string::npos);
 }
 
+TEST_CASE("parse_stats reports missing unsupported input as structured output", "[cli][stats]")
+{
+    const auto missing =
+        std::filesystem::temp_directory_path() / "qmap-missing-parse-stats-input.bin";
+    std::filesystem::remove(missing);
+
+    qmap::cli::ParseStatsOptions options;
+    options.input = missing;
+
+    CoutCapture capture;
+    const auto exit_code = qmap::cli::parse_stats(options);
+
+    CHECK(exit_code == 2);
+    CHECK(capture.str().find("file: " + missing.string() + "\n") != std::string::npos);
+    CHECK(capture.str().find("kind: unknown\n") != std::string::npos);
+    CHECK(capture.str().find("status: parse failed\n") != std::string::npos);
+    CHECK(capture.str().find("error: input read failed: unable to open input file:") != std::string::npos);
+    CHECK(capture.str().find(" at offset 0\n") != std::string::npos);
+}
+
 TEST_CASE("format_text_map_stats summarizes ranges and record counts", "[cli][stats]")
 {
     constexpr std::string_view text =
