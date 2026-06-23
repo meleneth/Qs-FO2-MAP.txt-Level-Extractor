@@ -200,7 +200,7 @@ std::string format_text_map_stats(std::string_view text, const ParsedTextMap& ma
             std::array<std::size_t, elevation_count> elevation_counts{};
             std::size_t without_elevation = 0;
             for (const auto& object : objects.value()) {
-                if (object.elevation && *object.elevation >= 0 && *object.elevation < elevation_count) {
+                if (object.elevation && is_valid_elevation(*object.elevation)) {
                     elevation_counts[static_cast<std::size_t>(*object.elevation)] += 1;
                 } else {
                     without_elevation += 1;
@@ -316,13 +316,13 @@ std::string format_binary_map_stats(
 
 TextMapExportPlan single_elevation_plan(int elevation)
 {
-    if (elevation < 0 || elevation >= elevation_count) {
+    if (!is_valid_elevation(elevation)) {
         throw std::runtime_error("elevation must be 0, 1, or 2");
     }
 
     TextMapExportPlan plan;
     plan.header_side = MapSide::left;
-    plan.elevations[elevation] = ElevationSource{MapSide::left, elevation};
+    plan.elevations[elevation] = ElevationSource{MapSide::left, *elevation_index_from_int(elevation)};
     return plan;
 }
 
@@ -363,7 +363,7 @@ int parse_selection_elevation(std::string_view value)
     if (result.ec != std::errc{} || result.ptr != end) {
         throw std::runtime_error("selection elevations must be 0, 1, or 2");
     }
-    if (parsed < 0 || parsed >= elevation_count) {
+    if (!is_valid_elevation(parsed)) {
         throw std::runtime_error("selection elevations must be 0, 1, or 2");
     }
 

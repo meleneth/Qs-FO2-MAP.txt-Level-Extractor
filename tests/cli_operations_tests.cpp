@@ -14,7 +14,7 @@ TEST_CASE("single_elevation_plan selects one matching source elevation", "[cli]"
     CHECK(plan.header_side == qmap::MapSide::left);
     REQUIRE(plan.elevations[2]);
     CHECK(plan.elevations[2]->side == qmap::MapSide::left);
-    CHECK(plan.elevations[2]->elevation == 2);
+    CHECK(plan.elevations[2]->elevation.value == 2);
     CHECK_FALSE(plan.elevations[0]);
     CHECK_FALSE(plan.elevations[1]);
 }
@@ -41,10 +41,10 @@ TEST_CASE("apply_selection maps destination elevations to either input side", "[
 
     REQUIRE(plan.elevations[0]);
     CHECK(plan.elevations[0]->side == qmap::MapSide::left);
-    CHECK(plan.elevations[0]->elevation == 2);
+    CHECK(plan.elevations[0]->elevation.value == 2);
     REQUIRE(plan.elevations[2]);
     CHECK(plan.elevations[2]->side == qmap::MapSide::right);
-    CHECK(plan.elevations[2]->elevation == 1);
+    CHECK(plan.elevations[2]->elevation.value == 1);
     CHECK_FALSE(plan.elevations[1]);
 }
 

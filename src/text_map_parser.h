@@ -22,7 +22,7 @@ struct ParsedTextMap {
 
     std::optional<std::string_view> elevation_view(std::string_view text, int elevation) const
     {
-        if (elevation < 0 || elevation >= elevation_count || !elevations[elevation]) {
+        if (!is_valid_elevation(elevation) || !elevations[elevation]) {
             return std::nullopt;
         }
 

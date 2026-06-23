@@ -70,7 +70,7 @@ std::optional<int> source_destination(const TextMapExportPlan& plan, MapSide sid
     for (int destination = 0; destination < elevation_count; ++destination) {
         if (plan.elevations[destination]
             && plan.elevations[destination]->side == side
-            && plan.elevations[destination]->elevation == elevation) {
+            && plan.elevations[destination]->elevation.value == elevation) {
             return destination;
         }
     }
@@ -431,7 +431,7 @@ Result<std::string> export_text_map(
         }
 
         const auto source = *plan.elevations[destination];
-        if (source.elevation < 0 || source.elevation >= elevation_count) {
+        if (!is_valid_elevation(source.elevation)) {
             return Result<std::string>::fail({
                 "invalid source elevation",
                 static_cast<std::size_t>(destination),
@@ -439,7 +439,7 @@ Result<std::string> export_text_map(
         }
 
         const auto& map_source = source_for_side(left, right, source.side);
-        const auto level = map_source.map.elevation_view(map_source.text, source.elevation);
+        const auto level = map_source.map.elevation_view(map_source.text, source.elevation.value);
         if (!level) {
             return Result<std::string>::fail({
                 "selected source elevation is absent",

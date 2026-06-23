@@ -183,8 +183,8 @@ void select_output_elevation(
     int source_elevation
 )
 {
-    if (destination < 0 || destination >= elevation_count
-        || source_elevation < 0 || source_elevation >= elevation_count
+    if (!is_valid_elevation(destination)
+        || !is_valid_elevation(source_elevation)
         || !source_slot.elevations[source_elevation]) {
         return;
     }
@@ -195,7 +195,7 @@ void select_output_elevation(
 
 void clear_output_elevation(GuiSession& session, int destination)
 {
-    if (destination < 0 || destination >= elevation_count) {
+    if (!is_valid_elevation(destination)) {
         return;
     }
 

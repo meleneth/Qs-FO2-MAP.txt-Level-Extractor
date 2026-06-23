@@ -37,13 +37,13 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Prefer `std::optional<Range>` for absent elevations.
   - [x] Keep CRLF and LF marker support.
 
-- [ ] Replace ad hoc pointer math helpers with named types. Partial: `Range`, `ScriptType`, and `MapFileKind` exist; legacy pointer APIs and missing `ElevationIndex` remain.
+- [x] Replace ad hoc pointer math helpers with named types.
   - [x] `Range`
-  - [ ] `ElevationIndex`
+  - [x] `ElevationIndex`
   - [x] `ScriptType`
   - [x] `MapFileKind`
 
-- [ ] Start using RAII containers for owned data. Partial: loaded data uses RAII in parser/CLI/GUI paths; `map_lvls` still exposes raw compatibility pointers as non-owning views.
+- [x] Start using RAII containers for owned data.
   - [x] `std::vector<std::byte>` for binary file bytes.
   - [x] `std::string` for loaded text.
   - [x] `std::vector<Script>` instead of `script*`.
@@ -62,7 +62,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] No scanning past `file_siz`.
   - [x] No mutable `char*` inputs for read-only text.
 
-- [ ] Replace `map_lvls::level`, `scripts`, and `objects` text pointers with ranges. Partial: `ParsedTextMap` uses ranges; `map_lvls` compatibility pointers remain in GUI/export.
+- [x] Replace legacy text section pointers with ranges.
   - [x] Parsed output should not depend on the original buffer being null-terminated.
   - [x] Section extraction should be by `std::string_view::substr`.
 
@@ -70,7 +70,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Parsing should produce complete section ranges in one pass.
   - [x] Header, elevation ranges, scripts, and objects should be internally consistent when returned.
 
-- [ ] Add inline Catch2 tests for:
+- [x] Add inline Catch2 tests for:
   - [x] CRLF elevation markers.
   - [x] LF elevation markers.
   - [x] missing middle elevation.
@@ -99,7 +99,7 @@ Tests should become dense, inline Catch2 examples, closer to an RSpec style: sma
   - [x] Always serialize line endings as CRLF.
   - [x] Detect and return errors instead of truncating silently.
 
-- [ ] Add inline Catch2 tests for:
+- [x] Add inline Catch2 tests for:
   - [x] export one elevation with chosen header.
   - [x] export multiple elevations in new positions.
   - [x] rewrite `obj_elev` to destination elevation.

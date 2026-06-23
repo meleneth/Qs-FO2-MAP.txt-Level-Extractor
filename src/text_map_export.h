@@ -22,7 +22,20 @@ struct ParsedTextSource {
 
 struct ElevationSource {
     MapSide side = MapSide::left;
-    int elevation = 0;
+    ElevationIndex elevation = ElevationIndex{0};
+
+    constexpr ElevationSource() = default;
+
+    constexpr ElevationSource(MapSide source_side, ElevationIndex source_elevation)
+        : side(source_side)
+        , elevation(source_elevation)
+    {
+    }
+
+    constexpr ElevationSource(MapSide source_side, int source_elevation)
+        : ElevationSource(source_side, ElevationIndex{source_elevation})
+    {
+    }
 };
 
 struct TextMapExportPlan {

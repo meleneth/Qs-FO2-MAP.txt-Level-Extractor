@@ -8,6 +8,45 @@ namespace qmap {
 
 constexpr int elevation_count = 3;
 
+struct ElevationIndex {
+    int value = 0;
+
+    constexpr explicit ElevationIndex(int elevation = 0)
+        : value(elevation)
+    {
+    }
+
+};
+
+constexpr bool operator==(ElevationIndex left, ElevationIndex right)
+{
+    return left.value == right.value;
+}
+
+constexpr bool operator!=(ElevationIndex left, ElevationIndex right)
+{
+    return !(left == right);
+}
+
+constexpr bool is_valid_elevation(int elevation)
+{
+    return elevation >= 0 && elevation < elevation_count;
+}
+
+constexpr bool is_valid_elevation(ElevationIndex elevation)
+{
+    return is_valid_elevation(elevation.value);
+}
+
+inline std::optional<ElevationIndex> elevation_index_from_int(int elevation)
+{
+    if (!is_valid_elevation(elevation)) {
+        return std::nullopt;
+    }
+
+    return ElevationIndex{elevation};
+}
+
 enum class MapFileKind {
     empty,
     text,

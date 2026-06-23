@@ -51,7 +51,7 @@ TEST_CASE("GUI session output selection uses explicit source coordinates", "[gui
 
     REQUIRE(session.output_selection[2].has_value());
     CHECK(session.output_selection[2]->side == qmap::MapSide::right);
-    CHECK(session.output_selection[2]->elevation == 0);
+    CHECK(session.output_selection[2]->elevation.value == 0);
     CHECK(session.output_labels[2] == "0:right.txt");
 
     qmap::clear_output_elevation(session, 2);
