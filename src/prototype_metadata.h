@@ -26,6 +26,27 @@ struct PrototypeRecord {
     std::int32_t subtype = 0;
 };
 
+// Numeric subtype values are stored in item/scenery .pro records at offset
+// 0x20; these names mirror Fallout engine prototype subtype enums.
+enum ItemPrototypeSubtype : int {
+    item_armor = 0,
+    item_container = 1,
+    item_drug = 2,
+    item_weapon = 3,
+    item_ammo = 4,
+    item_misc = 5,
+    item_key = 6,
+};
+
+enum SceneryPrototypeSubtype : int {
+    scenery_door = 0,
+    scenery_stairs = 1,
+    scenery_elevator = 2,
+    scenery_ladder_up = 3,
+    scenery_ladder_down = 4,
+    scenery_generic = 5,
+};
+
 std::optional<std::size_t> object_tail_size_from_prototype(
     const PrototypeRecord& prototype,
     int map_version

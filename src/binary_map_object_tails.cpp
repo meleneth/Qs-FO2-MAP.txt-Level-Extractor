@@ -1,6 +1,7 @@
 #include "binary_map_parser.h"
 
 #include "byte_reader.h"
+#include "prototype_metadata.h"
 
 #include <cstdint>
 #include <optional>
@@ -82,6 +83,144 @@ Result<BinarySceneryTail> parse_binary_scenery_tail(std::span<const std::byte> b
     }
     parsed.destination = destination.value();
     return Result<BinarySceneryTail>::ok(parsed);
+}
+
+Result<BinaryItemTail> parse_binary_item_tail(
+    std::span<const std::byte> bytes,
+    Range tail,
+    const PrototypeRecord& prototype
+)
+{
+    if (prototype.object_type != BinaryObjectType::item) {
+        return Result<BinaryItemTail>::fail({"prototype is not an item", tail.offset});
+    }
+
+    const auto expected_size = object_tail_size_from_prototype(prototype, fallout_2_map_version);
+    if (!expected_size || tail.size != *expected_size) {
+        return Result<BinaryItemTail>::fail({"item tail size does not match prototype subtype", tail.offset});
+    }
+    if (tail.offset > bytes.size() || tail.size > bytes.size() - tail.offset) {
+        return Result<BinaryItemTail>::fail({"invalid item tail range", tail.offset});
+    }
+
+    ByteReader reader(bytes.subspan(tail.offset, tail.size));
+    BinaryItemTail parsed;
+    switch (prototype.subtype) {
+    case item_weapon: {
+        auto ammo_count = read_i32(reader);
+        if (!ammo_count) {
+            return Result<BinaryItemTail>::fail(ammo_count.error());
+        }
+        auto ammo_pid = read_i32(reader);
+        if (!ammo_pid) {
+            return Result<BinaryItemTail>::fail(ammo_pid.error());
+        }
+        parsed.weapon_ammo_count = ammo_count.value();
+        parsed.weapon_ammo_pid = ammo_pid.value();
+        break;
+    }
+    case item_ammo: {
+        auto quantity = read_i32(reader);
+        if (!quantity) {
+            return Result<BinaryItemTail>::fail(quantity.error());
+        }
+        parsed.ammo_quantity = quantity.value();
+        break;
+    }
+    case item_misc: {
+        auto charges = read_i32(reader);
+        if (!charges) {
+            return Result<BinaryItemTail>::fail(charges.error());
+        }
+        parsed.misc_charges = charges.value();
+        break;
+    }
+    case item_key: {
+        auto key_code = read_i32(reader);
+        if (!key_code) {
+            return Result<BinaryItemTail>::fail(key_code.error());
+        }
+        parsed.key_code = key_code.value();
+        break;
+    }
+    case item_armor:
+    case item_container:
+    case item_drug:
+        break;
+    default:
+        return Result<BinaryItemTail>::fail({"unsupported item subtype", tail.offset});
+    }
+
+    return Result<BinaryItemTail>::ok(parsed);
+}
+
+Result<BinaryScenerySubtypeTail> parse_binary_scenery_subtype_tail(
+    std::span<const std::byte> bytes,
+    Range tail,
+    const PrototypeRecord& prototype,
+    int map_version
+)
+{
+    if (prototype.object_type != BinaryObjectType::scenery) {
+        return Result<BinaryScenerySubtypeTail>::fail({"prototype is not scenery", tail.offset});
+    }
+
+    const auto expected_size = object_tail_size_from_prototype(prototype, map_version);
+    if (!expected_size || tail.size != *expected_size) {
+        return Result<BinaryScenerySubtypeTail>::fail({"scenery tail size does not match prototype subtype", tail.offset});
+    }
+    if (tail.offset > bytes.size() || tail.size > bytes.size() - tail.offset) {
+        return Result<BinaryScenerySubtypeTail>::fail({"invalid scenery tail range", tail.offset});
+    }
+
+    ByteReader reader(bytes.subspan(tail.offset, tail.size));
+    BinaryScenerySubtypeTail parsed;
+    switch (prototype.subtype) {
+    case scenery_door: {
+        auto walkthrough = read_i32(reader);
+        if (!walkthrough) {
+            return Result<BinaryScenerySubtypeTail>::fail(walkthrough.error());
+        }
+        parsed.door_walkthrough = walkthrough.value();
+        break;
+    }
+    case scenery_stairs:
+    case scenery_ladder_up:
+    case scenery_ladder_down: {
+        auto destination_tile_and_elevation = read_i32(reader);
+        if (!destination_tile_and_elevation) {
+            return Result<BinaryScenerySubtypeTail>::fail(destination_tile_and_elevation.error());
+        }
+        parsed.destination_tile_and_elevation = destination_tile_and_elevation.value();
+        if (tail.size >= 2 * sizeof(std::int32_t)) {
+            auto destination_map = read_i32(reader);
+            if (!destination_map) {
+                return Result<BinaryScenerySubtypeTail>::fail(destination_map.error());
+            }
+            parsed.destination_map = destination_map.value();
+        }
+        break;
+    }
+    case scenery_elevator: {
+        auto elevator_type = read_i32(reader);
+        if (!elevator_type) {
+            return Result<BinaryScenerySubtypeTail>::fail(elevator_type.error());
+        }
+        auto elevator_level = read_i32(reader);
+        if (!elevator_level) {
+            return Result<BinaryScenerySubtypeTail>::fail(elevator_level.error());
+        }
+        parsed.elevator_type = elevator_type.value();
+        parsed.elevator_level = elevator_level.value();
+        break;
+    }
+    case scenery_generic:
+        break;
+    default:
+        return Result<BinaryScenerySubtypeTail>::fail({"unsupported scenery subtype", tail.offset});
+    }
+
+    return Result<BinaryScenerySubtypeTail>::ok(parsed);
 }
 
 Result<BinaryCritterTail> parse_binary_critter_tail(std::span<const std::byte> bytes, Range tail)

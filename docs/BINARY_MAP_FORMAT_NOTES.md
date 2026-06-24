@@ -61,10 +61,16 @@ metadata, low-level parser helpers may still parse synthetic buffers but should
 not be treated as reliable for real `.map` object records.
 
 Item prototype tails are applied when prototype metadata is supplied.
+Typed item tail accessors decode the documented MAP extra fields for weapons
+(ammo count then ammo PID), ammo quantity, misc charges, and key code. Raw tail
+ranges remain authoritative for serialization.
 
 Scenery prototype tails are applied when prototype metadata is supplied. Current
 fixture smoke coverage includes door tails that advance `BROKEN1.map`,
 `BROKEN2.map`, `Newr1.map`, and `Newr2.map` past their previous cursor errors.
+Typed scenery tail accessors decode the documented door walkthrough word,
+stairs/ladders packed destination hex/elevation plus Fallout 2 destination map,
+and elevator type/level. Raw tail ranges remain authoritative for serialization.
 
 Current documented misc exit-grid tail rule:
 

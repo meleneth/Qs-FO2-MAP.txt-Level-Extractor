@@ -14,11 +14,14 @@
 namespace qmap {
 
 class PrototypeDatabase;
+struct PrototypeRecord;
 
 constexpr std::size_t binary_map_filename_size = 16;
 constexpr std::size_t binary_map_unknown_header_words = 44;
 constexpr std::size_t binary_map_header_size = 236;
 constexpr int binary_map_elevation_count = 3;
+constexpr int fallout_1_map_version = 19;
+constexpr int fallout_2_map_version = 20;
 
 struct BinaryMapHeader {
     std::uint32_t version = 0;
@@ -182,10 +185,26 @@ struct BinaryObjectRecord {
     std::vector<BinaryObjectRecord> inventory;
 };
 
+struct BinaryItemTail {
+    std::optional<std::int32_t> weapon_ammo_pid;
+    std::optional<std::int32_t> weapon_ammo_count;
+    std::optional<std::int32_t> ammo_quantity;
+    std::optional<std::int32_t> misc_charges;
+    std::optional<std::int32_t> key_code;
+};
+
 struct BinarySceneryTail {
     std::int32_t flags = 0;
     std::int32_t door_flags = 0;
     std::int32_t destination = 0;
+};
+
+struct BinaryScenerySubtypeTail {
+    std::optional<std::int32_t> door_walkthrough;
+    std::optional<std::int32_t> destination_tile_and_elevation;
+    std::optional<std::int32_t> destination_map;
+    std::optional<std::int32_t> elevator_type;
+    std::optional<std::int32_t> elevator_level;
 };
 
 struct BinaryCritterTail {
@@ -258,6 +277,17 @@ Result<std::optional<BinaryObjectPrefix>> parse_first_binary_object_prefix(
     const BinaryMapHeader& header
 );
 Result<BinarySceneryTail> parse_binary_scenery_tail(std::span<const std::byte> bytes, Range tail);
+Result<BinaryItemTail> parse_binary_item_tail(
+    std::span<const std::byte> bytes,
+    Range tail,
+    const PrototypeRecord& prototype
+);
+Result<BinaryScenerySubtypeTail> parse_binary_scenery_subtype_tail(
+    std::span<const std::byte> bytes,
+    Range tail,
+    const PrototypeRecord& prototype,
+    int map_version
+);
 Result<BinaryCritterTail> parse_binary_critter_tail(std::span<const std::byte> bytes, Range tail);
 Result<BinaryMiscTail> parse_binary_misc_tail(std::span<const std::byte> bytes, Range tail);
 Result<BinaryMapObjectRecords> parse_binary_map_object_records(

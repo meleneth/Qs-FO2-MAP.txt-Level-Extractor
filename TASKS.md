@@ -288,12 +288,12 @@ The next slices should harden the supported whole-elevation workflow and keep ex
   - [x] Add tests around the pure planner before wiring the CLI command.
   - [x] Add formatter coverage for the dry-run CLI report.
 
-- [ ] Decode typed object tails needed for binary export/merge decisions.
-  - [ ] Item tails: weapon ammo PID/count, ammo quantity, misc charges, key code.
-  - [ ] Scenery tails: door flags/key, stairs/elevator/ladder destinations.
-  - [ ] Misc exit-grid tails: destination map, tile, elevation, rotation.
-  - [ ] Critter tails: current HP/status fields already parsed enough for preservation; decide which fields need semantic names for merge UI.
-  - [ ] Keep raw tail bytes as the source of truth until every decoded field can round-trip.
+- [x] Decode typed object tails needed for binary export/merge decisions.
+  - [x] Item tails: weapon ammo count/PID, ammo quantity, misc charges, key code.
+  - [x] Scenery tails: door walkthrough, stairs/elevator/ladder destinations.
+  - [x] Misc exit-grid tails: destination map, tile, elevation, rotation.
+  - [x] Critter tails: current HP/status fields already parsed enough for preservation; decide which fields need semantic names for merge UI.
+  - [x] Keep raw tail bytes as the source of truth until every decoded field can round-trip.
 
 - [x] Remove or isolate placeholder object structs that imply unsupported parsing.
   - [x] Unknown fields are acceptable.

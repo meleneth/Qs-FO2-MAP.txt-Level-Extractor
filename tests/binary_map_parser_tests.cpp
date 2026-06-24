@@ -1260,6 +1260,120 @@ TEST_CASE("parse_binary_scenery_tail decodes preserved scenery tail fields", "[m
     CHECK(parsed.value().destination == 9002);
 }
 
+TEST_CASE("parse_binary_item_tail decodes prototype subtype tails", "[map][binary]")
+{
+    std::vector<std::byte> weapon_bytes;
+    append_i32(weapon_bytes, 12);
+    append_i32(weapon_bytes, 0x00000002);
+    const auto weapon = qmap::parse_binary_item_tail(
+        weapon_bytes,
+        qmap::Range{0, weapon_bytes.size()},
+        qmap::PrototypeRecord{0x00000001, qmap::BinaryObjectType::item, qmap::item_weapon}
+    );
+    REQUIRE(weapon);
+    CHECK(weapon.value().weapon_ammo_count == 12);
+    CHECK(weapon.value().weapon_ammo_pid == 0x00000002);
+    CHECK_FALSE(weapon.value().ammo_quantity);
+
+    std::vector<std::byte> ammo_bytes;
+    append_i32(ammo_bytes, 24);
+    const auto ammo = qmap::parse_binary_item_tail(
+        ammo_bytes,
+        qmap::Range{0, ammo_bytes.size()},
+        qmap::PrototypeRecord{0x00000002, qmap::BinaryObjectType::item, qmap::item_ammo}
+    );
+    REQUIRE(ammo);
+    CHECK(ammo.value().ammo_quantity == 24);
+
+    std::vector<std::byte> misc_bytes;
+    append_i32(misc_bytes, 5);
+    const auto misc = qmap::parse_binary_item_tail(
+        misc_bytes,
+        qmap::Range{0, misc_bytes.size()},
+        qmap::PrototypeRecord{0x00000003, qmap::BinaryObjectType::item, qmap::item_misc}
+    );
+    REQUIRE(misc);
+    CHECK(misc.value().misc_charges == 5);
+
+    std::vector<std::byte> key_bytes;
+    append_i32(key_bytes, 1234);
+    const auto key = qmap::parse_binary_item_tail(
+        key_bytes,
+        qmap::Range{0, key_bytes.size()},
+        qmap::PrototypeRecord{0x00000004, qmap::BinaryObjectType::item, qmap::item_key}
+    );
+    REQUIRE(key);
+    CHECK(key.value().key_code == 1234);
+}
+
+TEST_CASE("parse_binary_item_tail rejects subtype size mismatch", "[map][binary]")
+{
+    std::vector<std::byte> bytes;
+    append_i32(bytes, 12);
+
+    const auto parsed = qmap::parse_binary_item_tail(
+        bytes,
+        qmap::Range{0, bytes.size()},
+        qmap::PrototypeRecord{0x00000001, qmap::BinaryObjectType::item, qmap::item_weapon}
+    );
+
+    REQUIRE_FALSE(parsed);
+    CHECK(parsed.error().message == "item tail size does not match prototype subtype");
+}
+
+TEST_CASE("parse_binary_scenery_subtype_tail decodes prototype subtype tails", "[map][binary]")
+{
+    std::vector<std::byte> door_bytes;
+    append_i32(door_bytes, 0x10);
+    const auto door = qmap::parse_binary_scenery_subtype_tail(
+        door_bytes,
+        qmap::Range{0, door_bytes.size()},
+        qmap::PrototypeRecord{0x02000001, qmap::BinaryObjectType::scenery, qmap::scenery_door},
+        qmap::fallout_2_map_version
+    );
+    REQUIRE(door);
+    CHECK(door.value().door_walkthrough == 0x10);
+    CHECK_FALSE(door.value().destination_tile_and_elevation);
+
+    std::vector<std::byte> stairs_bytes;
+    append_i32(stairs_bytes, 20000);
+    append_i32(stairs_bytes, 2);
+    const auto stairs = qmap::parse_binary_scenery_subtype_tail(
+        stairs_bytes,
+        qmap::Range{0, stairs_bytes.size()},
+        qmap::PrototypeRecord{0x02000002, qmap::BinaryObjectType::scenery, qmap::scenery_stairs},
+        qmap::fallout_2_map_version
+    );
+    REQUIRE(stairs);
+    CHECK(stairs.value().destination_tile_and_elevation == 20000);
+    CHECK(stairs.value().destination_map == 2);
+
+    std::vector<std::byte> elevator_bytes;
+    append_i32(elevator_bytes, 3);
+    append_i32(elevator_bytes, 4);
+    const auto elevator = qmap::parse_binary_scenery_subtype_tail(
+        elevator_bytes,
+        qmap::Range{0, elevator_bytes.size()},
+        qmap::PrototypeRecord{0x02000004, qmap::BinaryObjectType::scenery, qmap::scenery_elevator},
+        qmap::fallout_2_map_version
+    );
+    REQUIRE(elevator);
+    CHECK(elevator.value().elevator_type == 3);
+    CHECK(elevator.value().elevator_level == 4);
+
+    std::vector<std::byte> ladder_bytes;
+    append_i32(ladder_bytes, 21000);
+    const auto ladder = qmap::parse_binary_scenery_subtype_tail(
+        ladder_bytes,
+        qmap::Range{0, ladder_bytes.size()},
+        qmap::PrototypeRecord{0x02000003, qmap::BinaryObjectType::scenery, qmap::scenery_ladder_up},
+        qmap::fallout_1_map_version
+    );
+    REQUIRE(ladder);
+    CHECK(ladder.value().destination_tile_and_elevation == 21000);
+    CHECK_FALSE(ladder.value().destination_map);
+}
+
 TEST_CASE("parse_binary_critter_tail decodes preserved critter tail fields", "[map][binary]")
 {
     const auto bytes = example_map_with_object_records();

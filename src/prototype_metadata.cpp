@@ -13,28 +13,8 @@ namespace {
 constexpr std::size_t common_pid_offset = 0x00;
 constexpr std::size_t common_subtype_offset = 0x20;
 constexpr std::size_t minimum_typed_prototype_size = common_subtype_offset + sizeof(std::int32_t);
-constexpr int fallout_1_map_version = 19;
 constexpr std::int32_t first_exit_grid_pid = 0x05000010;
 constexpr std::int32_t last_exit_grid_pid = 0x05000017;
-
-enum ItemPrototypeSubtype : int {
-    item_armor = 0,
-    item_container = 1,
-    item_drug = 2,
-    item_weapon = 3,
-    item_ammo = 4,
-    item_misc = 5,
-    item_key = 6,
-};
-
-enum SceneryPrototypeSubtype : int {
-    scenery_door = 0,
-    scenery_stairs = 1,
-    scenery_elevator = 2,
-    scenery_ladder_up = 3,
-    scenery_ladder_down = 4,
-    scenery_generic = 5,
-};
 
 struct PrototypeKindSource {
     BinaryObjectType type;
