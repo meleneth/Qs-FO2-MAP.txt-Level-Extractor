@@ -152,6 +152,8 @@ The next slices should harden the supported whole-elevation workflow and keep ex
 - [x] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
 - [x] Surface binary output write failures, including accidental overwrite refusal, as command failures instead of reporting success.
 - [ ] Decide whether guarded non-dry-run binary `replace-elevation` is user-facing complete for supported whole-elevation cases, or keep it marked experimental until more real-map fixture coverage lands.
+  - [ ] Add at least one fixture-backed replace-elevation assertion for copied content that includes inventory-bearing objects, not only a parseable copied elevation with no inventory.
+  - [ ] Decide the exact release wording/guardrails for binary `replace-elevation` after fixture assertions cover copied inventories and typed tails.
 
 ## Phase 5: Fix Binary `.map` Parsing
 
@@ -182,35 +184,38 @@ The next slices should harden the supported whole-elevation workflow and keep ex
     - [x] Surface missing `parse-stats` input as structured parse-failed output for binary, text, and unsupported extensions instead of an unstructured exception.
     - [x] Require `--proto-root` for CLI binary `.map` object parsing instead of pretending prototype metadata is optional.
     - [ ] Require prototype metadata in binary GUI/workflow entry points before exposing binary object parsing beyond diagnostics.
-    - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated. Partial: item subtype tails, scenery subtype tails, and misc exit-grid PID tails are enabled.
+      - [ ] Add GUI affordance/state for choosing an extracted `proto/` root before binary object parsing or binary patching.
+      - [ ] Surface missing/invalid GUI prototype metadata as a hard error for binary workflows, matching CLI `--proto-root`.
+    - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated. Partial: item subtype tails, door/stairs/ladder scenery subtype tails, and misc exit-grid PID tails are fixture-covered; elevator scenery tails still need a fixture.
     - [x] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
     - [x] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
     - [x] Surface a clear diagnostic when prototype data is unavailable and the parser reaches a PID whose tail cannot be resolved safely.
-    - [ ] Stretch: add C++ DAT2 reading/extraction to the app or CLI so users do not need a separate extraction step.
-    - [ ] Stretch: support loose `data/proto` overrides on top of DAT-extracted prototype data.
+    - [ ] Future: add C++ DAT2 reading/extraction to the app or CLI so users do not need a separate extraction step.
+    - [ ] Future: support loose `data/proto` overrides on top of DAT-extracted prototype data.
     - [ ] Reconcile object tail sizes against the published MAP format references and fixture evidence before adding more subtype rules.
     - [x] Correct normal MAP critter tails to the documented/observed 40-byte layout; remove or quarantine the older 44-byte/11-word assumption unless a specific fixture proves it.
     - [ ] Re-check item, scenery, exit-grid, misc, and other PID-kind tails against `falloutmods.fandom.com/wiki/MAP_File_Format` and `fodev.net/files/fo2/map.html`.
       - [x] Replace fixture-specific misc exit-grid rules with Fallout CE's documented `FIRST_EXIT_GRID_PID..LAST_EXIT_GRID_PID` range (`0x05000010..0x05000017`), and keep `0x0500000C` as a generic 0-byte misc object.
       - [x] Validate scenery door subtype tail offsets against real fixtures before allowing prototype scenery metadata to drive object cursor advancement; after item/misc corrections, enabling scenery tails lets `ARVILL2.map` parse all 1141 object records and advances `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` past their prior door-tail cursor errors.
-      - [ ] Validate stairs/elevator/ladder scenery subtype tail offsets against real fixtures as they are encountered.
+      - [ ] Validate elevator scenery subtype tail offsets against real fixtures as they are encountered; current fixture corpus decodes zero elevator tails.
+      - [x] Validate stairs/ladder scenery subtype tail offsets against current real fixtures.
     - [ ] Keep any compatibility parsing for variant tails explicitly documented with fixture names, byte offsets, and why the public reference or current prototype support is insufficient.
       - [x] Document the misc exit-grid PID range without reintroducing prefix scanning, and document why `0x0500000C` remains a generic 0-byte misc tail.
       - [x] Remove offset-specific fixture overrides once prototype subtype resolution covers those records.
   - [x] Reconcile inventory parsing with the documented count-prefixed inventory object format.
     - [x] Prefer bounded parent inventory parsing over global backtracking across parent record boundaries.
     - [x] Treat "direct child object" layouts as suspect until a fixture proves there is no preceding quantity/count word.
-    - [ ] Add fixture-backed tests for `BROKEN1.map` style nested inventory alignment once the tail sizes are corrected.
+    - [x] Add fixture-backed tests for `BROKEN1.map` style nested inventory alignment once the tail sizes are corrected.
   - [x] Consume serialized zero object-count slots for absent elevations after present object blocks.
   - [x] Remove forward-scanning tail candidate selection; object tails now resolve through fixed kind sizes, prototype subtype metadata, and the documented misc exit-grid PID range.
-  - [ ] Add more documented PID subtype rules so `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` can progress without heuristic scanning. Partial: item subtype tails, scenery subtype tails, and misc exit-grid PID range `0x05000010..0x05000017` now parse the current smoke fixtures with extracted prototypes. Prefer prototype-backed rules for new work.
+  - [x] Add more documented PID subtype rules so `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map` can progress without heuristic scanning. Current fixture corpus parses with item subtype tails, door/stairs/ladder scenery tails, and misc exit-grid PID range `0x05000010..0x05000017`; prefer prototype-backed rules for any new work.
   - [x] Capture map variables and local variables as modeled data.
   - [x] Parse tile/elevation blocks into explicit structures.
   - [x] Parse scripts, script padding, and script footers completely.
   - [ ] Parse objects by PID/object kind, including type-specific tails. Partial: object record boundaries are fixture-validated with extracted prototypes; many tails are still preserved as raw ranges.
   - [x] Parse inventories and nested inventory objects.
   - [x] Add real fixture regression coverage for prototype-backed binary object parsing over `ARVILL2.map`, `BROKEN1.map`, `BROKEN2.map`, `Newr1.map`, and `Newr2.map`.
-  - [ ] Expand fixture assertions beyond counts once the object model has stable typed fields needed by export.
+  - [x] Expand fixture assertions beyond counts once the object model has stable typed fields needed by export.
   - [x] Preserve raw byte ranges for fields or object variants that are still unknown so round-trip/export work is not blocked.
   - [x] Treat current debug/suspect messages as parsing diagnostics, not necessarily fatal errors; the tail/padding behavior is not fully understood yet.
   - [x] Document every still-unknown field with offset, observed values, and fixture coverage.
@@ -234,6 +239,8 @@ The next slices should harden the supported whole-elevation workflow and keep ex
     - [x] Cover selected object/script counts, ID reassignment, absent destination, absent source, missing attached scripts, outside-object script references, invalid spatial built_tile elevation bits, missing copied scenery prototype metadata, copied elevation-linking scenery, and undecodable exit-grid tails.
     - [x] Cover source variable requirements exceeding destination variables.
     - [x] Cover exhausted object/script ID space.
+  - [ ] Future: design merge-in mode, where destination contents are preserved and source contents are inserted with explicit collision handling.
+  - [ ] Future: design rectangular-region patching after whole-elevation replacement is stable; define tile/object/script selection by region and elevation before implementing writer changes.
 
 - [ ] Implement binary `replace-elevation` writing. Partial: guarded non-dry-run output works for supported whole-elevation replacement and refuses failed output writes; broader real-map round-trip coverage and typed tail decoding still need expansion before calling binary export generally complete.
   - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.

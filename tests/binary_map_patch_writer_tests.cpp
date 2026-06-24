@@ -3,6 +3,7 @@
 #include "binary_map_patch_writer.h"
 #include "prototype_metadata.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -42,6 +43,16 @@ std::vector<std::byte> load_binary_fixture(std::string_view name)
         bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(value)));
     }
     return bytes;
+}
+
+std::size_t count_records_including_inventory(const std::vector<qmap::BinaryObjectRecord>& records)
+{
+    std::size_t count = 0;
+    for (const auto& record : records) {
+        ++count;
+        count += count_records_including_inventory(record.inventory);
+    }
+    return count;
 }
 
 void write_i32_be(std::vector<std::byte>& bytes, std::size_t offset, std::int32_t value)
@@ -1343,6 +1354,17 @@ TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections p
     CHECK(reparsed.value().scripts.by_type[4].size() == plan.value().destination_script_counts_after[4]);
     CHECK(reparsed.value().objects.total_count == plan.value().destination_total_objects_after);
     CHECK(reparsed.value().objects.elevation_counts == plan.value().destination_object_counts_after);
+    CHECK(count_records_including_inventory(reparsed.value().objects.records)
+        == count_records_including_inventory(destination.value().objects.records)
+            - plan.value().deleted_objects_including_inventory
+            + plan.value().copied_objects_including_inventory);
+    CHECK(reparsed.value().tiles.elevations[1].size() == source.value().tiles.elevations[0].size());
+    CHECK(std::equal(
+        reparsed.value().tiles.elevations[1].begin(),
+        reparsed.value().tiles.elevations[1].end(),
+        source.value().tiles.elevations[0].begin(),
+        source.value().tiles.elevations[0].end()
+    ));
     CHECK(reparsed.value().header.has_elevation(1));
     CHECK_FALSE(reparsed.value().header.has_elevation(2));
 }

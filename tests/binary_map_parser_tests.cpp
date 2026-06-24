@@ -3,6 +3,7 @@
 #include "binary_map_parser.h"
 #include "prototype_metadata.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -52,6 +53,129 @@ std::size_t count_records_including_inventory(const std::vector<qmap::BinaryObje
         count += count_records_including_inventory(record.inventory);
     }
     return count;
+}
+
+struct FixtureObjectSummary {
+    std::size_t top_level_records = 0;
+    std::size_t records_with_inventory = 0;
+    std::size_t inventory_records = 0;
+    std::size_t inventory_parent_records = 0;
+    std::size_t max_inventory_depth = 0;
+    std::size_t item_tails = 0;
+    std::size_t weapon_tails = 0;
+    std::size_t ammo_tails = 0;
+    std::size_t misc_item_tails = 0;
+    std::size_t key_tails = 0;
+    std::size_t scenery_tails = 0;
+    std::size_t door_tails = 0;
+    std::size_t stairs_tails = 0;
+    std::size_t elevator_tails = 0;
+    std::size_t ladder_tails = 0;
+    std::size_t misc_exit_grid_tails = 0;
+    std::size_t critter_tails = 0;
+};
+
+void summarize_object_records(
+    const std::vector<qmap::BinaryObjectRecord>& records,
+    std::span<const std::byte> bytes,
+    const qmap::PrototypeDatabase& prototypes,
+    int map_version,
+    std::size_t depth,
+    FixtureObjectSummary& summary
+)
+{
+    for (const auto& record : records) {
+        ++summary.records_with_inventory;
+        summary.max_inventory_depth = std::max(summary.max_inventory_depth, depth);
+        if (depth > 0) {
+            ++summary.inventory_records;
+        }
+        if (!record.inventory.empty()) {
+            ++summary.inventory_parent_records;
+        }
+
+        if (const auto prototype = prototypes.find(record.prefix.pid)) {
+            if (record.object_type == qmap::BinaryObjectType::item && !record.tail.empty()) {
+                auto tail = qmap::parse_binary_item_tail(
+                    bytes,
+                    record.tail,
+                    *prototype
+                );
+                if (tail) {
+                    ++summary.item_tails;
+                    switch (prototype->subtype) {
+                    case qmap::item_weapon:
+                        ++summary.weapon_tails;
+                        break;
+                    case qmap::item_ammo:
+                        ++summary.ammo_tails;
+                        break;
+                    case qmap::item_misc:
+                        ++summary.misc_item_tails;
+                        break;
+                    case qmap::item_key:
+                        ++summary.key_tails;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            } else if (record.object_type == qmap::BinaryObjectType::scenery && !record.tail.empty()) {
+                auto tail = qmap::parse_binary_scenery_subtype_tail(
+                    bytes,
+                    record.tail,
+                    *prototype,
+                    map_version
+                );
+                if (tail) {
+                    ++summary.scenery_tails;
+                    switch (prototype->subtype) {
+                    case qmap::scenery_door:
+                        ++summary.door_tails;
+                        break;
+                    case qmap::scenery_stairs:
+                        ++summary.stairs_tails;
+                        break;
+                    case qmap::scenery_elevator:
+                        ++summary.elevator_tails;
+                        break;
+                    case qmap::scenery_ladder_up:
+                    case qmap::scenery_ladder_down:
+                        ++summary.ladder_tails;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            } else if (record.object_type == qmap::BinaryObjectType::misc && record.tail.size == 4 * sizeof(std::int32_t)) {
+                auto tail = qmap::parse_binary_misc_tail(bytes, record.tail);
+                if (tail) {
+                    ++summary.misc_exit_grid_tails;
+                }
+            }
+        }
+        if (record.object_type == qmap::BinaryObjectType::critter && !record.tail.empty()) {
+            auto tail = qmap::parse_binary_critter_tail(bytes, record.tail);
+            if (tail) {
+                ++summary.critter_tails;
+            }
+        }
+
+        summarize_object_records(record.inventory, bytes, prototypes, map_version, depth + 1, summary);
+    }
+}
+
+FixtureObjectSummary summarize_fixture_objects(
+    std::span<const std::byte> bytes,
+    const qmap::BinaryMapHeader& header,
+    const qmap::BinaryMapObjectRecords& objects,
+    const qmap::PrototypeDatabase& prototypes
+)
+{
+    FixtureObjectSummary summary;
+    summary.top_level_records = objects.records.size();
+    summarize_object_records(objects.records, bytes, prototypes, static_cast<int>(header.version), 0, summary);
+    return summary;
 }
 
 std::byte b(unsigned int value)
@@ -1512,16 +1636,18 @@ TEST_CASE("parse_binary_map parses real fixture object records with prototype me
         const char* filename;
         std::size_t top_level_records;
         std::size_t records_with_inventory;
+        std::size_t inventory_records;
     };
 
     constexpr FixtureExpectation fixtures[] = {
-        {"ARVILL2.map", 1141, 1141},
-        {"BROKEN1.map", 3533, 3686},
-        {"BROKEN2.map", 7102, 7150},
-        {"Newr1.map", 3910, 4226},
-        {"Newr2.map", 5229, 5773},
+        {"ARVILL2.map", 1141, 1141, 0},
+        {"BROKEN1.map", 3533, 3686, 153},
+        {"BROKEN2.map", 7102, 7150, 48},
+        {"Newr1.map", 3910, 4226, 316},
+        {"Newr2.map", 5229, 5773, 544},
     };
 
+    FixtureObjectSummary corpus_summary;
     for (const auto& fixture : fixtures) {
         CAPTURE(fixture.filename);
         const auto bytes = load_binary_fixture(fixture.filename);
@@ -1531,6 +1657,47 @@ TEST_CASE("parse_binary_map parses real fixture object records with prototype me
         CHECK(parsed.value().objects.records.size() == fixture.top_level_records);
         CHECK(count_records_including_inventory(parsed.value().objects.records)
             == fixture.records_with_inventory);
+        const auto summary = summarize_fixture_objects(
+            bytes,
+            parsed.value().header,
+            parsed.value().objects,
+            loaded.value()
+        );
+        CHECK(summary.top_level_records == fixture.top_level_records);
+        CHECK(summary.records_with_inventory == fixture.records_with_inventory);
+        CHECK(summary.inventory_records == fixture.inventory_records);
+        corpus_summary.inventory_parent_records += summary.inventory_parent_records;
+        corpus_summary.item_tails += summary.item_tails;
+        corpus_summary.weapon_tails += summary.weapon_tails;
+        corpus_summary.ammo_tails += summary.ammo_tails;
+        corpus_summary.misc_item_tails += summary.misc_item_tails;
+        corpus_summary.key_tails += summary.key_tails;
+        corpus_summary.scenery_tails += summary.scenery_tails;
+        corpus_summary.door_tails += summary.door_tails;
+        corpus_summary.stairs_tails += summary.stairs_tails;
+        corpus_summary.elevator_tails += summary.elevator_tails;
+        corpus_summary.ladder_tails += summary.ladder_tails;
+        corpus_summary.misc_exit_grid_tails += summary.misc_exit_grid_tails;
+        corpus_summary.critter_tails += summary.critter_tails;
+        corpus_summary.max_inventory_depth = std::max(
+            corpus_summary.max_inventory_depth,
+            summary.max_inventory_depth
+        );
         CHECK(parsed.value().objects.diagnostics.empty());
     }
+
+    CHECK(corpus_summary.inventory_parent_records > 0);
+    CHECK(corpus_summary.max_inventory_depth > 0);
+    CHECK(corpus_summary.item_tails > 0);
+    CHECK(corpus_summary.weapon_tails > 0);
+    CHECK(corpus_summary.ammo_tails > 0);
+    CHECK(corpus_summary.misc_item_tails > 0);
+    CHECK(corpus_summary.key_tails > 0);
+    CHECK(corpus_summary.scenery_tails > 0);
+    CHECK(corpus_summary.door_tails > 0);
+    CHECK(corpus_summary.stairs_tails > 0);
+    CHECK(corpus_summary.elevator_tails == 0);
+    CHECK(corpus_summary.ladder_tails > 0);
+    CHECK(corpus_summary.misc_exit_grid_tails > 0);
+    CHECK(corpus_summary.critter_tails > 0);
 }
