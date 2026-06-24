@@ -1,6 +1,5 @@
 #include "gui_session.h"
 
-#include "binary_map_parser.h"
 #include "text_map_parser.h"
 
 #include <algorithm>
@@ -39,6 +38,7 @@ void clear_loaded_slot(GuiSession::MapSlot& slot)
     slot.header_size = 0;
     slot.elevations = {};
     slot.parsed_text = std::nullopt;
+    slot.parsed_binary = std::nullopt;
 }
 
 bool load_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>& bytes)
@@ -64,7 +64,15 @@ std::string lower_extension(const std::filesystem::path& path)
     return extension;
 }
 
-void parse_binary_map_for_gui(GuiSession::MapSlot& slot)
+std::span<const std::byte> binary_bytes_for_slot(const GuiSession::MapSlot& slot)
+{
+    return std::span<const std::byte>(
+        reinterpret_cast<const std::byte*>(slot.owned_data.data()),
+        slot.owned_data.size()
+    );
+}
+
+bool parse_binary_map_for_gui(GuiSession::MapSlot& slot, const PrototypeDatabase& prototypes)
 {
     slot.header_size = 0;
     for (int level = 0; level < binary_map_elevation_count; ++level) {
@@ -72,25 +80,23 @@ void parse_binary_map_for_gui(GuiSession::MapSlot& slot)
     }
 
     if (slot.owned_data.empty()) {
-        return;
+        return false;
     }
 
-    const auto bytes = std::span<const std::byte>(
-        reinterpret_cast<const std::byte*>(slot.owned_data.data()),
-        slot.owned_data.size()
-    );
-    const auto header = parse_binary_map_header(bytes);
-    if (!header) {
-        slot.parse_error = header.error().message;
-        return;
+    auto parsed = parse_binary_map(binary_bytes_for_slot(slot), prototypes);
+    if (!parsed) {
+        slot.parse_error = parsed.error().message;
+        return false;
     }
 
     slot.header_size = static_cast<int>(binary_map_header_size);
     for (int level = 0; level < binary_map_elevation_count; ++level) {
-        if (header.value().has_elevation(level)) {
+        if (parsed.value().header.has_elevation(level)) {
             slot.elevations[level] = Range{0, slot.owned_data.size()};
         }
     }
+    slot.parsed_binary = std::move(parsed.value());
+    return true;
 }
 
 std::optional<ParsedTextSource> text_source_for_slot(const GuiSession::MapSlot& slot)
@@ -149,7 +155,7 @@ bool map_parse_succeeded(const GuiSession::MapSlot& slot)
         return slot.parsed_text.has_value();
     }
     if (slot.map_type == MapFileKind::binary) {
-        return slot.header_size == static_cast<int>(binary_map_header_size);
+        return slot.parsed_binary.has_value();
     }
 
     return false;
@@ -249,9 +255,9 @@ GuiExportAction prepare_export(GuiSession& session)
         && (session.right.map_type == MapFileKind::binary || session.right.map_type == MapFileKind::empty)) {
         session.open_error_popup = true;
         session.current_error =
-            ".MAP export is not implemented yet.\n"
-            "The file can be parsed, but binary export\n"
-            "is disabled until the full format is modeled.";
+            ".MAP GUI patching is not wired yet.\n"
+            "Use the CLI replace-elevation command\n"
+            "for supported binary whole-elevation replacement.";
         return GuiExportAction::none;
     }
 
@@ -323,36 +329,57 @@ bool load_dropped_file(GuiSession& session, const std::filesystem::path& file_pa
         return false;
     }
 
-    auto& slot = slot_for_side(session, *session.drop_target);
-    clear_loaded_slot(slot);
     if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         session.current_error = std::string{"File is too large:\n"} + file_path.string();
         session.open_error_popup = true;
         return false;
     }
 
-    slot.file_path = file_path.string();
-    slot.map_name = file_path.filename().string();
-    slot.owned_data = std::move(bytes);
-    slot.map_type = map_type;
+    GuiSession::MapSlot loaded;
+    loaded.file_path = file_path.string();
+    loaded.map_name = file_path.filename().string();
+    loaded.owned_data = std::move(bytes);
+    loaded.map_type = map_type;
 
-    if (slot.map_type == MapFileKind::binary) {
-        parse_binary_map_for_gui(slot);
-    } else if (slot.map_type == MapFileKind::text) {
+    if (loaded.map_type == MapFileKind::binary) {
+        if (std::string_view{session.proto_root_path}.empty()) {
+            session.current_error = "Binary .MAP parsing requires a prototype root.";
+            session.open_error_popup = true;
+            return false;
+        }
+        auto prototypes = load_prototype_database(session.proto_root_path);
+        if (!prototypes) {
+            session.current_error =
+                std::string{"Unable to load prototype metadata:\n"}
+                + prototypes.error().message;
+            session.open_error_popup = true;
+            return false;
+        }
+        if (!parse_binary_map_for_gui(loaded, prototypes.value())) {
+            session.current_error =
+                std::string{"Unable to parse binary map:\n"}
+                + loaded.parse_error;
+            session.open_error_popup = true;
+            return false;
+        }
+    } else if (loaded.map_type == MapFileKind::text) {
         const auto text = std::string_view{
-            reinterpret_cast<const char*>(slot.owned_data.data()),
-            slot.owned_data.size(),
+            reinterpret_cast<const char*>(loaded.owned_data.data()),
+            loaded.owned_data.size(),
         };
         auto parsed = parse_text_map(text);
         if (!parsed) {
-            slot.parse_error = parsed.error().message;
+            loaded.parse_error = parsed.error().message;
         } else {
-            slot.parsed_text = parsed.value();
-            slot.header_size = static_cast<int>(slot.parsed_text->header.size);
-            slot.elevations = slot.parsed_text->elevations;
+            loaded.parsed_text = parsed.value();
+            loaded.header_size = static_cast<int>(loaded.parsed_text->header.size);
+            loaded.elevations = loaded.parsed_text->elevations;
         }
     }
 
+    auto& slot = slot_for_side(session, *session.drop_target);
+    clear_loaded_slot(slot);
+    slot = std::move(loaded);
     update_loaded_map_labels(session, *session.drop_target);
     session.drop_target = std::nullopt;
     return true;

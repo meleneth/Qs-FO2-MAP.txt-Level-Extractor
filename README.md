@@ -42,7 +42,7 @@ out\build\ucrt64-debug\qmap_cli.exe parse-stats <map.txt|map.map> [--proto-root 
 out\build\ucrt64-debug\qmap_cli.exe extract <input.txt> <output.txt> --elevation <0|1|2> [-f]
 out\build\ucrt64-debug\qmap_cli.exe split <input.txt> <output-dir> [-f]
 out\build\ucrt64-debug\qmap_cli.exe combine <left.txt> <right.txt> <output.txt> --header <0|1> --select <DEST=SIDE:SOURCE>... [-f]
-out\build\ucrt64-debug\qmap_cli.exe replace-elevation <source.map> <destination.map> <output.map> --source-elevation <0|1|2> --dest-elevation <0|1|2> --proto-root <proto-root> --dry-run
+out\build\ucrt64-debug\qmap_cli.exe replace-elevation <source.map> <destination.map> <output.map> --source-elevation <0|1|2> --dest-elevation <0|1|2> --proto-root <proto-root> [--dry-run] [-f]
 ```
 
 `combine` currently operates on mapper-exported `.txt` files and moves whole
@@ -59,12 +59,14 @@ out\build\ucrt64-debug\qmap_cli.exe combine .\maps\town_a.txt .\maps\town_b.txt 
 
 That is elevation-level interleaving. Area/region patching inside a binary
 `.map` elevation is not implemented yet; that is the direction for the binary
-parser/export work.
+patch work after whole-elevation replacement.
 
-Binary whole-elevation replacement is currently exposed as a dry-run planner
-only. It loads both `.map` files with prototype metadata and reports what would
-be deleted, copied, reassigned, and preserved. Binary output writing is not
-implemented yet.
+Binary whole-elevation replacement is supported for prototype-backed `.map`
+files. It loads both maps with prototype metadata, deletes the destination
+elevation contents, copies the selected source elevation, rewrites copied
+object/script IDs, validates the patched bytes by parsing them back, and then
+writes the output. Use `--dry-run` to inspect what would be deleted, copied,
+reassigned, and preserved without writing.
 
 ```powershell
 out\build\ucrt64-debug\qmap_cli.exe replace-elevation .\maps\source.map .\maps\destination.map .\out\patched.map --source-elevation 0 --dest-elevation 2 --proto-root .local_fallout2_data\proto --dry-run
@@ -103,7 +105,8 @@ without `--proto-root`.
 out\build\ucrt64-debug\qmap_cli.exe parse-stats test_maps\ARVILL2.map --proto-root .local_fallout2_data\proto
 ```
 
-Current binary parser status: with extracted Fallout 2 prototype metadata, the
-real fixture maps in `test_maps/` parse through their object records, including
-nested inventory records. Binary `.map` export and area/elevation patching are
-still unfinished.
+Current binary status: with extracted Fallout 2 prototype metadata, the real
+fixture maps in `test_maps/` parse through their object records, including
+nested inventory records, and whole-elevation binary replacement is covered by
+parse-back fixture tests. Area/region patching and merge-in mode are still
+future work.

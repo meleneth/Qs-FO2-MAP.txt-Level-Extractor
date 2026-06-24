@@ -2,6 +2,7 @@
 
 #include "gui_session.h"
 
+#include <cstdio>
 #include <filesystem>
 #include <string>
 
@@ -10,6 +11,13 @@ namespace {
 std::filesystem::path fixture_path(std::string_view name)
 {
     return std::filesystem::path(TEST_MAPS_DIR) / std::filesystem::path(name);
+}
+
+std::filesystem::path local_proto_root()
+{
+    return std::filesystem::path(TEST_MAPS_DIR).parent_path()
+        / ".local_fallout2_data"
+        / "proto";
 }
 
 qmap::GuiSession::MapSlot loaded_slot(const char* name, const char* path)
@@ -94,6 +102,65 @@ TEST_CASE("GUI session rejects mixed binary and text export", "[gui]")
     CHECK(action == qmap::GuiExportAction::none);
     CHECK(session.open_error_popup);
     CHECK(session.current_error.find("can't mix .MAP and .TXT") != std::string::npos);
+}
+
+TEST_CASE("GUI session reports binary drops without prototype metadata", "[gui]")
+{
+    qmap::GuiSession session;
+    session.drop_target = qmap::MapSide::left;
+    session.proto_root_path[0] = '\0';
+
+    CHECK_FALSE(qmap::load_dropped_file(session, fixture_path("ARVILL2.map")));
+
+    CHECK(session.left.owned_data.empty());
+    CHECK(session.open_error_popup);
+    CHECK(session.current_error.find("requires a prototype root") != std::string::npos);
+}
+
+TEST_CASE("GUI session reports binary drops with invalid prototype metadata", "[gui]")
+{
+    qmap::GuiSession session;
+    session.drop_target = qmap::MapSide::left;
+    std::snprintf(
+        session.proto_root_path,
+        qmap::gui_export_path_size,
+        "%s",
+        fixture_path("missing-proto-root").string().c_str()
+    );
+
+    CHECK_FALSE(qmap::load_dropped_file(session, fixture_path("ARVILL2.map")));
+
+    CHECK(session.left.owned_data.empty());
+    CHECK(session.open_error_popup);
+    CHECK(session.current_error.find("Unable to load prototype metadata") != std::string::npos);
+}
+
+TEST_CASE("GUI session loads dropped binary maps with prototype metadata", "[gui][fixture]")
+{
+    const auto proto_root = local_proto_root();
+    if (!std::filesystem::exists(proto_root)) {
+        SKIP("requires extracted Fallout proto data under .local_fallout2_data/proto");
+    }
+
+    qmap::GuiSession session;
+    session.drop_target = qmap::MapSide::left;
+    std::snprintf(
+        session.proto_root_path,
+        qmap::gui_export_path_size,
+        "%s",
+        proto_root.string().c_str()
+    );
+
+    REQUIRE(qmap::load_dropped_file(session, fixture_path("ARVILL2.map")));
+
+    CHECK(session.left.map_type == qmap::MapFileKind::binary);
+    CHECK(qmap::map_parse_succeeded(session.left));
+    REQUIRE(session.left.parsed_binary.has_value());
+    CHECK(session.left.parsed_binary->objects.records.size() == 1141);
+    CHECK(session.left.heading == "ARVILL2.map");
+    CHECK(session.left.labels[0] == "0:ARVILL2.map");
+    CHECK(session.left.labels[1] == "empty");
+    CHECK_FALSE(session.drop_target.has_value());
 }
 
 TEST_CASE("GUI session loads dropped text maps into the selected side", "[gui]")

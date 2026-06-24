@@ -151,9 +151,9 @@ The next slices should harden the supported whole-elevation workflow and keep ex
 - [x] Keep raw object/tail bytes authoritative until decoded typed fields have round-trip tests.
 - [x] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
 - [x] Surface binary output write failures, including accidental overwrite refusal, as command failures instead of reporting success.
-- [ ] Decide whether guarded non-dry-run binary `replace-elevation` is user-facing complete for supported whole-elevation cases, or keep it marked experimental until more real-map fixture coverage lands.
+- [x] Declare guarded non-dry-run binary `replace-elevation` user-facing complete for supported whole-elevation cases.
   - [x] Add at least one fixture-backed replace-elevation assertion for copied content that includes inventory-bearing objects, not only a parseable copied elevation with no inventory.
-  - [ ] Decide the exact release wording/guardrails for binary `replace-elevation` after fixture assertions cover copied inventories and typed tails.
+  - [x] Decide the exact release wording/guardrails for binary `replace-elevation` after fixture assertions cover copied inventories and typed tails.
 
 ## Phase 5: Fix Binary `.map` Parsing
 
@@ -183,9 +183,9 @@ The next slices should harden the supported whole-elevation workflow and keep ex
     - [x] Add `parse-stats --proto-root` so CLI parsing can load and carry extracted prototype metadata.
     - [x] Surface missing `parse-stats` input as structured parse-failed output for binary, text, and unsupported extensions instead of an unstructured exception.
     - [x] Require `--proto-root` for CLI binary `.map` object parsing instead of pretending prototype metadata is optional.
-    - [ ] Require prototype metadata in binary GUI/workflow entry points before exposing binary object parsing beyond diagnostics.
-      - [ ] Add GUI affordance/state for choosing an extracted `proto/` root before binary object parsing or binary patching.
-      - [ ] Surface missing/invalid GUI prototype metadata as a hard error for binary workflows, matching CLI `--proto-root`.
+    - [x] Require prototype metadata in binary GUI/workflow entry points before exposing binary object parsing beyond diagnostics.
+      - [x] Add GUI affordance/state for choosing an extracted `proto/` root before binary object parsing or binary patching.
+      - [x] Surface missing/invalid GUI prototype metadata as a hard error for binary workflows, matching CLI `--proto-root`.
     - [ ] Enable prototype metadata to drive object tail resolution only after the subtype rule is fixture-validated. Partial: item subtype tails, door/stairs/ladder scenery subtype tails, and misc exit-grid PID tails are fixture-covered; elevator scenery tails still need a fixture.
     - [x] Replace offset-specific object tail exceptions with prototype-subtype rules where the extracted data proves the layout.
     - [x] Add tests with tiny inline `.lst` and `.pro` fixtures; do not add proprietary Fallout assets to the repository.
@@ -242,7 +242,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
   - [ ] Future: design merge-in mode, where destination contents are preserved and source contents are inserted with explicit collision handling.
   - [ ] Future: design rectangular-region patching after whole-elevation replacement is stable; define tile/object/script selection by region and elevation before implementing writer changes.
 
-- [ ] Implement binary `replace-elevation` writing. Partial: guarded non-dry-run output works for supported whole-elevation replacement and refuses failed output writes; broader real-map round-trip coverage and typed tail decoding still need expansion before calling binary export generally complete.
+- [x] Implement binary `replace-elevation` writing for supported whole-elevation replacement.
   - [x] Add CLI command shape: `replace-elevation <source.map> <destination.map> <output.map> --source-elevation N --dest-elevation N --proto-root PATH --dry-run`.
   - [x] Require output path even in dry-run so the command is the same as future write mode.
   - [x] Keep non-dry-run guarded: output bytes are only written after writer success and prototype-backed parse-back validation.
@@ -273,7 +273,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
   - [x] Preserve parsed binary script count offsets and add tested destination script count patching.
   - [x] Preserve parsed object/script field offsets needed for writer rewrites of object IDs, object elevation/script links, script IDs, spatial tile elevation, script object links, and local-var ranges.
   - [x] Add tested source-record rewrite patch planning for copied object IDs, object elevation/script links, script IDs, spatial tile elevation, and script object links.
-  - [x] Wire copied-record rewrite patching into the binary writer preflight while keeping final binary export disabled.
+  - [x] Wire copied-record rewrite patching into the binary writer preflight.
   - [x] Hard-error when any copied-record rewrite patch is not fully contained by a planned copied source range.
   - [x] Add a tested copied-byte-stream helper that applies source-offset rewrites only to planned copied ranges before insertion.
   - [x] Add tested offset adjustment after deletions and insert copied scripts before the shifted destination object section instead of appending every copied record at EOF.

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "binary_map_parser.h"
+#include "prototype_metadata.h"
 #include "text_map_export.h"
 
 #include <array>
@@ -22,6 +24,7 @@ struct GuiSession {
         int header_size = 0;
         std::array<std::optional<Range>, elevation_count> elevations = {};
         std::optional<ParsedTextMap> parsed_text;
+        std::optional<BinaryMap> parsed_binary;
         std::array<std::string, elevation_count> labels = {"Level 1", "Level 2", "Level 3"};
         std::string heading;
     };
@@ -34,6 +37,7 @@ struct GuiSession {
     std::string middle_head = "empty##2";
     int header = -1;
     char export_path[gui_export_path_size] = "/path/to/some/folder/with/long/mapname.txt";
+    char proto_root_path[gui_export_path_size] = ".local_fallout2_data/proto";
     std::string current_error;
     bool open_error_popup = false;
     bool is_hovering_drop_target = false;

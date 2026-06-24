@@ -29,7 +29,7 @@ void show_map_status(const char* side, const qmap::GuiSession::MapSlot& slot)
     );
     if (slot.map_type == qmap::MapFileKind::binary) {
         ImGui::SameLine();
-        ImGui::TextDisabled("export not implemented");
+        ImGui::TextDisabled("GUI patching not wired");
     }
     if (!qmap::map_parse_succeeded(slot) && !slot.parse_error.empty()) {
         ImGui::TextDisabled("%s: %s", side, slot.parse_error.c_str());
@@ -123,6 +123,12 @@ bool map_txt_gui()
     ImGui::PushItemWidth(size.x);
 
     ImGui::Text("Map Names:");
+    ImGui::InputText(
+        "Proto root",
+        session.proto_root_path,
+        IM_COUNTOF(session.proto_root_path),
+        ImGuiInputTextFlags_ElideLeft
+    );
     show_map_status("Left", session.left);
     show_map_status("Right", session.right);
 
