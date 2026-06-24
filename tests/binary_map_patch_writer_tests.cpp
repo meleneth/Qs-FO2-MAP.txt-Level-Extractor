@@ -55,6 +55,32 @@ std::size_t count_records_including_inventory(const std::vector<qmap::BinaryObje
     return count;
 }
 
+std::size_t count_inventory_parent_records(const std::vector<qmap::BinaryObjectRecord>& records)
+{
+    std::size_t count = 0;
+    for (const auto& record : records) {
+        if (!record.inventory.empty()) {
+            ++count;
+        }
+        count += count_inventory_parent_records(record.inventory);
+    }
+    return count;
+}
+
+std::size_t count_records_on_elevation(
+    const std::vector<qmap::BinaryObjectRecord>& records,
+    std::int32_t elevation
+)
+{
+    std::size_t count = 0;
+    for (const auto& record : records) {
+        if (record.prefix.elevation == elevation) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 void write_i32_be(std::vector<std::byte>& bytes, std::size_t offset, std::int32_t value)
 {
     const auto unsigned_value = static_cast<std::uint32_t>(value);
@@ -440,6 +466,7 @@ TEST_CASE("build_binary_replace_elevation_source_rewrite_patches rewrites copied
     qmap::BinaryPlannedScriptCopy spatial;
     spatial.script_id = 0x01000005;
     spatial.script_type = qmap::BinaryScriptType::spatial;
+    spatial.object_id = 0xD0D0D0D4u;
     spatial.spatial_tile = 123;
     spatial.raw = qmap::Range{300, 72};
     spatial.offsets.scr_id = 300;
@@ -1346,6 +1373,9 @@ TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections p
         &source.value().objects,
         &destination.value().objects,
     });
+    if (!written) {
+        INFO(written.error().message);
+    }
     REQUIRE(written);
 
     auto reparsed = qmap::parse_binary_map(written.value(), prototypes.value());
@@ -1367,4 +1397,63 @@ TEST_CASE("write_binary_replace_elevation_patch rebuilds real fixture sections p
     ));
     CHECK(reparsed.value().header.has_elevation(1));
     CHECK_FALSE(reparsed.value().header.has_elevation(2));
+}
+
+TEST_CASE("write_binary_replace_elevation_patch preserves inventory-bearing fixture content", "[map][binary][patch][fixture]")
+{
+    const auto proto_root = local_proto_root();
+    if (!std::filesystem::exists(proto_root)) {
+        SKIP("requires extracted Fallout proto data under .local_fallout2_data/proto");
+    }
+
+    const auto prototypes = qmap::load_prototype_database(proto_root);
+    REQUIRE(prototypes);
+    const auto source_bytes = load_binary_fixture("BROKEN2.map");
+    const auto destination_bytes = load_binary_fixture("ARVILL2.map");
+    auto source = qmap::parse_binary_map(source_bytes, prototypes.value());
+    auto destination = qmap::parse_binary_map(destination_bytes, prototypes.value());
+    REQUIRE(source);
+    REQUIRE(destination);
+
+    auto plan = qmap::plan_binary_replace_elevation(
+        source_bytes,
+        destination_bytes,
+        source.value(),
+        destination.value(),
+        prototypes.value(),
+        qmap::BinaryReplaceElevationRequest{2, 0}
+    );
+    REQUIRE(plan);
+    REQUIRE(plan.value().copied_objects_including_inventory > plan.value().copied_top_level_objects);
+    CHECK(plan.value().copied_objects_including_inventory == 2321);
+    CHECK(plan.value().copied_top_level_objects == 2320);
+
+    auto written = qmap::write_binary_replace_elevation_patch({
+        source_bytes,
+        destination_bytes,
+        plan.value(),
+        destination.value().scripts.end_offset,
+        destination.value().scripts.count_offsets,
+        &destination.value().header,
+        &source.value().scripts,
+        &destination.value().scripts,
+        &source.value().objects,
+        &destination.value().objects,
+    });
+    if (!written) {
+        INFO(written.error().message);
+    }
+    REQUIRE(written);
+
+    auto reparsed = qmap::parse_binary_map(written.value(), prototypes.value());
+    REQUIRE(reparsed);
+    CHECK(reparsed.value().objects.total_count == plan.value().destination_total_objects_after);
+    CHECK(reparsed.value().objects.elevation_counts == plan.value().destination_object_counts_after);
+    CHECK(count_records_including_inventory(reparsed.value().objects.records) == 2321);
+    CHECK(count_inventory_parent_records(reparsed.value().objects.records) == 1);
+    CHECK(count_records_on_elevation(reparsed.value().objects.records, 0) == 2320);
+    CHECK(reparsed.value().scripts.by_type[static_cast<int>(qmap::BinaryScriptType::spatial)].size() == 2);
+    CHECK(reparsed.value().scripts.by_type[static_cast<int>(qmap::BinaryScriptType::object)].size() == 2);
+    CHECK(reparsed.value().scripts.by_type[static_cast<int>(qmap::BinaryScriptType::critter)].size() == 29);
+    CHECK(reparsed.value().objects.diagnostics.empty());
 }

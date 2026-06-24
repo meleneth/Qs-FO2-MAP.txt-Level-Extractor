@@ -152,7 +152,7 @@ The next slices should harden the supported whole-elevation workflow and keep ex
 - [x] Add fixture-backed parse-back tests for whole-elevation replacement using real maps and extracted local prototypes when available.
 - [x] Surface binary output write failures, including accidental overwrite refusal, as command failures instead of reporting success.
 - [ ] Decide whether guarded non-dry-run binary `replace-elevation` is user-facing complete for supported whole-elevation cases, or keep it marked experimental until more real-map fixture coverage lands.
-  - [ ] Add at least one fixture-backed replace-elevation assertion for copied content that includes inventory-bearing objects, not only a parseable copied elevation with no inventory.
+  - [x] Add at least one fixture-backed replace-elevation assertion for copied content that includes inventory-bearing objects, not only a parseable copied elevation with no inventory.
   - [ ] Decide the exact release wording/guardrails for binary `replace-elevation` after fixture assertions cover copied inventories and typed tails.
 
 ## Phase 5: Fix Binary `.map` Parsing

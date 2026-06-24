@@ -31,6 +31,11 @@ bool range_is_valid(std::span<const std::byte> bytes, Range range)
     return range.offset <= bytes.size() && range.size <= bytes.size() - range.offset;
 }
 
+bool script_has_object_reference(BinaryScriptType type)
+{
+    return type == BinaryScriptType::object || type == BinaryScriptType::critter;
+}
+
 std::int32_t read_i32_be(std::span<const std::byte> bytes, std::size_t offset)
 {
     auto value = (std::to_integer<std::uint32_t>(bytes[offset]) << 24)
@@ -475,7 +480,7 @@ Result<std::vector<BinaryI32Patch>> build_binary_replace_elevation_source_rewrit
             });
         }
 
-        if (script.object_id != 0) {
+        if (script_has_object_reference(script.script_type) && script.object_id != 0) {
             const auto new_object_id = mapped_id(
                 object_ids,
                 static_cast<std::int32_t>(script.object_id)
